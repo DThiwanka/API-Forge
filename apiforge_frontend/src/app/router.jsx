@@ -1,10 +1,23 @@
 import React from 'react';
-import WorkspaceHome from '../pages/workspace/WorkspaceHome';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Home from '../pages/Home';
+import Login from '../pages/Login';
+import Register from '../pages/Register';
+import Workspace from '../pages/Workspace';
+import NotFound from '../pages/NotFound';
 
-export default function AppRouter() {
+export function AppRouter() {
   return (
-    <div className="flex-1 flex overflow-hidden">
-      <WorkspaceHome />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/workspace" element={<Workspace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+export default AppRouter;

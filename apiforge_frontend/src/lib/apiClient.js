@@ -1,35 +1,13 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+import axios from 'axios';
 
-export const apiClient = {
-  async get(endpoint, options = {}) {
-    const res = await fetch(`${BASE_URL}${endpoint}`, { credentials: 'omit', ...options });
-    return res.json();
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+export const apiClient = axios.create({
+  baseURL,
+  headers: {
+    'Content-Type': 'application/json',
   },
-  async post(endpoint, data, options = {}) {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-      body: JSON.stringify(data),
-      ...options,
-    });
-    return res.json();
-  },
-  async put(endpoint, data, options = {}) {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', ...options.headers },
-      body: JSON.stringify(data),
-      ...options,
-    });
-    return res.json();
-  },
-  async delete(endpoint, options = {}) {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      ...options,
-    });
-    return res.json();
-  },
-};
+  withCredentials: true,
+});
 
 export default apiClient;

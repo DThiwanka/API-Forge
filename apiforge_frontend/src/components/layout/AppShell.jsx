@@ -4,9 +4,11 @@ import StatusBar from './StatusBar';
 
 export default function AppShell({ children }) {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+    <div className="h-screen w-screen flex flex-col bg-[#090a0f] text-[#f0f2f5] overflow-hidden">
       <TopBar />
-      <main className="flex-1 flex overflow-hidden">{children}</main>
+      <main className="flex-1 flex overflow-hidden relative">
+        {children}
+      </main>
       <StatusBar />
     </div>
   );

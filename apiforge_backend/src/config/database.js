@@ -1,27 +1,18 @@
-// Prisma Client singleton instance
-let prismaInstance = null;
+import { PrismaClient } from '@prisma/client';
+import { env } from './env.js';
 
-export const database = {
-  get client() {
-    if (!prismaInstance) {
-      try {
-        const { PrismaClient } = await import('@prisma/client');
-        prismaInstance = new PrismaClient();
-      } catch {
-        // Mock client fallback if Prisma has not yet generated client
-        prismaInstance = {
-          $connect: async () => {},
-          $disconnect: async () => {},
-        };
-      }
-    }
-    return prismaInstance;
-  },
-  $disconnect: async () => {
-    if (prismaInstance?.$disconnect) {
-      await prismaInstance.$disconnect();
-    }
-  },
-};
+let prisma;
 
-export default database;
+if (env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  if (!global.__prisma) {
+    global.__prisma = new PrismaClient({
+      log: ['query', 'error', 'warn'],
+    });
+  }
+  prisma = global.__prisma;
+}
+
+export const db = prisma;
+export default db;

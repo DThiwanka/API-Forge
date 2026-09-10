@@ -1,18 +1,20 @@
-import { logger } from '../utils/logger.js';
+import { env } from '../config/env.js';
 
 export function errorMiddleware(err, req, res, next) {
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const isDev = env.NODE_ENV === 'development';
 
-  if (statusCode === 500) {
-    logger.error('Unhandled Exception:', err);
+  const response = {
+    success: false,
+    status: statusCode,
+    message: err.isOperational || isDev ? err.message : 'Internal server error',
+  };
+
+  if (isDev && err.stack) {
+    response.stack = err.stack;
   }
 
-  res.status(statusCode).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
+  res.status(statusCode).json(response);
 }
 
 export default errorMiddleware;
