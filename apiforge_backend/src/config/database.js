@@ -15,4 +15,6 @@ if (env.NODE_ENV === 'production') {
 }
 
 export const db = prisma;
-export default db;
+export const prismaClient = prisma;
+export { prisma };
+export default prisma;

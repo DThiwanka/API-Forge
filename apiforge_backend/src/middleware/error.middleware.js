@@ -10,6 +10,10 @@ export function errorMiddleware(err, req, res, next) {
     message: err.isOperational || isDev ? err.message : 'Internal server error',
   };
 
+  if (err.errors) {
+    response.errors = err.errors;
+  }
+
   if (isDev && err.stack) {
     response.stack = err.stack;
   }
