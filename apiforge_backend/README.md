@@ -229,4 +229,60 @@ Enables users to define declarative assertions on API requests and evaluate them
 - **Execution Pipeline Reuse**: Reuses the core execution pipeline (`requestExecutionService`), preserving SSRF checks, timeout bounds, and history recording.
 - **Graceful Failure Classification**: Transport and infrastructure failures (timeouts, SSRF, network errors) return structured test failure results rather than unhandled 500 errors.
 
+### cURL Import & Export
+APIForge supports importing API request definitions from cURL commands and exporting saved requests back into clean, portable cURL syntax.
+
+#### Endpoints
+- `POST /api/workspaces/:workspaceId/import/curl/preview` - Parse and preview a cURL command into a normalized APIForge request structure without persisting anything to the database. Requires `VIEWER`+ role.
+  - Body:
+    ```json
+    {
+      "curl": "curl -X POST https://api.example.com/items -H 'Content-Type: application/json' -d '{\"name\":\"widget\"}'"
+    }
+    ```
+- `POST /api/workspaces/:workspaceId/import/curl` - Parse a cURL command and persist it as a new API request under a specified collection and optional folder. Requires `MEMBER`+ role.
+  - Body:
+    ```json
+    {
+      "curl": "curl -X POST https://api.example.com/items -H 'Authorization: Bearer token123'",
+      "collectionId": "col_uuid",
+      "folderId": "folder_uuid",
+      "name": "Create Item"
+    }
+    ```
+- `GET /api/workspaces/:workspaceId/requests/:requestId/export/curl` - Export an existing API request definition as a formatted, POSIX-escaped cURL command. Requires `VIEWER`+ role.
+  - Response:
+    ```json
+    {
+      "curl": "curl -X POST \\\n  'https://api.example.com/items' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"name\":\"widget\"}'",
+      "hasSecrets": false
+    }
+    ```
+
+#### Supported cURL Options
+- **Methods**: `-X`, `--request` (e.g. `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`).
+- **Headers**: `-H`, `--header` (e.g. `-H 'Content-Type: application/json'`). Automatically separates `Authorization: Bearer <token>` into structured bearer auth.
+- **Data / Bodies**:
+  - `-d`, `--data`, `--data-raw`, `--data-ascii`: Parsed as JSON, text, or form-urlencoded with appropriate `body.mode`.
+  - `--data-binary`: Parsed raw body.
+  - `--data-urlencode`: URL-encoded key-value pairs or raw segments.
+- **Query Parameters**: Extracted cleanly from the URL into structured `queryParams` array, preventing parameter duplication during execution.
+- **GET Data Conversion**: `-G`, `--get` automatically moves `-d` data into query parameters.
+- **Authentication**:
+  - `-u`, `--user user:pass` or `-u user` mapped to structured `basic` auth.
+  - `Authorization: Bearer <token>` mapped to structured `bearer` auth.
+  - API keys mapped to header authentication.
+- **Other Flags**:
+  - `-b`, `--cookie`: Parsed as `Cookie` header.
+  - `-A`, `--user-agent`: Parsed as `User-Agent` header.
+  - `-e`, `--referer`: Parsed as `Referer` header.
+  - `-m`, `--max-time`: Configured in request `settings.timeoutMs`.
+  - `-L`, `--location`: Configured in request `settings.followRedirects`.
+
+#### Security & Architecture
+- **Zero Dynamic Shell Execution**: The cURL tokenizer (`curl-tokenizer.js`) and import service parse command strings using strict POSIX token grammar. No shell processes (`exec`, `spawn`, `sh`, `bash`, `cmd`) or eval engines are ever executed.
+- **Zero Credential Logging**: Authorization tokens, basic auth passwords, cookies, and secret keys in imported or exported commands are never logged to console or application logs.
+- **POSIX Shell Escaping**: Exported cURL commands use standard POSIX single-quote escaping (`'\''`) to guarantee cross-shell portability and prevent unintended terminal variable expansion or command injection.
+- **Input Bounds**: Imported cURL commands are bounded to a maximum of 100,000 characters to prevent denial-of-service attempts.
+
 

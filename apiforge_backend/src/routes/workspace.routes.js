@@ -4,6 +4,8 @@ import collectionRoutes from './collection.routes.js';
 import environmentRoutes from './environment.routes.js';
 import historyRoutes from './history.routes.js';
 import testingRoutes from './testing.routes.js';
+import importRoutes from './import.routes.js';
+import exportController from '../controllers/export.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireWorkspaceMember } from '../middleware/workspace.middleware.js';
 import { requireWorkspaceRole } from '../middleware/permission.middleware.js';
@@ -29,6 +31,17 @@ router.use('/:workspaceId/history', requireWorkspaceMember, historyRoutes);
 
 // Nested testing routes under /:workspaceId/requests/:requestId/tests
 router.use('/:workspaceId/requests/:requestId/tests', requireWorkspaceMember, testingRoutes);
+
+// Nested import routes under /:workspaceId/import
+router.use('/:workspaceId/import', requireWorkspaceMember, importRoutes);
+
+// Export request definition as cURL
+router.get(
+  '/:workspaceId/requests/:requestId/export/curl',
+  requireWorkspaceMember,
+  requireWorkspaceRole(WORKSPACE_ROLES.VIEWER),
+  exportController.exportRequestAsCurl
+);
 
 // Collection-level routes
 router.post('/', validateCreateWorkspace, workspaceController.create);
