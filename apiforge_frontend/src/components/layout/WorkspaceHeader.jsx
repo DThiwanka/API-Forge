@@ -15,6 +15,8 @@ const ROLE_BADGES = {
 export default function WorkspaceHeader({ workspaceId, className }) {
   const location = useLocation();
   const isCanvas = location.pathname.endsWith('/canvas');
+  const isEnvironments = location.pathname.includes('/environments');
+  const isEditor = !isCanvas && !isEnvironments;
 
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
@@ -71,13 +73,13 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
         <div className="h-3 w-px bg-[#232732]" />
 
-        {/* View Mode Switcher: Editor vs Canvas */}
+        {/* View Mode Switcher: Editor vs Canvas vs Environments */}
         <div className="flex items-center p-0.5 rounded-md bg-[#0d0f14] border border-[#232732]">
           <Link
             to={`/workspace/${workspaceId}`}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
-              !isCanvas
+              isEditor
                 ? 'bg-[#181b22] text-sky-400 border border-[#2b313e] shadow-xs'
                 : 'text-slate-400 hover:text-slate-200'
             )}
@@ -100,16 +102,34 @@ export default function WorkspaceHeader({ workspaceId, className }) {
             <Network size={12} />
             <span>Canvas</span>
           </Link>
+
+          <Link
+            to={`/workspace/${workspaceId}/environments`}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
+              isEnvironments
+                ? 'bg-[#181b22] text-sky-400 border border-[#2b313e] shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+            title="Environment & Variable Management"
+          >
+            <Globe size={12} />
+            <span>Environments</span>
+          </Link>
         </div>
       </div>
 
       <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
-        <div className="flex items-center gap-1.5">
+        <Link
+          to={`/workspace/${workspaceId}/environments`}
+          className="flex items-center gap-1.5 hover:text-slate-200 transition-colors"
+          title="Configure environment variables"
+        >
           <Globe size={12} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
           <span className="text-slate-400">
             Env: <span className="text-slate-200">{activeEnv ? activeEnv.name : 'None'}</span>
           </span>
-        </div>
+        </Link>
       </div>
     </div>
   );

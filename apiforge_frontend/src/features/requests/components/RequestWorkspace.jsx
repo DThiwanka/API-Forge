@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import RequestMethodSelector from './RequestMethodSelector';
 import RequestUrlInput from './RequestUrlInput';
@@ -13,8 +13,9 @@ import RequestSettings from './RequestSettings';
 import ResponseInspector from '../../response/components/ResponseInspector';
 import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
+import { useEnvironmentsQuery } from '../../environments/hooks/useEnvironments';
 import useRequestStore from '../store/requestStore';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Globe } from 'lucide-react';
 
 export default function RequestWorkspace({ workspaceId: propWId, collectionId: propCId, requestId: propRId }) {
   const routeParams = useParams();
@@ -23,6 +24,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   const requestId = propRId || routeParams.requestId;
 
   const { isLoading, error } = useRequestQuery(workspaceId, collectionId, requestId);
+  const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
+  const activeEnv = environments.find((e) => e.isActive);
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, requestId);
   const executeMutation = useRequestExecution(workspaceId, collectionId, requestId);
 
@@ -62,6 +65,13 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     updateSetting,
     getCleanPayload,
   } = useRequestStore();
+
+  const urlVariables = useMemo(() => {
+    if (!url) return [];
+    const matches = url.match(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g);
+    if (!matches) return [];
+    return [...new Set(matches.map((m) => m.replace(/[{}]/g, '').trim()))];
+  }, [url]);
 
   // Save handler
   const handleSave = useCallback(() => {
@@ -156,6 +166,34 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onSend={handleExecute}
                 disabled={!url || !url.trim()}
               />
+            </div>
+
+            {/* Active Environment & Variable Status Indicator */}
+            <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono select-none">
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <Globe size={11} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
+                <span>
+                  Environment:{' '}
+                  <span className={activeEnv ? 'text-sky-300 font-medium' : 'text-slate-500'}>
+                    {activeEnv ? activeEnv.name : 'No Environment'}
+                  </span>
+                </span>
+              </div>
+
+              {urlVariables.length > 0 && (
+                <div className="flex items-center gap-1 text-slate-400">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Variables:</span>
+                  {urlVariables.map((v) => (
+                    <span
+                      key={v}
+                      className="px-1.5 py-0.2 rounded bg-[#181b22] border border-[#2b313e] text-sky-400 text-[10px]"
+                      title={`Variable referenced in URL: {{${v}}}`}
+                    >
+                      &#123;&#123;{v}&#125;&#125;
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

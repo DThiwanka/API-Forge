@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Check, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, Check, Globe, Settings, Loader2 } from 'lucide-react';
 import { useEnvironmentsQuery, useActivateEnvironmentMutation } from '../hooks/useEnvironments';
 import { cn } from '../../../utils/cn';
 
@@ -12,24 +13,36 @@ export default function EnvironmentSwitcher({ workspaceId, className }) {
 
   const activeEnv = environments.find((env) => env.isActive);
 
-  // Close on click outside
+  // Close on click outside and escape
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
       }
     }
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
   const handleSelect = (envId) => {
-    activateMutation.mutate(envId);
-    setIsOpen(false);
+    if (activateMutation.isPending) return;
+    activateMutation.mutate(envId, {
+      onSettled: () => {
+        setIsOpen(false);
+      },
+    });
   };
 
   return (
@@ -48,7 +61,7 @@ export default function EnvironmentSwitcher({ workspaceId, className }) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1 w-56 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute right-0 mt-1 w-60 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs select-none">
           <div className="px-3 py-1.5 border-b border-[#2b313e] flex items-center justify-between text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
             <span>Environments</span>
             {environments.length > 0 && (
@@ -70,6 +83,7 @@ export default function EnvironmentSwitcher({ workspaceId, className }) {
                   <button
                     key={env.id}
                     type="button"
+                    disabled={activateMutation.isPending}
                     onClick={() => handleSelect(env.id)}
                     className={cn(
                       'w-full text-left px-3 py-1.5 flex items-center justify-between text-xs transition-colors hover:bg-[#232732]',
@@ -84,15 +98,30 @@ export default function EnvironmentSwitcher({ workspaceId, className }) {
                         </span>
                       )}
                     </div>
-                    {isActive && <Check size={13} className="text-sky-400 flex-shrink-0 ml-2" />}
+                    {isActive ? (
+                      <Check size={13} className="text-sky-400 flex-shrink-0 ml-2" />
+                    ) : activateMutation.isPending && activateMutation.variables === env.id ? (
+                      <Loader2 size={11} className="animate-spin text-slate-400 flex-shrink-0 ml-2" />
+                    ) : null}
                   </button>
                 );
               })
             )}
           </div>
+
+          <div className="h-px bg-[#232732] my-1" />
+
+          {/* Manage Environments Link */}
+          <Link
+            to={`/workspace/${workspaceId}/environments`}
+            onClick={() => setIsOpen(false)}
+            className="flex items-center gap-2 px-3 py-1.5 text-slate-300 hover:text-white hover:bg-[#232732] transition-colors"
+          >
+            <Settings size={12} className="text-slate-400" />
+            <span>Manage Environments</span>
+          </Link>
         </div>
       )}
     </div>
   );
 }
-
