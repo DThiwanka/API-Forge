@@ -1,22 +1,67 @@
-import { CheckCircle2, Cpu, Wifi } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CheckCircle2, Wifi, WifiOff, Globe, Layers } from 'lucide-react';
+import { useWorkspaceQuery } from '../../features/workspace/hooks/useWorkspace';
+import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 
-export default function StatusBar() {
+export default function StatusBar({ workspaceId }) {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const { data: workspace } = useWorkspaceQuery(workspaceId);
+  const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
+
+  const activeEnv = environments.find((e) => e.isActive);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   return (
     <footer className="h-6 bg-[#111318] border-t border-[#232732] px-3 flex items-center justify-between text-[11px] text-[#5e6676] select-none font-mono">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 text-emerald-500">
-          <CheckCircle2 size={11} />
-          <span className="text-slate-400">Ready</span>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          {isOnline ? (
+            <div className="flex items-center gap-1 text-emerald-400">
+              <CheckCircle2 size={11} />
+              <span className="text-slate-400">Ready</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-rose-400">
+              <WifiOff size={11} />
+              <span>Offline</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-1">
-          <Wifi size={11} />
-          <span>http://localhost:5000</span>
-        </div>
+
+        {workspace && (
+          <div className="flex items-center gap-1 text-slate-400">
+            <Layers size={11} className="text-slate-500" />
+            <span className="truncate max-w-[120px]">{workspace.name}</span>
+          </div>
+        )}
+
+        {workspaceId && (
+          <div className="flex items-center gap-1 text-slate-400">
+            <Globe size={11} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
+            <span className="truncate max-w-[120px]">
+              {activeEnv ? activeEnv.name : 'No Environment'}
+            </span>
+          </div>
+        )}
       </div>
+
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
-          <Cpu size={11} />
-          <span>Engine: Active</span>
+          <Wifi size={11} className="text-slate-500" />
+          <span>http://localhost:5000</span>
         </div>
         <span>APIForge v0.1.0</span>
       </div>

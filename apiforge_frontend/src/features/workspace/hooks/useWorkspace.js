@@ -1,5 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
-import { listWorkspaces, getWorkspace, listCollections, listFolders } from '../services/workspaceApi';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  listWorkspaces,
+  getWorkspace,
+  createWorkspace,
+  updateWorkspace,
+  deleteWorkspace,
+  listCollections,
+  listFolders,
+} from '../services/workspaceApi';
 
 export function useWorkspacesQuery() {
   return useQuery({
@@ -15,6 +23,37 @@ export function useWorkspaceQuery(workspaceId) {
     queryFn: () => getWorkspace(workspaceId),
     enabled: Boolean(workspaceId),
     staleTime: 60000,
+  });
+}
+
+export function useCreateWorkspaceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    },
+  });
+}
+
+export function useUpdateWorkspaceMutation(workspaceId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload) => updateWorkspace(workspaceId, payload),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(['workspace', workspaceId], updated);
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    },
+  });
+}
+
+export function useDeleteWorkspaceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    },
   });
 }
 
@@ -39,7 +78,9 @@ export function useFoldersQuery(workspaceId, collectionId) {
 export default {
   useWorkspacesQuery,
   useWorkspaceQuery,
+  useCreateWorkspaceMutation,
+  useUpdateWorkspaceMutation,
+  useDeleteWorkspaceMutation,
   useCollectionsQuery,
   useFoldersQuery,
 };
-

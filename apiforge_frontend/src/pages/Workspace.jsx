@@ -1,20 +1,37 @@
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppShell from '../components/layout/AppShell';
-import WorkspaceSidebar from '../features/workspace/components/WorkspaceSidebar';
+import CollectionTree from '../features/collections/components/CollectionTree';
 import RequestWorkspace from '../features/requests/components/RequestWorkspace';
-import { useWorkspacesQuery } from '../features/workspace/hooks/useWorkspace';
-import { Layers, Terminal, Loader2, ArrowRight } from 'lucide-react';
+import { useWorkspacesQuery, useCollectionsQuery } from '../features/workspace/hooks/useWorkspace';
+import useWorkspaceStore from '../features/workspace/store/workspaceStore';
+import { Layers, Terminal, Loader2, ArrowRight, MousePointerClick } from 'lucide-react';
 
 export default function Workspace() {
   const { workspaceId: routeWorkspaceId, collectionId, requestId } = useParams();
   const navigate = useNavigate();
 
-  const { data: workspaces = [], isLoading: loadingWorkspaces, error: workspaceError } = useWorkspacesQuery();
+  const {
+    data: workspaces = [],
+    isLoading: loadingWorkspaces,
+    error: workspaceError,
+  } = useWorkspacesQuery();
+
+  const setActiveWorkspaceId = useWorkspaceStore((s) => s.setActiveWorkspaceId);
+  const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
 
   const currentWorkspaceId = routeWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-  // If on /workspace with no workspaceId in route, but workspaces are loaded, redirect to /workspace/:workspaceId
+  const { data: collections = [] } = useCollectionsQuery(currentWorkspaceId);
+
+  // Sync active workspace ID to store
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      setActiveWorkspaceId(currentWorkspaceId);
+    }
+  }, [currentWorkspaceId, setActiveWorkspaceId]);
+
+  // If on /workspace with no workspaceId in route, redirect to first workspace
   useEffect(() => {
     if (!routeWorkspaceId && workspaces.length > 0) {
       navigate(`/workspace/${workspaces[0].id}`, { replace: true });
@@ -49,10 +66,15 @@ export default function Workspace() {
   }
 
   return (
-    <AppShell>
+    <AppShell workspaceId={currentWorkspaceId}>
       <div className="flex-1 flex h-full overflow-hidden">
-        {/* Left Workspace Navigation Sidebar */}
-        <WorkspaceSidebar workspaceId={currentWorkspaceId} />
+        {/* Left Collection Navigation Tree Sidebar */}
+        {!sidebarCollapsed && currentWorkspaceId && (
+          <CollectionTree
+            workspaceId={currentWorkspaceId}
+            activeRequestId={requestId}
+          />
+        )}
 
         {/* Right Main Content Area */}
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#0d0f14]">
@@ -70,18 +92,36 @@ export default function Workspace() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-[radial-gradient(#1a1d26_1px,transparent_1px)] [background-size:16px_16px]">
               <div className="w-12 h-12 rounded-lg bg-[#111318] border border-[#232732] flex items-center justify-center text-sky-400 mb-4 shadow-xl">
-                <Layers size={22} />
+                {collections.length > 0 ? (
+                  <MousePointerClick size={22} />
+                ) : (
+                  <Layers size={22} />
+                )}
               </div>
-              <h2 className="text-base font-semibold text-slate-100 mb-1">
-                APIForge Request Workspace
-              </h2>
-              <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
-                Select an existing request from the sidebar or click <span className="text-sky-400 font-medium">+</span> next to a collection to configure and execute HTTP requests.
-              </p>
+
+              {collections.length > 0 ? (
+                <>
+                  <h2 className="text-base font-semibold text-slate-100 mb-1">
+                    Select a Request
+                  </h2>
+                  <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+                    Choose a request from the collection tree on the left to inspect, configure, and execute it.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-base font-semibold text-slate-100 mb-1">
+                    No Collections Yet
+                  </h2>
+                  <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+                    Create your first collection in the sidebar to begin organizing folders and API requests.
+                  </p>
+                </>
+              )}
 
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-[#111318] border border-[#232732] text-[11px] text-slate-400 font-mono">
                 <Terminal size={12} className="text-sky-400" />
-                <span>Request Engine Online • SSRF Guarded • Environment Intercept Active</span>
+                <span>APIForge Shell Active • Hierarchical Navigation Online</span>
               </div>
             </div>
           )}

@@ -1,34 +1,124 @@
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Terminal, Activity, Layers } from 'lucide-react';
+import { Terminal, Search, LogOut, ChevronDown } from 'lucide-react';
+import WorkspaceSwitcher from '../../features/workspace/components/WorkspaceSwitcher';
+import EnvironmentSwitcher from '../../features/environments/components/EnvironmentSwitcher';
+import { useCurrentUser, useLogoutMutation } from '../../features/auth/hooks/useAuth';
 
-export default function TopBar() {
+export default function TopBar({ workspaceId }) {
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+
+  const { data: currentUser } = useCurrentUser();
+  const logoutMutation = useLogoutMutation();
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
+
+  const handleLogout = () => {
+    setIsUserMenuOpen(false);
+    logoutMutation.mutate();
+  };
+
   return (
     <header className="h-11 bg-[#111318] border-b border-[#232732] px-3 flex items-center justify-between select-none">
+      {/* Left Branding & Workspace Switcher */}
       <div className="flex items-center gap-3">
-        <Link to="/" className="flex items-center gap-2 text-slate-100 hover:text-sky-400 transition-colors">
-          <div className="w-6 h-6 rounded bg-sky-950 border border-sky-600/40 flex items-center justify-center text-sky-400">
+        <Link
+          to="/"
+          className="flex items-center gap-2 text-slate-100 hover:text-sky-400 transition-colors"
+        >
+          <div className="w-6 h-6 rounded bg-sky-950 border border-sky-600/40 flex items-center justify-center text-sky-400 shadow-sm">
             <Terminal size={14} />
           </div>
           <span className="font-semibold text-xs tracking-wider uppercase">APIForge</span>
         </Link>
+
         <div className="h-4 w-px bg-[#232732]" />
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] border border-[#232732] text-[11px] text-slate-300">
-          <Layers size={12} className="text-slate-500" />
-          <span className="font-medium">Request Workspace</span>
+
+        <WorkspaceSwitcher currentWorkspaceId={workspaceId} />
+      </div>
+
+      {/* Center Command Center / Search Affordance */}
+      <div className="hidden md:flex items-center flex-1 max-w-sm mx-6">
+        <div className="w-full flex items-center justify-between px-2.5 py-1 bg-[#14171f] hover:bg-[#181b22] border border-[#2b313e] rounded text-xs text-slate-400 transition-colors cursor-pointer group">
+          <div className="flex items-center gap-2">
+            <Search size={12} className="text-slate-500 group-hover:text-slate-300" />
+            <span className="text-[11px] text-slate-400 group-hover:text-slate-300">
+              Search requests or commands...
+            </span>
+          </div>
+          <kbd className="px-1.5 py-0.2 rounded bg-[#1c212c] border border-[#2b313e] font-mono text-[10px] text-slate-400">
+            Ctrl+K
+          </kbd>
         </div>
       </div>
 
+      {/* Right Controls: Environment, User & Sign Out */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] border border-[#232732] text-[11px] text-slate-400">
-          <Activity size={11} className="text-emerald-500" />
-          <span>Execution Engine Online</span>
-        </div>
-        <Link
-          to="/login"
-          className="px-2.5 py-1 text-xs text-slate-300 hover:text-white rounded hover:bg-[#181b22] transition-colors"
-        >
-          Sign In
-        </Link>
+        {workspaceId && <EnvironmentSwitcher workspaceId={workspaceId} />}
+
+        {currentUser ? (
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-1.5 p-1 rounded hover:bg-[#181b22] border border-transparent hover:border-[#2b313e] text-xs text-slate-200 transition-colors focus:outline-none"
+            >
+              <div className="w-6 h-6 rounded-full bg-sky-900 border border-sky-600/40 flex items-center justify-center text-sky-300 font-bold text-[10px]">
+                {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <ChevronDown size={11} className="text-slate-400" />
+            </button>
+
+            {isUserMenuOpen && (
+              <div className="absolute right-0 mt-1 w-52 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                <div className="px-3 py-2 border-b border-[#232732]">
+                  <div className="font-semibold text-slate-100 truncate">{currentUser.name}</div>
+                  <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={logoutMutation.isPending}
+                    className="w-full px-3 py-1.5 text-left text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut size={13} />
+                    <span>{logoutMutation.isPending ? 'Signing out...' : 'Sign Out'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Link
+            to="/login"
+            className="px-2.5 py-1 text-xs text-slate-300 hover:text-white rounded hover:bg-[#181b22] transition-colors"
+          >
+            Sign In
+          </Link>
+        )}
       </div>
     </header>
   );

@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRequest, updateRequest } from '../services/requestApi';
+import {
+  getRequest,
+  updateRequest,
+  createRequest,
+  deleteRequest,
+  duplicateRequest,
+} from '../services/requestApi';
 import useRequestStore from '../store/requestStore';
 
 export function useRequestQuery(workspaceId, collectionId, requestId) {
@@ -42,8 +48,49 @@ export function useUpdateRequestMutation(workspaceId, collectionId, requestId) {
   });
 }
 
+export function useCreateRequestMutation(workspaceId, collectionId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestData) => createRequest(workspaceId, collectionId, requestData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['requests', workspaceId, collectionId],
+      });
+    },
+  });
+}
+
+export function useDeleteRequestMutation(workspaceId, collectionId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestId) => deleteRequest(workspaceId, collectionId, requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['requests', workspaceId, collectionId],
+      });
+    },
+  });
+}
+
+export function useDuplicateRequestMutation(workspaceId, collectionId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (requestId) => duplicateRequest(workspaceId, collectionId, requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['requests', workspaceId, collectionId],
+      });
+    },
+  });
+}
+
 export default {
   useRequestQuery,
   useUpdateRequestMutation,
+  useCreateRequestMutation,
+  useDeleteRequestMutation,
+  useDuplicateRequestMutation,
 };
-

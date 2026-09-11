@@ -55,11 +55,32 @@ export async function createRequest(workspaceId, collectionId, requestData) {
   return response.data.data.request;
 }
 
+/**
+ * Delete a request definition
+ */
+export async function deleteRequest(workspaceId, collectionId, requestId) {
+  const response = await apiClient.delete(
+    `/workspaces/${workspaceId}/collections/${collectionId}/requests/${requestId}`
+  );
+  return response.data;
+}
+
+/**
+ * Duplicate a request definition
+ */
+export async function duplicateRequest(workspaceId, collectionId, requestId) {
+  const response = await apiClient.post(
+    `/workspaces/${workspaceId}/collections/${collectionId}/requests/${requestId}/duplicate`
+  );
+  return response.data.data.request;
+}
+
 export default {
   getRequest,
   updateRequest,
   executeRequest,
   listRequests,
   createRequest,
+  deleteRequest,
+  duplicateRequest,
 };
-
