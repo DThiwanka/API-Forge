@@ -37,6 +37,7 @@ model Workspace {
   collections  Collection[]
   environments Environment[]
   executions   RequestExecution[]
+  apiTests     ApiTest[]
 
   @@map("workspaces")
 }
@@ -97,6 +98,7 @@ model Request {
   collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   folder       Folder?     @relation(fields: [folderId], references: [id], onDelete: SetNull)
   executions   RequestExecution[]
+  apiTests     ApiTest[]
 
   @@index([collectionId])
   @@index([folderId])
@@ -182,3 +184,40 @@ model RequestExecution {
   @@index([workspaceId, status, createdAt])
   @@map("request_executions")
 }
+
+model ApiTest {
+  id          String         @id @default(uuid())
+  workspaceId String
+  requestId   String
+  name        String
+  description String?        @db.Text
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  request     Request        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  assertions  ApiAssertion[]
+
+  @@index([workspaceId])
+  @@index([requestId])
+  @@map("api_tests")
+}
+
+model ApiAssertion {
+  id            String   @id @default(uuid())
+  testId        String
+  type          String
+  path          String?
+  operator      String
+  expectedValue String?  @db.Text
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  test          ApiTest  @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+  @@map("api_assertions")
+}
+

@@ -203,3 +203,30 @@ Every request execution creates a safe, isolated, workspace-scoped history recor
 - **URL Masking**: URLs containing passwords or active environment secret values have those sensitive values masked as `••••••••`.
 - **Failure Classification**: Distinguishes between target HTTP responses (200-599, with `success: true` for 2xx/3xx, `false` for 4xx/5xx) and transport failures (`TIMEOUT`, `SECURITY`, `NETWORK`, `VALIDATION`, `UNKNOWN`).
 
+### API Testing & Assertions
+Enables users to define declarative assertions on API requests and evaluate them against real HTTP responses produced by the execution engine.
+
+#### Endpoints
+- `POST /api/workspaces/:workspaceId/requests/:requestId/tests` - Create a test definition (`name`, `description`, `enabled`). Requires `MEMBER`+ role.
+- `GET /api/workspaces/:workspaceId/requests/:requestId/tests` - List all tests for a request. Requires `VIEWER`+ role.
+- `GET /api/workspaces/:workspaceId/requests/:requestId/tests/:testId` - Get a test definition with its assertions. Requires `VIEWER`+ role.
+- `PATCH /api/workspaces/:workspaceId/requests/:requestId/tests/:testId` - Update test definition (`name`, `description`, `enabled`). Requires `MEMBER`+ role.
+- `DELETE /api/workspaces/:workspaceId/requests/:requestId/tests/:testId` - Delete test definition (cascades to assertions). Requires `MEMBER`+ role.
+- `POST /api/workspaces/:workspaceId/requests/:requestId/tests/:testId/run` - Execute request definition and evaluate all assertions. Requires `MEMBER`+ role.
+- `POST /api/workspaces/:workspaceId/requests/:requestId/tests/:testId/assertions` - Add assertion to test (`type`, `operator`, `path`, `expectedValue`, `position`). Requires `MEMBER`+ role.
+- `PATCH /api/workspaces/:workspaceId/requests/:requestId/tests/:testId/assertions/:assertionId` - Update an assertion definition. Requires `MEMBER`+ role.
+- `DELETE /api/workspaces/:workspaceId/requests/:requestId/tests/:testId/assertions/:assertionId` - Delete an assertion definition. Requires `MEMBER`+ role.
+
+#### Assertion Types & Operators
+- **`status`**: HTTP status code. Operators: `equals`, `not_equals`, `greater_than`, `greater_than_or_equal`, `less_than`, `less_than_or_equal`.
+- **`response_time`**: Request duration in milliseconds. Operators: `equals`, `not_equals`, `less_than`, `less_than_or_equal`, `greater_than`, `greater_than_or_equal`.
+- **`json_path`**: Safe evaluation of JSON property paths (`data.user.id`, `items[0].name`, `items.length`). Operators: `equals`, `not_equals`, `contains`, `not_contains`, `exists`, `not_exists`, `greater_than`, `greater_than_or_equal`, `less_than`, `less_than_or_equal`.
+- **`header`**: Header value inspection (case-insensitive). Operators: `equals`, `not_equals`, `contains`, `not_contains`, `exists`, `not_exists`.
+- **`body_contains`**: Raw or serialized body content inspection. Operators: `contains`, `not_contains`, `exists`, `not_exists`.
+
+#### Security & Architecture
+- **Zero Dynamic Code Execution**: Path resolution and assertion comparisons use strictly deterministic tokenization without `eval`, `new Function`, or arbitrary script engines. Prototype pollution attempts (`__proto__`, `constructor`, `prototype`) are safely rejected.
+- **Execution Pipeline Reuse**: Reuses the core execution pipeline (`requestExecutionService`), preserving SSRF checks, timeout bounds, and history recording.
+- **Graceful Failure Classification**: Transport and infrastructure failures (timeouts, SSRF, network errors) return structured test failure results rather than unhandled 500 errors.
+
+
