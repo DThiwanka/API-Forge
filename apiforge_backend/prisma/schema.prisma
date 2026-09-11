@@ -35,6 +35,7 @@ model Workspace {
   updatedAt   DateTime          @updatedAt
   members     WorkspaceMember[]
   collections Collection[]
+  environments Environment[]
 
   @@map("workspaces")
 }
@@ -114,4 +115,37 @@ model WorkspaceMember {
   @@index([userId])
   @@index([workspaceId])
   @@map("workspace_members")
+}
+
+model Environment {
+  id          String                @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?               @db.Text
+  isActive    Boolean               @default(false)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  workspace   Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  variables   EnvironmentVariable[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("environments")
+}
+
+model EnvironmentVariable {
+  id            String      @id @default(uuid())
+  environmentId String
+  key           String
+  value         String      @db.Text
+  isSecret      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@unique([environmentId, key])
+  @@index([environmentId])
+  @@map("environment_variables")
 }

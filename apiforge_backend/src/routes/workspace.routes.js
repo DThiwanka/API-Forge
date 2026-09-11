@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import workspaceController from '../controllers/workspace.controller.js';
 import collectionRoutes from './collection.routes.js';
+import environmentRoutes from './environment.routes.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireWorkspaceMember } from '../middleware/workspace.middleware.js';
 import { requireWorkspaceRole } from '../middleware/permission.middleware.js';
@@ -17,6 +18,9 @@ router.use(authenticate);
 
 // Nested collection routes under /:workspaceId/collections
 router.use('/:workspaceId/collections', requireWorkspaceMember, collectionRoutes);
+
+// Nested environment routes under /:workspaceId/environments
+router.use('/:workspaceId/environments', requireWorkspaceMember, environmentRoutes);
 
 // Collection-level routes
 router.post('/', validateCreateWorkspace, workspaceController.create);

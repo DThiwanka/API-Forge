@@ -158,3 +158,32 @@ Return Response to Caller (Zero Persistence)
 - **Resource Bounds**: Request timeouts are clamped between 100ms and 120,000ms. Response payloads are bounded by a streaming 10 MB limit to prevent memory exhaustion attacks.
 - **Target Status Isolation**: Remote 4xx and 5xx responses from external APIs are treated as valid HTTP responses and normalized rather than crashing APIForge.
 - **Zero Credential Logging**: Authorization headers, basic auth secrets, and API keys are scrubbed from console and logging output.
+
+### Environments & Variable Management
+APIForge supports workspace-scoped environments and dedicated variable models. Environments store reusable values (`baseUrl`, `apiKey`, `token`, `username`, `password`) that are dynamically consumed during request execution.
+
+#### Environment Endpoints
+- `POST /api/workspaces/:workspaceId/environments` - Create an environment (`name`, `description`). Name must be unique within workspace. Requires `ADMIN`+ role.
+- `GET /api/workspaces/:workspaceId/environments` - List all environments for workspace with variable counts. Requires `VIEWER`+ role.
+- `GET /api/workspaces/:workspaceId/environments/:environmentId` - Get environment details with its variables. Requires `VIEWER`+ role.
+- `PATCH /api/workspaces/:workspaceId/environments/:environmentId` - Update environment metadata (`name`, `description`). Requires `ADMIN`+ role.
+- `DELETE /api/workspaces/:workspaceId/environments/:environmentId` - Delete environment (cascades to all variables). Requires `ADMIN`+ role.
+- `POST /api/workspaces/:workspaceId/environments/:environmentId/activate` - Activate an environment. Atomically deactivates all other environments in the workspace. Requires `ADMIN`+ role.
+
+#### Variable Endpoints
+- `POST /api/workspaces/:workspaceId/environments/:environmentId/variables` - Create variable (`key`, `value`, `isSecret`). Requires `ADMIN`+ role.
+  - `key`: Must match format `/^[A-Za-z_][A-Za-z0-9_]*$/` (e.g. `baseUrl`, `apiKey`, `client_id`). Must be unique within environment.
+- `GET /api/workspaces/:workspaceId/environments/:environmentId/variables` - List variables for environment. Secret values masked as `••••••••`. Requires `VIEWER`+ role.
+- `GET /api/workspaces/:workspaceId/environments/:environmentId/variables/:variableId` - Get single variable. Secret values masked. Requires `VIEWER`+ role.
+- `PATCH /api/workspaces/:workspaceId/environments/:environmentId/variables/:variableId` - Update variable (`key`, `value`, `isSecret`). Requires `ADMIN`+ role.
+- `DELETE /api/workspaces/:workspaceId/environments/:environmentId/variables/:variableId` - Delete variable. Requires `ADMIN`+ role.
+
+#### Active Environment & Execution Integration
+- **Single Active Environment**: Each workspace can have at most one active environment at a time.
+- **Precedence Hierarchy**:
+  ```text
+  Runtime Variables (POST body) > Active Environment Variables
+  ```
+  Runtime variables supplied during request execution override active environment variables with the same key.
+- **Graceful Fallback**: If no environment is active in the workspace, request execution falls back smoothly to runtime variables without errors.
+- **Secret Masking & Security**: Variables marked `isSecret: true` have their values masked (`••••••••`) across all API responses. Unmasked secrets are provided internally only to the outbound HTTP client and are never logged or echoed in execution responses.

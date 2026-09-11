@@ -1,5 +1,6 @@
 import requestRepository from '../../repositories/request.repository.js';
 import collectionRepository from '../../repositories/collection.repository.js';
+import environmentService from '../environments/environment.service.js';
 import { prepareExecutableRequest } from '../requests/request-transform.service.js';
 import { resolveTimeout } from './timeout.service.js';
 import httpClientService from './http-client.service.js';
@@ -35,8 +36,15 @@ export async function executeRequest({
     throw new AppError('Request not found in this collection', 404);
   }
 
-  // 3. Resolve variables, prepare headers, auth, params, and body
-  const prepared = prepareExecutableRequest(request, variables);
+  // 3. Resolve active environment variables and merge with runtime variables
+  // Precedence: runtime variables > active environment variables
+  const activeEnvVariables = await environmentService.getActiveEnvironmentVariables(workspaceId);
+  const mergedVariables = {
+    ...activeEnvVariables,
+    ...(variables || {}),
+  };
+
+  const prepared = prepareExecutableRequest(request, mergedVariables);
 
   // 4. Resolve execution timeout
   const timeoutMs = resolveTimeout(prepared.settings?.timeout);
