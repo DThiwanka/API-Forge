@@ -1,4 +1,3 @@
-import React from 'react';
 import { CheckCircle2, Cpu, Wifi } from 'lucide-react';
 
 export default function StatusBar() {
@@ -17,7 +16,7 @@ export default function StatusBar() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
           <Cpu size={11} />
-          <span>Memory: OK</span>
+          <span>Engine: Active</span>
         </div>
         <span>APIForge v0.1.0</span>
       </div>

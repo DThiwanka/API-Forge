@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { Terminal, Shield, Activity, Layers } from 'lucide-react';
+import { Terminal, Activity, Layers } from 'lucide-react';
 
 export default function TopBar() {
   return (
@@ -15,14 +14,14 @@ export default function TopBar() {
         <div className="h-4 w-px bg-[#232732]" />
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] border border-[#232732] text-[11px] text-slate-300">
           <Layers size={12} className="text-slate-500" />
-          <span className="font-medium">Default Workspace</span>
+          <span className="font-medium">Request Workspace</span>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] border border-[#232732] text-[11px] text-slate-400">
           <Activity size={11} className="text-emerald-500" />
-          <span>Local Engine</span>
+          <span>Execution Engine Online</span>
         </div>
         <Link
           to="/login"

@@ -1,5 +1,4 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
@@ -14,6 +13,11 @@ export function AppRouter() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/workspace" element={<Workspace />} />
+        <Route path="/workspace/:workspaceId" element={<Workspace />} />
+        <Route
+          path="/workspace/:workspaceId/collections/:collectionId/requests/:requestId"
+          element={<Workspace />}
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

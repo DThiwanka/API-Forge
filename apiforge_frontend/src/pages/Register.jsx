@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Terminal, Lock, Mail, User, ArrowRight } from 'lucide-react';
+import { Terminal, Lock, Mail, User, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import apiClient from '../lib/apiClient';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/workspace');
+    setLoading(true);
+    setError(null);
+    try {
+      await apiClient.post('/auth/register', { name, email, password });
+      navigate('/workspace');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed. Please check your inputs.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -25,6 +37,13 @@ export default function Register() {
             <p className="text-[11px] text-slate-500">Get started with APIForge</p>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-2.5 rounded bg-rose-950/40 border border-rose-800/50 flex items-center gap-2 text-xs text-rose-300">
+            <AlertCircle size={14} className="flex-shrink-0 text-rose-400" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -65,7 +84,8 @@ export default function Register() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Minimum 8 characters"
+                minLength={8}
                 className="w-full bg-[#181b22] border border-[#232732] rounded px-3 py-2 pl-9 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
               />
@@ -74,9 +94,20 @@ export default function Register() {
 
           <button
             type="submit"
-            className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            disabled={loading}
+            className="w-full py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
           >
-            Create Account <ArrowRight size={13} />
+            {loading ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Creating Account...</span>
+              </>
+            ) : (
+              <>
+                <span>Register</span>
+                <ArrowRight size={13} />
+              </>
+            )}
           </button>
         </form>
 

@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { Terminal, ArrowRight, LayoutDashboard, ShieldCheck, Zap } from 'lucide-react';
+import { Terminal, ArrowRight, LayoutDashboard, Zap } from 'lucide-react';
 
 export default function Home() {
   return (
