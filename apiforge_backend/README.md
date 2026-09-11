@@ -78,3 +78,19 @@ Roles follow a strict hierarchy: `OWNER > ADMIN > MEMBER > VIEWER`.
 - **ADMIN**: Can update workspace metadata and manage future resources.
 - **MEMBER**: Standard operational access for working with workspace resources.
 - **VIEWER**: Read-only access to workspace resources.
+
+### Collections
+Collections organize API requests and folders within a workspace.
+- `POST /api/workspaces/:workspaceId/collections` - Create collection (`name`, `description`). Auto-assigns position. Requires `MEMBER`+.
+- `GET /api/workspaces/:workspaceId/collections` - List all collections for workspace ordered by position. Requires `VIEWER`+.
+- `GET /api/workspaces/:workspaceId/collections/:collectionId` - Retrieve single collection. Requires `VIEWER`+.
+- `PATCH /api/workspaces/:workspaceId/collections/:collectionId` - Update collection (`name`, `description`). Requires `MEMBER`+.
+- `DELETE /api/workspaces/:workspaceId/collections/:collectionId` - Delete collection. Cascade deletes all child folders. Requires `ADMIN`+.
+
+### Folders
+Folders group requests within a collection and support infinite nesting.
+- `POST /api/workspaces/:workspaceId/collections/:collectionId/folders` - Create folder (`name`, optional `parentId`). Requires `MEMBER`+.
+- `GET /api/workspaces/:workspaceId/collections/:collectionId/folders` - List folders (flat by default, or as a nested hierarchy tree using `?tree=true`). Requires `VIEWER`+.
+- `GET /api/workspaces/:workspaceId/collections/:collectionId/folders/:folderId` - Retrieve folder details. Requires `VIEWER`+.
+- `PATCH /api/workspaces/:workspaceId/collections/:collectionId/folders/:folderId` - Update folder (`name`, `parentId`). Validates tree integrity and prevents circular parent relationships. Requires `MEMBER`+.
+- `DELETE /api/workspaces/:workspaceId/collections/:collectionId/folders/:folderId` - Delete folder and cascade delete all subfolders. Requires `ADMIN`+.

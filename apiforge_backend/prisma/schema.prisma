@@ -34,8 +34,43 @@ model Workspace {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   members     WorkspaceMember[]
+  collections Collection[]
 
   @@map("workspaces")
+}
+
+model Collection {
+  id          String    @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?   @db.Text
+  position    Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folders     Folder[]
+
+  @@index([workspaceId])
+  @@map("collections")
+}
+
+model Folder {
+  id           String    @id @default(uuid())
+  collectionId String
+  parentId     String?
+  name         String
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  parent       Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Folder[]   @relation("FolderHierarchy")
+
+  @@index([collectionId])
+  @@index([parentId])
+  @@map("folders")
 }
 
 model WorkspaceMember {
