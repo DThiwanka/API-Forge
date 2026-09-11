@@ -94,3 +94,25 @@ Folders group requests within a collection and support infinite nesting.
 - `GET /api/workspaces/:workspaceId/collections/:collectionId/folders/:folderId` - Retrieve folder details. Requires `VIEWER`+.
 - `PATCH /api/workspaces/:workspaceId/collections/:collectionId/folders/:folderId` - Update folder (`name`, `parentId`). Validates tree integrity and prevents circular parent relationships. Requires `MEMBER`+.
 - `DELETE /api/workspaces/:workspaceId/collections/:collectionId/folders/:folderId` - Delete folder and cascade delete all subfolders. Requires `ADMIN`+.
+
+### API Request Definitions
+Requests are stored API configurations organized inside a collection and optionally within a folder.
+*Note: This layer manages stored definitions only. HTTP request execution is not implemented yet.*
+
+#### Endpoints
+- `POST /api/workspaces/:workspaceId/collections/:collectionId/requests` - Create request definition. Requires `MEMBER`+.
+- `GET /api/workspaces/:workspaceId/collections/:collectionId/requests` - List requests for collection (supports `?folderId=<id>` filter). Requires `VIEWER`+.
+- `GET /api/workspaces/:workspaceId/collections/:collectionId/requests/:requestId` - Retrieve single request definition. Requires `VIEWER`+.
+- `PATCH /api/workspaces/:workspaceId/collections/:collectionId/requests/:requestId` - Update request metadata, headers, params, body, auth, or move to folder. Requires `MEMBER`+.
+- `DELETE /api/workspaces/:workspaceId/collections/:collectionId/requests/:requestId` - Delete request definition. Requires `MEMBER`+.
+- `POST /api/workspaces/:workspaceId/collections/:collectionId/requests/:requestId/duplicate` - Clone request definition with new ID and `Copy` suffix. Requires `MEMBER`+.
+
+#### Request Configuration Specifications
+- **HTTP Methods**: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+- **Query Parameters & Headers**: Array of `{ key, value, enabled, description }`.
+- **Authentication Types**: `none`, `bearer`, `basic`, `api-key`.
+- **Body Modes**: `none`, `json`, `text`, `form-data`, `x-www-form-urlencoded`, `raw`.
+- **Deletion Behaviors**:
+  - Deleting a folder moves requests contained within it to the collection root (`folderId: null`).
+  - Deleting a collection cascades and removes all contained requests.
+- **Security Notice**: Authentication credentials (tokens, keys, passwords) are stored as configuration payloads for API requests and are not logged. At this stage, credentials are stored in database JSON without encryption at rest; envelope encryption will be introduced in future production security steps.

@@ -50,6 +50,7 @@ model Collection {
 
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folders     Folder[]
+  requests    Request[]
 
   @@index([workspaceId])
   @@map("collections")
@@ -67,10 +68,35 @@ model Folder {
   collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   parent       Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children     Folder[]   @relation("FolderHierarchy")
+  requests     Request[]
 
   @@index([collectionId])
   @@index([parentId])
   @@map("folders")
+}
+
+model Request {
+  id           String      @id @default(uuid())
+  collectionId String
+  folderId     String?
+  name         String
+  method       String      @default("GET")
+  url          String      @db.Text
+  queryParams  Json?
+  headers      Json?
+  auth         Json?
+  body         Json?
+  settings     Json?
+  position     Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  folder       Folder?     @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([collectionId])
+  @@index([folderId])
+  @@map("requests")
 }
 
 model WorkspaceMember {

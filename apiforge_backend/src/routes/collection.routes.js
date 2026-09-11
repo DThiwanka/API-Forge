@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import collectionController from '../controllers/collection.controller.js';
 import folderRoutes from './folder.routes.js';
+import requestRoutes from './request.routes.js';
 import { requireCollection } from '../middleware/collection.middleware.js';
 import { requireWorkspaceRole } from '../middleware/permission.middleware.js';
 import {
@@ -14,6 +15,9 @@ const router = Router({ mergeParams: true });
 
 // Nested folder routes under /:collectionId/folders
 router.use('/:collectionId/folders', folderRoutes);
+
+// Nested request routes under /:collectionId/requests
+router.use('/:collectionId/requests', requestRoutes);
 
 router.post(
   '/',
