@@ -52,5 +52,11 @@ router.post(
   requestController.duplicate
 );
 
+router.post(
+  '/:requestId/execute',
+  requireWorkspaceRole(WORKSPACE_ROLES.MEMBER),
+  requestController.execute
+);
+
 export default router;
 

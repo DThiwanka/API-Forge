@@ -1,4 +1,6 @@
 import requestService from '../services/requests/request.service.js';
+import requestExecutionService from '../services/execution/request-execution.service.js';
+import env from '../config/env.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -118,6 +120,29 @@ export const duplicate = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Execute request definition
+ * POST /api/workspaces/:workspaceId/collections/:collectionId/requests/:requestId/execute
+ */
+export const execute = asyncHandler(async (req, res) => {
+  const allowLocalTargets =
+    (process.env.NODE_ENV === 'test' && req.body?._allowLocalTargets === true) ||
+    env.ALLOW_LOCAL_TARGETS;
+
+  const result = await requestExecutionService.executeRequest({
+    workspaceId: req.workspace.id,
+    collectionId: req.collection.id,
+    requestId: req.params.requestId,
+    variables: req.body?.variables || {},
+    allowLocalTargets,
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
 export default {
   create,
   list,
@@ -125,5 +150,6 @@ export default {
   update,
   deleteRequest,
   duplicate,
+  execute,
 };
 

@@ -115,4 +115,46 @@ Requests are stored API configurations organized inside a collection and optiona
 - **Deletion Behaviors**:
   - Deleting a folder moves requests contained within it to the collection root (`folderId: null`).
   - Deleting a collection cascades and removes all contained requests.
-- **Security Notice**: Authentication credentials (tokens, keys, passwords) are stored as configuration payloads for API requests and are not logged. At this stage, credentials are stored in database JSON without encryption at rest; envelope encryption will be introduced in future production security steps.
+- **Security Notice**: Authentication credentials (tokens, keys, passwords) are stored as configuration payloads for API requests and are not logged.
+
+### Request Execution Engine
+The backend API request execution engine executes stored request definitions through an isolated, bounded, and SSRF-safe pipeline. Responses are normalized and returned immediately to the client without mutating saved requests or persisting execution history.
+
+#### Endpoint
+- `POST /api/workspaces/:workspaceId/collections/:collectionId/requests/:requestId/execute` - Execute request definition. Requires `MEMBER`+ role.
+  - Body (optional):
+    ```json
+    {
+      "variables": {
+        "baseUrl": "https://api.example.com",
+        "token": "secret123"
+      }
+    }
+    ```
+
+#### Execution Pipeline
+```text
+Stored Request
+      ↓
+Verify Tenant & Permissions (MEMBER+)
+      ↓
+Resolve Runtime Variables ({{variable}})
+      ↓
+Transform Headers, Query Params, Auth & Body
+      ↓
+Validate Destination & SSRF Protection
+      ↓
+Execute Bounded HTTP Request (Timeout & Size Guard)
+      ↓
+Normalize Response Payload
+      ↓
+Return Response to Caller (Zero Persistence)
+```
+
+#### Security & Safeguards
+- **SSRF Protection**: Strictly blocks `localhost`, `127.0.0.0/8`, private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local and cloud metadata addresses (`169.254.169.254`, `100.100.100.200`), multicast/reserved ranges, and non-HTTP protocols (`file://`, `ftp://`).
+- **Redirect Re-validation**: Up to 5 manual redirects. Every destination URL is re-validated against SSRF rules before following the next hop.
+- **Variable Substitution**: Non-executable string replacement without code evaluation. Missing referenced variables fail immediately with a 400 validation error.
+- **Resource Bounds**: Request timeouts are clamped between 100ms and 120,000ms. Response payloads are bounded by a streaming 10 MB limit to prevent memory exhaustion attacks.
+- **Target Status Isolation**: Remote 4xx and 5xx responses from external APIs are treated as valid HTTP responses and normalized rather than crashing APIForge.
+- **Zero Credential Logging**: Authorization headers, basic auth secrets, and API keys are scrubbed from console and logging output.
