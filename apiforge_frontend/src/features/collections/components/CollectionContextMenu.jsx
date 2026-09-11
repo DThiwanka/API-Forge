@@ -9,6 +9,7 @@ import {
   Move,
   ExternalLink,
   Download,
+  Upload,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -17,6 +18,7 @@ export default function CollectionContextMenu({
   onNewFolder,
   onNewRequest,
   onImportCurl,
+  onExport,
   onRename,
   onMove,
   onDuplicate,
@@ -93,6 +95,17 @@ export default function CollectionContextMenu({
                 >
                   <Download size={13} className="text-sky-400" />
                   <span>Import cURL</span>
+                  <span>Import</span>
+                </button>
+              )}
+              {onExport && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onExport)}
+                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#232732] flex items-center gap-2"
+                >
+                  <Upload size={13} className="text-sky-400" />
+                  <span>Export OpenAPI</span>
                 </button>
               )}
               {onNewFolder && (

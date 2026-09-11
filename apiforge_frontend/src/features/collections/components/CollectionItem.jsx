@@ -15,6 +15,7 @@ import CreateRequestDialog from './CreateRequestDialog';
 import RenameDialog from './RenameDialog';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import ImportDialog from '../../import-export/components/ImportDialog';
+import ExportDialog from '../../import-export/components/ExportDialog';
 import useCollectionStore from '../store/collectionStore';
 import { useFoldersQuery, useUpdateCollectionMutation, useDeleteCollectionMutation } from '../hooks/useCollections';
 import { listRequests } from '../../requests/services/requestApi';
@@ -28,6 +29,7 @@ export default function CollectionItem({
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -105,6 +107,7 @@ export default function CollectionItem({
               type="collection"
               onNewRequest={() => setIsNewRequestOpen(true)}
               onImportCurl={() => setIsImportOpen(true)}
+              onExport={() => setIsExportOpen(true)}
               onNewFolder={() => setIsNewFolderOpen(true)}
               onRename={() => setIsRenameOpen(true)}
               onDelete={() => setIsDeleteOpen(true)}
@@ -185,6 +188,14 @@ export default function CollectionItem({
         onClose={() => setIsImportOpen(false)}
         workspaceId={workspaceId}
         defaultCollectionId={collection.id}
+      />
+
+      <ExportDialog
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        workspaceId={workspaceId}
+        defaultCollectionId={collection.id}
+        initialTab="openapi"
       />
 
       <ConfirmDialog

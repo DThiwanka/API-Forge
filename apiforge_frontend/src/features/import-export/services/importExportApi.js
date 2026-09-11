@@ -73,11 +73,49 @@ export async function importOpenApi(
   return response.data.data;
 }
 
+/**
+ * Export a collection as an OpenAPI 3.0.3 specification in JSON or YAML
+ * GET /api/workspaces/:workspaceId/collections/:collectionId/export/openapi?format=json|yaml
+ */
+export async function exportOpenApi(workspaceId, collectionId, format = 'json') {
+  const normalizedFormat = format?.toLowerCase() === 'yaml' ? 'yaml' : 'json';
+  const response = await apiClient.get(
+    `/workspaces/${workspaceId}/collections/${collectionId}/export/openapi`,
+    {
+      params: { format: normalizedFormat },
+      responseType: 'text',
+      transformResponse: [(data) => data],
+    }
+  );
+
+  let filename = '';
+  const disposition =
+    response.headers?.['content-disposition'] ||
+    response.headers?.get?.('content-disposition');
+  if (disposition) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+
+  return {
+    content: response.data,
+    filename: filename || `collection.openapi.${normalizedFormat}`,
+    format: normalizedFormat,
+    contentType:
+      response.headers?.['content-type'] ||
+      (normalizedFormat === 'yaml' ? 'application/yaml' : 'application/json'),
+  };
+}
+
 export default {
   previewCurl,
   importCurl,
   exportRequestAsCurl,
   previewOpenApi,
   importOpenApi,
+  exportOpenApi,
 };
+
 
