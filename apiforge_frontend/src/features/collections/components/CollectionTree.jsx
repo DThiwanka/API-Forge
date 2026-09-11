@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Layers, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Layers, X, Network } from 'lucide-react';
 import CollectionItem from './CollectionItem';
 import CreateCollectionDialog from './CreateCollectionDialog';
 import LoadingScreen from '../../../components/common/LoadingScreen';
@@ -56,15 +57,25 @@ export default function CollectionTree({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 text-sky-300 text-xs font-medium transition-colors"
-            title="Create new collection"
-          >
-            <Plus size={12} />
-            <span>New</span>
-          </button>
+          <div className="flex items-center gap-1">
+            <Link
+              to={`/workspace/${workspaceId}/canvas`}
+              className="p-1 rounded text-slate-400 hover:text-sky-300 hover:bg-[#181b22] border border-transparent hover:border-[#232732] transition-colors"
+              title="Open Spatial API Canvas"
+            >
+              <Network size={13} />
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 text-sky-300 text-xs font-medium transition-colors"
+              title="Create new collection"
+            >
+              <Plus size={12} />
+              <span>New</span>
+            </button>
+          </div>
         </div>
 
         {/* Quick Filter Input */}

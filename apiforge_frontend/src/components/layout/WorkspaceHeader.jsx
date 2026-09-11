@@ -1,4 +1,5 @@
-import { Layers, PanelLeftClose, PanelLeft, Globe } from 'lucide-react';
+import { useLocation, Link } from 'react-router-dom';
+import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree } from 'lucide-react';
 import { useWorkspaceQuery, useCollectionsQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 import useWorkspaceStore from '../../features/workspace/store/workspaceStore';
@@ -12,6 +13,9 @@ const ROLE_BADGES = {
 };
 
 export default function WorkspaceHeader({ workspaceId, className }) {
+  const location = useLocation();
+  const isCanvas = location.pathname.endsWith('/canvas');
+
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
 
@@ -63,6 +67,39 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
         <div className="text-[11px] text-slate-500 font-mono">
           {collections.length} {collections.length === 1 ? 'Collection' : 'Collections'}
+        </div>
+
+        <div className="h-3 w-px bg-[#232732]" />
+
+        {/* View Mode Switcher: Editor vs Canvas */}
+        <div className="flex items-center p-0.5 rounded-md bg-[#0d0f14] border border-[#232732]">
+          <Link
+            to={`/workspace/${workspaceId}`}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
+              !isCanvas
+                ? 'bg-[#181b22] text-sky-400 border border-[#2b313e] shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+            title="Request Workspace & Hierarchical Tree"
+          >
+            <ListTree size={12} />
+            <span>Editor</span>
+          </Link>
+
+          <Link
+            to={`/workspace/${workspaceId}/canvas`}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
+              isCanvas
+                ? 'bg-[#181b22] text-sky-400 border border-[#2b313e] shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+            title="Spatial API Canvas"
+          >
+            <Network size={12} />
+            <span>Canvas</span>
+          </Link>
         </div>
       </div>
 
