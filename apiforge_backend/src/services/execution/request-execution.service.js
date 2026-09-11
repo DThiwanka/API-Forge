@@ -1,6 +1,8 @@
+import { performance } from 'node:perf_hooks';
 import requestRepository from '../../repositories/request.repository.js';
 import collectionRepository from '../../repositories/collection.repository.js';
-import environmentService from '../environments/environment.service.js';
+import environmentRepository from '../../repositories/environment.repository.js';
+import historyService, { classifyExecutionError } from '../history/history.service.js';
 import { prepareExecutableRequest } from '../requests/request-transform.service.js';
 import { resolveTimeout } from './timeout.service.js';
 import httpClientService from './http-client.service.js';
@@ -38,38 +40,123 @@ export async function executeRequest({
 
   // 3. Resolve active environment variables and merge with runtime variables
   // Precedence: runtime variables > active environment variables
-  const activeEnvVariables = await environmentService.getActiveEnvironmentVariables(workspaceId);
+  const activeEnv = await environmentRepository.getActiveEnvironment(workspaceId);
+  const activeEnvVariables = {};
+  const secretValues = [];
+  if (activeEnv && Array.isArray(activeEnv.variables)) {
+    for (const v of activeEnv.variables) {
+      activeEnvVariables[v.key] = v.value;
+      if (v.isSecret && v.value) {
+        secretValues.push(v.value);
+      }
+    }
+  }
+
   const mergedVariables = {
     ...activeEnvVariables,
     ...(variables || {}),
   };
 
-  const prepared = prepareExecutableRequest(request, mergedVariables);
+  const startTime = performance.now();
+  let prepared;
+  let preparedMethod = (request.method || 'GET').toUpperCase();
+  let preparedUrl = request.url;
+
+  try {
+    prepared = prepareExecutableRequest(request, mergedVariables);
+    preparedMethod = prepared.method;
+    preparedUrl = prepared.url;
+  } catch (prepErr) {
+    const elapsed = Math.round(performance.now() - startTime);
+    await historyService.recordExecution({
+      workspaceId,
+      collectionId,
+      requestId,
+      environmentId: activeEnv?.id || null,
+      method: preparedMethod,
+      url: preparedUrl,
+      status: null,
+      statusText: null,
+      duration: elapsed,
+      responseSize: null,
+      contentType: null,
+      success: false,
+      errorType: 'VALIDATION',
+      errorMessage: prepErr.message,
+      secretValues,
+    });
+    throw prepErr;
+  }
 
   // 4. Resolve execution timeout
   const timeoutMs = resolveTimeout(prepared.settings?.timeout);
   const followRedirects = prepared.settings?.followRedirects !== false;
 
   // 5. Outbound HTTP execution
-  const response = await httpClientService.sendRequest({
-    method: prepared.method,
-    url: prepared.url,
-    headers: prepared.headers,
-    body: prepared.body,
-    timeoutMs,
-    followRedirects,
-    allowLocalTargets,
-  });
-
-  return {
-    request: {
-      id: request.id,
-      name: request.name,
+  try {
+    const response = await httpClientService.sendRequest({
       method: prepared.method,
       url: prepared.url,
-    },
-    response,
-  };
+      headers: prepared.headers,
+      body: prepared.body,
+      timeoutMs,
+      followRedirects,
+      allowLocalTargets,
+    });
+
+    const isSuccess = response.status >= 200 && response.status < 400;
+
+    await historyService.recordExecution({
+      workspaceId,
+      collectionId,
+      requestId,
+      environmentId: activeEnv?.id || null,
+      method: prepared.method,
+      url: response.url || prepared.url,
+      status: response.status,
+      statusText: response.statusText,
+      duration: response.timeMs,
+      responseSize: response.sizeBytes,
+      contentType: response.contentType,
+      success: isSuccess,
+      errorType: null,
+      errorMessage: null,
+      secretValues,
+    });
+
+    return {
+      request: {
+        id: request.id,
+        name: request.name,
+        method: prepared.method,
+        url: prepared.url,
+      },
+      response,
+    };
+  } catch (err) {
+    const elapsed = Math.round(performance.now() - startTime);
+    const errorType = classifyExecutionError(err);
+
+    await historyService.recordExecution({
+      workspaceId,
+      collectionId,
+      requestId,
+      environmentId: activeEnv?.id || null,
+      method: prepared.method,
+      url: prepared.url,
+      status: null,
+      statusText: null,
+      duration: elapsed,
+      responseSize: null,
+      contentType: null,
+      success: false,
+      errorType,
+      errorMessage: err.message,
+      secretValues,
+    });
+
+    throw err;
+  }
 }
 
 export default {

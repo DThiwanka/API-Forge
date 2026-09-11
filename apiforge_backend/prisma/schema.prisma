@@ -33,9 +33,10 @@ model Workspace {
   description String?           @db.Text
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
-  members     WorkspaceMember[]
-  collections Collection[]
+  members      WorkspaceMember[]
+  collections  Collection[]
   environments Environment[]
+  executions   RequestExecution[]
 
   @@map("workspaces")
 }
@@ -52,6 +53,7 @@ model Collection {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folders     Folder[]
   requests    Request[]
+  executions  RequestExecution[]
 
   @@index([workspaceId])
   @@map("collections")
@@ -94,6 +96,7 @@ model Request {
 
   collection   Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
   folder       Folder?     @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  executions   RequestExecution[]
 
   @@index([collectionId])
   @@index([folderId])
@@ -128,6 +131,7 @@ model Environment {
 
   workspace   Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   variables   EnvironmentVariable[]
+  executions  RequestExecution[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -148,4 +152,33 @@ model EnvironmentVariable {
   @@unique([environmentId, key])
   @@index([environmentId])
   @@map("environment_variables")
+}
+
+model RequestExecution {
+  id            String       @id @default(uuid())
+  workspaceId   String
+  collectionId  String
+  requestId     String
+  environmentId String?
+  method        String
+  url           String       @db.Text
+  status        Int?
+  statusText    String?
+  duration      Int?
+  responseSize  Int?
+  contentType   String?
+  success       Boolean      @default(false)
+  errorType     String?
+  errorMessage  String?      @db.Text
+  createdAt     DateTime     @default(now())
+
+  workspace     Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  collection    Collection   @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  request       Request      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, requestId, createdAt])
+  @@index([workspaceId, status, createdAt])
+  @@map("request_executions")
 }
