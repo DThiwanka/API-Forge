@@ -5,6 +5,7 @@ export default function RequestTabs({
   onTabChange,
   paramsCount = 0,
   headersCount = 0,
+  testsCount = 0,
   hasAuth = false,
   hasBody = false,
   className,
@@ -15,6 +16,7 @@ export default function RequestTabs({
     { id: 'auth', label: 'Auth', activeIndicator: hasAuth },
     { id: 'body', label: 'Body', activeIndicator: hasBody },
     { id: 'settings', label: 'Settings' },
+    { id: 'tests', label: 'Tests', count: testsCount },
   ];
 
   return (

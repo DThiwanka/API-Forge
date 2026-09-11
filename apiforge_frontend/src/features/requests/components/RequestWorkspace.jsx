@@ -10,10 +10,12 @@ import HeadersEditor from './HeadersEditor';
 import AuthEditor from './AuthEditor';
 import BodyEditor from './BodyEditor';
 import RequestSettings from './RequestSettings';
+import TestPanel from '../../testing/components/TestPanel';
 import ResponseInspector from '../../response/components/ResponseInspector';
 import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
 import { useEnvironmentsQuery } from '../../environments/hooks/useEnvironments';
+import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
 import useRequestStore from '../store/requestStore';
 import { Loader2, AlertCircle, Globe } from 'lucide-react';
 
@@ -25,6 +27,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
   const { isLoading, error } = useRequestQuery(workspaceId, collectionId, requestId);
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
+  const { data: tests = [] } = useApiTestsQuery(workspaceId, requestId);
   const activeEnv = environments.find((e) => e.isActive);
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, requestId);
   const executeMutation = useRequestExecution(workspaceId, collectionId, requestId);
@@ -203,6 +206,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
             onTabChange={setActiveTab}
             paramsCount={enabledParamsCount}
             headersCount={enabledHeadersCount}
+            testsCount={tests.length}
             hasAuth={hasAuth}
             hasBody={hasBody}
           />
@@ -252,6 +256,13 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
               <RequestSettings
                 settings={settings}
                 onUpdateSetting={updateSetting}
+              />
+            )}
+
+            {activeTab === 'tests' && (
+              <TestPanel
+                workspaceId={workspaceId}
+                requestId={requestId}
               />
             )}
           </div>
