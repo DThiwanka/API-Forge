@@ -5,6 +5,8 @@ import { WORKSPACE_ROLES } from '../constants/workspaceRoles.js';
 import {
   validateImportCurlPreview,
   validateImportCurlSave,
+  validateImportOpenApiPreview,
+  validateImportOpenApiSave,
 } from '../validators/import.validator.js';
 
 // Router with mergeParams so :workspaceId is accessible from parent router
@@ -22,6 +24,20 @@ router.post(
   requireWorkspaceRole(WORKSPACE_ROLES.MEMBER),
   validateImportCurlSave,
   importController.importCurl
+);
+
+router.post(
+  '/openapi/preview',
+  requireWorkspaceRole(WORKSPACE_ROLES.VIEWER),
+  validateImportOpenApiPreview,
+  importController.previewOpenApi
+);
+
+router.post(
+  '/openapi',
+  requireWorkspaceRole(WORKSPACE_ROLES.MEMBER),
+  validateImportOpenApiSave,
+  importController.importOpenApi
 );
 
 export default router;

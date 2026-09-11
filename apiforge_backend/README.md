@@ -285,4 +285,57 @@ APIForge supports importing API request definitions from cURL commands and expor
 - **POSIX Shell Escaping**: Exported cURL commands use standard POSIX single-quote escaping (`'\''`) to guarantee cross-shell portability and prevent unintended terminal variable expansion or command injection.
 - **Input Bounds**: Imported cURL commands are bounded to a maximum of 100,000 characters to prevent denial-of-service attempts.
 
+### OpenAPI Specification Import
+APIForge supports importing OpenAPI specifications into workspace-scoped collections, folders, and request definitions.
+
+#### Endpoints
+- `POST /api/workspaces/:workspaceId/import/openapi/preview` - Parse and generate a normalized preview of the OpenAPI specification without persisting anything to the database. Requires `VIEWER`+ role.
+  - Body:
+    ```json
+    {
+      "document": "openapi: 3.1.0\ninfo:\n  title: Petstore\n  version: 1.0.0\npaths: ...\n"
+    }
+    ```
+- `POST /api/workspaces/:workspaceId/import/openapi` - Atomically parse, dereference, and persist the specification into collections, folders, and requests inside a database transaction. Requires `MEMBER`+ role.
+  - Body:
+    ```json
+    {
+      "document": "{ ... }",
+      "collectionId": "col_uuid (optional, defaults to creating new collection from spec title)",
+      "collectionName": "Custom Collection Name (optional)",
+      "folderId": "folder_uuid (optional, imports directly into folder)"
+    }
+    ```
+
+#### Supported OpenAPI Features
+- **Versions**: OpenAPI 3.0.x and OpenAPI 3.1.x. (Swagger 2.0 is rejected with an upgrade notice).
+- **Formats**: JSON and YAML documents up to 5 MB in size.
+- **HTTP Methods**: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+- **Parameters**:
+  - `in: query` → Query parameters array with defaults and examples.
+  - `in: header` → Headers array with defaults and examples.
+  - `in: path` → Path parameter placeholders preserved in URL (`/users/{id}`).
+  - `in: cookie` → Preserved as `Cookie` header.
+- **Request Bodies**:
+  - `application/json`: Generates realistic examples from explicit schema examples, schema defaults, or recursive mock generation (strings, numbers, booleans, arrays, nested objects up to 5 levels deep).
+  - `text/plain`: Text body with default example.
+  - `application/x-www-form-urlencoded`: URL-encoded key-value pairs.
+  - `multipart/form-data`: Preserves Content-Type header.
+- **Authentication**:
+  - HTTP Bearer → `auth: { type: "bearer", bearer: { token: "{{token}}" } }`
+  - HTTP Basic → `auth: { type: "basic", basic: { username: "{{username}}", password: "{{password}}" } }`
+  - API Key (header / query) → `auth: { type: "api-key", apiKey: { key: name, value: "{{apiKey}}", addTo } }`
+  - Operation-level security overrides (e.g. `security: []` for public routes) correctly override global security.
+  - Unsupported schemes (e.g. OAuth2, OpenID Connect) generate non-fatal warnings without failing the import.
+- **Servers & Base URL**: Automatically extracts the primary server URL and configures request URLs with `{{baseUrl}}` prefix and suggested environment variables.
+- **Organization**: Tags automatically map to folders inside the collection. Untagged operations are placed at the collection root.
+- **Deterministic Deduplication**: If multiple operations share identical names, deterministic suffixes (`(2)`, `(3)`) are assigned.
+
+#### Security & Architecture
+- **SSRF & Remote Reference Guard**: Strictly rejects remote references (`http://`, `https://`, `file://`) to prevent Server-Side Request Forgery and local file inclusion. Only internal local references (`#/components/...`) are dereferenced.
+- **YAML Bomb Protection**: YAML parsing enforces `maxAliasCount: 100` to mitigate recursive entity expansion denial-of-service attacks.
+- **Circular Reference Protection**: Circular `$ref` pointers in complex schemas are safely caught and ignored without stack overflows or hanging processes.
+- **Atomic Transactions**: Multi-record imports execute entirely within a single `prisma.$transaction`. Any database failure causes a complete rollback with zero orphaned collections or requests.
+- **Zero Execution**: Documents are parsed as pure data; no JavaScript or shell commands (`eval`, `child_process`) are ever executed.
+
 
