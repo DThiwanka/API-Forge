@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import authRoutes from './auth.routes.js';
+import workspaceRoutes from './workspace.routes.js';
 
 const router = Router();
 
@@ -14,5 +15,8 @@ router.get('/health', (req, res) => {
 
 // Authentication routes
 router.use('/auth', authRoutes);
+
+// Workspace routes
+router.use('/workspaces', workspaceRoutes);
 
 export default router;

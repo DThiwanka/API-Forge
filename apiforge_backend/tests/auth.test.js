@@ -7,7 +7,7 @@ describe('Auth Integration Tests', () => {
   let server;
   let baseUrl;
   const testUser = {
-    email: `test_${Date.now()}@example.com`,
+    email: `auth_test_${Date.now()}@example.com`,
     password: 'Password123!',
     name: 'Auth Test User',
   };
@@ -26,11 +26,11 @@ describe('Auth Integration Tests', () => {
       });
     });
 
-    // Ensure clean state
+    // Ensure clean state for auth tests
     await prisma.user.deleteMany({
       where: {
         email: {
-          contains: 'test_',
+          contains: 'auth_test_',
         },
       },
     }).catch(() => {});
@@ -41,7 +41,7 @@ describe('Auth Integration Tests', () => {
     await prisma.user.deleteMany({
       where: {
         email: {
-          contains: 'test_',
+          contains: 'auth_test_',
         },
       },
     }).catch(() => {});

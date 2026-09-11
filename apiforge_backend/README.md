@@ -63,3 +63,18 @@ npm run dev
 - `GET /api/auth/me` - Authenticated user profile. Requires HTTP-only access token cookie or `Authorization: Bearer <token>`.
 - `POST /api/auth/refresh` - Issue new tokens using HTTP-only refresh cookie or `refreshToken` body.
 - `POST /api/auth/logout` - Invalidate session and clear authentication cookies.
+
+### Workspaces
+All workspace endpoints require an authenticated user.
+- `POST /api/workspaces` - Create a new workspace (`name`, `description`). The creator is automatically and atomically assigned the `OWNER` role.
+- `GET /api/workspaces` - List all workspaces where the authenticated user is a member, including their membership role.
+- `GET /api/workspaces/:workspaceId` - Retrieve details of a specific workspace. Access is restricted to workspace members.
+- `PATCH /api/workspaces/:workspaceId` - Update workspace metadata (`name`, `description`). Requires `ADMIN` role or higher.
+- `DELETE /api/workspaces/:workspaceId` - Delete a workspace. Strictly restricted to `OWNER`. Cascade deletes all associated workspace memberships.
+
+### Workspace Role Hierarchy
+Roles follow a strict hierarchy: `OWNER > ADMIN > MEMBER > VIEWER`.
+- **OWNER**: Full administrative control, can update metadata, and solely authorized to delete the workspace.
+- **ADMIN**: Can update workspace metadata and manage future resources.
+- **MEMBER**: Standard operational access for working with workspace resources.
+- **VIEWER**: Read-only access to workspace resources.
