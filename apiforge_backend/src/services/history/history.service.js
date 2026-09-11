@@ -238,6 +238,7 @@ export async function listHistory(workspaceId, query = {}) {
     success: successFilter,
     method: query.method,
     errorType: query.errorType,
+    search: query.search ? String(query.search).trim() : undefined,
     startDate: query.startDate,
     endDate: query.endDate,
     page,

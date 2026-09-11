@@ -187,3 +187,19 @@ APIForge supports workspace-scoped environments and dedicated variable models. E
   Runtime variables supplied during request execution override active environment variables with the same key.
 - **Graceful Fallback**: If no environment is active in the workspace, request execution falls back smoothly to runtime variables without errors.
 - **Secret Masking & Security**: Variables marked `isSecret: true` have their values masked (`••••••••`) across all API responses. Unmasked secrets are provided internally only to the outbound HTTP client and are never logged or echoed in execution responses.
+
+### API Request Execution History
+Every request execution creates a safe, isolated, workspace-scoped history record tracking execution metadata (method, URL, status code, timing, response size, success/failure classification) while strictly omitting request/response bodies and sensitive authentication credentials.
+
+#### Endpoints
+- `GET /api/workspaces/:workspaceId/history` - List execution history records with pagination and filters (`page`, `limit`, `requestId`, `method`, `status`, `search`). Requires `VIEWER`+ role.
+- `GET /api/workspaces/:workspaceId/history/:historyId` - Get details of a single execution record. Requires `VIEWER`+ role.
+- `DELETE /api/workspaces/:workspaceId/history/:historyId` - Delete a single execution record. Requires `MEMBER`+ role.
+- `DELETE /api/workspaces/:workspaceId/history` - Clear execution history for the workspace (or optionally filtered by `?requestId=<id>`). Requires `ADMIN`+ role.
+
+#### Metadata & Sanitization Safeguards
+- **Zero Body Persistence**: Request and response bodies are never persisted in history records.
+- **Credential & Secret Stripping**: Authorization headers, Bearer tokens, Basic auth passwords, cookies, and secret environment variables are never persisted.
+- **URL Masking**: URLs containing passwords or active environment secret values have those sensitive values masked as `••••••••`.
+- **Failure Classification**: Distinguishes between target HTTP responses (200-599, with `success: true` for 2xx/3xx, `false` for 4xx/5xx) and transport failures (`TIMEOUT`, `SECURITY`, `NETWORK`, `VALIDATION`, `UNKNOWN`).
+

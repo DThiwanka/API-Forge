@@ -475,6 +475,29 @@ describe('API Request Execution History Integration Tests', () => {
       }
     });
 
+    it('should filter execution history by search term matching url or request name', async () => {
+      const res = await fetch(`${baseUrl}/workspaces/${workspaceId}/history?search=mock-not-found`, {
+        headers: { Authorization: `Bearer ${viewerToken}` },
+      });
+      const body = await res.json();
+
+      assert.equal(res.status, 200);
+      assert.ok(body.data.history.length >= 1);
+      assert.ok(body.data.history.every((h) => h.url.includes('mock-not-found')));
+    });
+
+    it('should reject invalid pagination parameters with 400', async () => {
+      const res1 = await fetch(`${baseUrl}/workspaces/${workspaceId}/history?page=0`, {
+        headers: { Authorization: `Bearer ${viewerToken}` },
+      });
+      assert.equal(res1.status, 400);
+
+      const res2 = await fetch(`${baseUrl}/workspaces/${workspaceId}/history?limit=150`, {
+        headers: { Authorization: `Bearer ${viewerToken}` },
+      });
+      assert.equal(res2.status, 400);
+    });
+
     it('should retrieve a single execution record by ID', async () => {
       const listRes = await fetch(`${baseUrl}/workspaces/${workspaceId}/history?limit=1`, {
         headers: { Authorization: `Bearer ${viewerToken}` },

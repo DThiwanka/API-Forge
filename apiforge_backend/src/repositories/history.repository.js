@@ -36,6 +36,7 @@ export async function createExecution(data) {
  * @param {boolean} [params.success]
  * @param {string} [params.method]
  * @param {string} [params.errorType]
+ * @param {string} [params.search]
  * @param {string|Date} [params.startDate]
  * @param {string|Date} [params.endDate]
  * @param {number} [params.page=1]
@@ -50,6 +51,7 @@ export async function listExecutions({
   success,
   method,
   errorType,
+  search,
   startDate,
   endDate,
   page = 1,
@@ -79,6 +81,14 @@ export async function listExecutions({
 
   if (errorType) {
     where.errorType = errorType.toUpperCase();
+  }
+
+  if (search && typeof search === 'string' && search.trim().length > 0) {
+    const term = search.trim();
+    where.OR = [
+      { url: { contains: term } },
+      { request: { name: { contains: term } } },
+    ];
   }
 
   if (startDate || endDate) {

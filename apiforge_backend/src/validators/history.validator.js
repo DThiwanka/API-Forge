@@ -48,6 +48,34 @@ export function validateListHistory(req, res, next) {
     }
   }
 
+  const { search, method, requestId, environmentId } = req.query;
+
+  if (search !== undefined) {
+    if (typeof search !== 'string') {
+      errors.push({ field: 'search', message: 'search must be a string' });
+    } else if (search.length > 255) {
+      errors.push({ field: 'search', message: 'search query must not exceed 255 characters' });
+    }
+  }
+
+  if (method !== undefined) {
+    if (typeof method !== 'string' || method.trim().length === 0) {
+      errors.push({ field: 'method', message: 'method must be a non-empty string' });
+    }
+  }
+
+  if (requestId !== undefined) {
+    if (typeof requestId !== 'string' || requestId.trim().length === 0) {
+      errors.push({ field: 'requestId', message: 'requestId must be a non-empty string' });
+    }
+  }
+
+  if (environmentId !== undefined && environmentId !== 'null') {
+    if (typeof environmentId !== 'string' || environmentId.trim().length === 0) {
+      errors.push({ field: 'environmentId', message: 'environmentId must be a non-empty string' });
+    }
+  }
+
   if (errors.length > 0) {
     return next(new AppError('Validation failed', 400, errors));
   }
