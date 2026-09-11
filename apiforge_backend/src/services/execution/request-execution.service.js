@@ -23,6 +23,7 @@ export async function executeRequest({
   workspaceId,
   collectionId,
   requestId,
+  environmentId = null,
   variables = {},
   allowLocalTargets = false,
 }) {
@@ -38,14 +39,23 @@ export async function executeRequest({
     throw new AppError('Request not found in this collection', 404);
   }
 
-  // 3. Resolve active environment variables and merge with runtime variables
-  // Precedence: runtime variables > active environment variables
-  const activeEnv = await environmentRepository.getActiveEnvironment(workspaceId);
-  const activeEnvVariables = {};
+  // 3. Resolve active or explicitly specified environment variables and merge with runtime variables
+  // Precedence: runtime variables > environment variables
+  let targetEnv = null;
+  if (environmentId) {
+    targetEnv = await environmentRepository.findByWorkspaceAndId(workspaceId, environmentId, true);
+    if (!targetEnv) {
+      throw new AppError('Selected environment not found in this workspace', 404);
+    }
+  } else {
+    targetEnv = await environmentRepository.getActiveEnvironment(workspaceId);
+  }
+
+  const envVariables = {};
   const secretValues = [];
-  if (activeEnv && Array.isArray(activeEnv.variables)) {
-    for (const v of activeEnv.variables) {
-      activeEnvVariables[v.key] = v.value;
+  if (targetEnv && Array.isArray(targetEnv.variables)) {
+    for (const v of targetEnv.variables) {
+      envVariables[v.key] = v.value;
       if (v.isSecret && v.value) {
         secretValues.push(v.value);
       }
@@ -53,7 +63,7 @@ export async function executeRequest({
   }
 
   const mergedVariables = {
-    ...activeEnvVariables,
+    ...envVariables,
     ...(variables || {}),
   };
 
@@ -72,7 +82,7 @@ export async function executeRequest({
       workspaceId,
       collectionId,
       requestId,
-      environmentId: activeEnv?.id || null,
+      environmentId: targetEnv?.id || null,
       method: preparedMethod,
       url: preparedUrl,
       status: null,
@@ -110,7 +120,7 @@ export async function executeRequest({
       workspaceId,
       collectionId,
       requestId,
-      environmentId: activeEnv?.id || null,
+      environmentId: targetEnv?.id || null,
       method: prepared.method,
       url: response.url || prepared.url,
       status: response.status,
@@ -141,7 +151,7 @@ export async function executeRequest({
       workspaceId,
       collectionId,
       requestId,
-      environmentId: activeEnv?.id || null,
+      environmentId: targetEnv?.id || null,
       method: prepared.method,
       url: prepared.url,
       status: null,

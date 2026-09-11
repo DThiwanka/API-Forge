@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import collectionController from '../controllers/collection.controller.js';
 import exportController from '../controllers/export.controller.js';
+import runnerController from '../controllers/runner.controller.js';
 import folderRoutes from './folder.routes.js';
 import requestRoutes from './request.routes.js';
 import { requireCollection } from '../middleware/collection.middleware.js';
@@ -10,6 +11,7 @@ import {
   validateUpdateCollection,
 } from '../validators/collection.validator.js';
 import { validateExportOpenApi } from '../validators/export.validator.js';
+import { validateCollectionRun } from '../validators/runner.validator.js';
 import { WORKSPACE_ROLES } from '../constants/workspaceRoles.js';
 
 // Router with mergeParams so :workspaceId is accessible from parent router
@@ -41,6 +43,15 @@ router.get(
   requireCollection,
   validateExportOpenApi,
   exportController.exportCollectionAsOpenApi
+);
+
+// Execute collection runner sequentially
+router.post(
+  '/:collectionId/run',
+  requireWorkspaceRole(WORKSPACE_ROLES.MEMBER),
+  requireCollection,
+  validateCollectionRun,
+  runnerController.runCollection
 );
 
 router.get(

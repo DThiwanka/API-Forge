@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Folder,
   FolderOpen,
@@ -26,6 +27,7 @@ export default function CollectionItem({
   workspaceId,
   activeRequestId,
 }) {
+  const navigate = useNavigate();
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -105,6 +107,9 @@ export default function CollectionItem({
 
             <CollectionContextMenu
               type="collection"
+              onRunCollection={() =>
+                navigate(`/workspace/${workspaceId}/runner?collectionId=${collection.id}`)
+              }
               onNewRequest={() => setIsNewRequestOpen(true)}
               onImportCurl={() => setIsImportOpen(true)}
               onExport={() => setIsExportOpen(true)}

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Layers, X, Network } from 'lucide-react';
+import { Plus, Search, Layers, X, Network, Play } from 'lucide-react';
 import CollectionItem from './CollectionItem';
 import CreateCollectionDialog from './CreateCollectionDialog';
 import LoadingScreen from '../../../components/common/LoadingScreen';
@@ -58,6 +58,14 @@ export default function CollectionTree({
           </div>
 
           <div className="flex items-center gap-1">
+            <Link
+              to={`/workspace/${workspaceId}/runner`}
+              className="p-1 rounded text-slate-400 hover:text-emerald-400 hover:bg-[#181b22] border border-transparent hover:border-[#232732] transition-colors"
+              title="Collection Runner"
+            >
+              <Play size={13} />
+            </Link>
+
             <Link
               to={`/workspace/${workspaceId}/canvas`}
               className="p-1 rounded text-slate-400 hover:text-sky-300 hover:bg-[#181b22] border border-transparent hover:border-[#232732] transition-colors"

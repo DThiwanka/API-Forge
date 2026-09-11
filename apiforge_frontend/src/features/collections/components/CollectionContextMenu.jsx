@@ -10,11 +10,13 @@ import {
   ExternalLink,
   Download,
   Upload,
+  Play,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function CollectionContextMenu({
   type = 'collection', // 'collection' | 'folder' | 'request'
+  onRunCollection,
   onNewFolder,
   onNewRequest,
   onImportCurl,
@@ -77,6 +79,16 @@ export default function CollectionContextMenu({
         >
           {type === 'collection' && (
             <>
+              {onRunCollection && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onRunCollection)}
+                  className="w-full px-3 py-1.5 text-left text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/30 flex items-center gap-2"
+                >
+                  <Play size={13} className="text-emerald-400 fill-emerald-400/20" />
+                  <span>Run Collection</span>
+                </button>
+              )}
               {onNewRequest && (
                 <button
                   type="button"
@@ -95,7 +107,6 @@ export default function CollectionContextMenu({
                 >
                   <Download size={13} className="text-sky-400" />
                   <span>Import cURL</span>
-                  <span>Import</span>
                 </button>
               )}
               {onExport && (

@@ -383,5 +383,129 @@ APIForge supports exporting workspace collections, folders, and request definiti
   - Operation IDs are generated as camelCase strings and disambiguated (`_2`, `_3`) on collision.
   - Duplicate `(path, method)` pairs are merged without loss of data or specification corruption.
 
+### Collection Runner
+APIForge provides a synchronous backend Collection Runner allowing users to execute multiple saved API requests from a collection sequentially and deterministically.
 
+#### Endpoint
+- `POST /api/workspaces/:workspaceId/collections/:collectionId/run` - Execute requests in a collection. Requires `MEMBER`+ role.
 
+#### Request Payload
+```json
+{
+  "requestIds": ["req_uuid_1", "req_uuid_2"],
+  "folderIds": ["folder_uuid_1"],
+  "environmentId": "env_uuid (optional)",
+  "runtimeVariables": {
+    "userId": "123",
+    "token": "temporary-value"
+  },
+  "stopOnError": false
+}
+```
+
+#### Runner Behavior & Architecture
+- **Selection**:
+  - Entire Collection: If neither `requestIds` nor `folderIds` are supplied, all requests in the collection are executed.
+  - Folder Selection: Supplying `folderIds` selects all requests contained in those folders, including any nested subfolders recursively.
+  - Request Selection: Supplying `requestIds` selects those individual requests.
+  - Mixed Selection & Deduplication: Combining `folderIds` and `requestIds` merges the selections without executing any duplicate requests.
+- **Deterministic Ordering**:
+  - The runner strictly follows the collection hierarchy and positions:
+    1. Root folders in `position ASC`, `createdAt ASC` order.
+       - Within each folder: direct requests (`position ASC`), followed by subfolders (`position ASC`) recursively.
+    2. Collection root requests (not in any folder) in `position ASC`, `createdAt ASC` order.
+  - Requests selected by ID or folder are executed strictly according to this canonical collection order.
+- **Sequential Execution**:
+  - Requests are executed one at a time sequentially. The runner waits for each HTTP request to complete before beginning the next.
+- **Stop-on-Error**:
+  - When `stopOnError: true`, the runner halts execution immediately after the first failure (HTTP 4xx/5xx or transport/network error). Remaining requests are marked as `skipped: true`.
+  - When `stopOnError: false`, subsequent requests continue to execute regardless of previous failures.
+- **Environment & Runtime Variables**:
+  - If `environmentId` is not provided, the active workspace environment is resolved automatically.
+  - If `environmentId` is specified, its variables are loaded (verifying workspace isolation).
+  - Runtime variables (`runtimeVariables`) override environment variables in-memory for the run without persisting to the database.
+- **History & Security**:
+  - Reuses the existing Step 7 execution engine, SSRF protection, timeout clamping, and Step 13 history persistence.
+  - Every executed request is recorded in API history with its resolved environment, duration, and status without duplicates.
+  - Environment secrets and authorization tokens are masked and not exposed in runner results.
+
+#### Response Structure
+```json
+{
+  "success": true,
+  "message": "Collection run completed",
+  "data": {
+    "metadata": {
+      "workspaceId": "ws_uuid",
+      "collectionId": "col_uuid",
+      "collectionName": "API Collection",
+      "environmentId": "env_uuid",
+      "environmentName": "Staging",
+      "startedAt": "2026-09-12T04:45:00.000Z",
+      "finishedAt": "2026-09-12T04:45:01.200Z",
+      "stopOnError": true
+    },
+    "summary": {
+      "total": 5,
+      "completed": 3,
+      "passed": 2,
+      "failed": 1,
+      "skipped": 2,
+      "stopped": true,
+      "durationMs": 1200,
+      "status": "STOPPED"
+    },
+    "results": [
+      {
+        "id": "req_uuid_1",
+        "name": "Login",
+        "method": "POST",
+        "url": "https://api.example.com/login",
+        "status": 200,
+        "statusText": "OK",
+        "duration": 42,
+        "sizeBytes": 128,
+        "contentType": "application/json",
+        "success": true,
+        "errorType": null,
+        "errorMessage": null,
+        "skipped": false
+      },
+      {
+        "id": "req_uuid_2",
+        "name": "Failed Request",
+        "method": "GET",
+        "url": "https://api.example.com/missing",
+        "status": 404,
+        "statusText": "Not Found",
+        "duration": 15,
+        "sizeBytes": 45,
+        "contentType": "application/json",
+        "success": false,
+        "errorType": "HTTP_ERROR",
+        "errorMessage": "HTTP 404 Not Found",
+        "skipped": false
+      },
+      {
+        "id": "req_uuid_3",
+        "name": "Skipped Request",
+        "method": "GET",
+        "url": "https://api.example.com/data",
+        "status": null,
+        "statusText": null,
+        "duration": 0,
+        "sizeBytes": null,
+        "contentType": null,
+        "success": false,
+        "errorType": null,
+        "errorMessage": null,
+        "skipped": true
+      }
+    ]
+  }
+}
+```
+
+#### Current Limitations
+- Initial synchronous execution mode: runs synchronously during the HTTP request lifecycle.
+- Asynchronous job runners, BullMQ/Redis queues, WebSockets, scheduled executions, scripts, and frontend runner UI will be introduced in subsequent steps.
