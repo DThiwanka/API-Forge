@@ -66,7 +66,7 @@ export const previewOpenApi = asyncHandler(async (req, res) => {
  */
 export const importOpenApi = asyncHandler(async (req, res) => {
   const { workspaceId } = req.params;
-  const { document, collectionId, collectionName, folderId } = req.body;
+  const { document, collectionId, collectionName, folderId, selectedOperations } = req.body;
 
   const result = await openapiImportService.importOpenApi({
     workspaceId,
@@ -74,6 +74,7 @@ export const importOpenApi = asyncHandler(async (req, res) => {
     collectionId,
     collectionName,
     folderId,
+    selectedOperations,
   });
 
   res.status(201).json({

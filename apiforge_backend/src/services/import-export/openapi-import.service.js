@@ -645,6 +645,7 @@ export async function generateImportPlan(rawInput) {
  * @param {string} [params.collectionId]
  * @param {string} [params.collectionName]
  * @param {string} [params.folderId]
+ * @param {string[]} [params.selectedOperations]
  * @returns {Promise<object>}
  */
 export async function importOpenApi({
@@ -653,8 +654,27 @@ export async function importOpenApi({
   collectionId,
   collectionName,
   folderId,
+  selectedOperations,
 }) {
   const plan = await generateImportPlan(document);
+
+  // Filter requests if selective operation list provided
+  const requestsToImport =
+    Array.isArray(selectedOperations) && selectedOperations.length > 0
+      ? plan.requests.filter((req, index) => {
+          const key = `${req.method}:${req.url}`;
+          return (
+            selectedOperations.includes(key) ||
+            selectedOperations.includes(String(index)) ||
+            selectedOperations.includes(req.name)
+          );
+        })
+      : plan.requests;
+
+  const activeFolderNames = new Set(requestsToImport.map((r) => r.folderName).filter(Boolean));
+  const foldersToProcess = folderId
+    ? plan.folders
+    : plan.folders.filter((f) => activeFolderNames.has(f.name));
 
   return prisma.$transaction(async (tx) => {
     // 1. Destination Collection Resolution
@@ -706,7 +726,7 @@ export async function importOpenApi({
       }
 
       // All requests will be placed directly into this folder
-      for (const f of plan.folders) {
+      for (const f of foldersToProcess) {
         folderIdMap.set(f.name, existingFolder.id);
       }
     } else {
@@ -720,7 +740,7 @@ export async function importOpenApi({
       });
       let nextFolderPos = (currentFolderAgg._max?.position ?? -1) + 1;
 
-      for (const f of plan.folders) {
+      for (const f of foldersToProcess) {
         let folder = await tx.folder.findFirst({
           where: {
             collectionId: targetCollection.id,
@@ -753,7 +773,7 @@ export async function importOpenApi({
     const nameOccurrenceMap = new Map();
     const createdRequests = [];
 
-    for (const req of plan.requests) {
+    for (const req of requestsToImport) {
       let finalName = req.name;
       const count = nameOccurrenceMap.get(req.name) || 0;
       nameOccurrenceMap.set(req.name, count + 1);

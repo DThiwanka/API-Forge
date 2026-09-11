@@ -40,9 +40,44 @@ export async function exportRequestAsCurl(workspaceId, requestId) {
   return response.data.data;
 }
 
+/**
+ * Preview normalized import plan from an OpenAPI 3.0 / 3.1 document without persisting
+ * POST /api/workspaces/:workspaceId/import/openapi/preview
+ */
+export async function previewOpenApi(workspaceId, document) {
+  const response = await apiClient.post(
+    `/workspaces/${workspaceId}/import/openapi/preview`,
+    { document }
+  );
+  return response.data.data;
+}
+
+/**
+ * Import OpenAPI specification and persist resources (collection, folders, requests)
+ * POST /api/workspaces/:workspaceId/import/openapi
+ */
+export async function importOpenApi(
+  workspaceId,
+  { document, collectionId, collectionName, folderId, selectedOperations }
+) {
+  const response = await apiClient.post(
+    `/workspaces/${workspaceId}/import/openapi`,
+    {
+      document,
+      collectionId: collectionId || undefined,
+      collectionName: collectionName || undefined,
+      folderId: folderId || undefined,
+      selectedOperations: selectedOperations || undefined,
+    }
+  );
+  return response.data.data;
+}
+
 export default {
   previewCurl,
   importCurl,
   exportRequestAsCurl,
+  previewOpenApi,
+  importOpenApi,
 };
 

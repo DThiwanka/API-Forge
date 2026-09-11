@@ -150,6 +150,13 @@ export function validateImportOpenApiSave(req, res, next) {
     }
   }
 
+  const { selectedOperations } = req.body || {};
+  if (selectedOperations !== undefined && selectedOperations !== null) {
+    if (!Array.isArray(selectedOperations)) {
+      errors.push({ field: 'selectedOperations', message: 'selectedOperations must be an array' });
+    }
+  }
+
   if (errors.length > 0) {
     return next(new AppError('Validation failed', 400, errors));
   }
@@ -158,6 +165,7 @@ export function validateImportOpenApiSave(req, res, next) {
   if (collectionId) req.body.collectionId = collectionId.trim();
   if (collectionName) req.body.collectionName = collectionName.trim();
   if (folderId) req.body.folderId = folderId.trim();
+  if (Array.isArray(selectedOperations)) req.body.selectedOperations = selectedOperations;
 
   next();
 }

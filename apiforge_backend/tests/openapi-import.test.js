@@ -718,6 +718,45 @@ paths:
       assert.ok(req);
     });
 
+    it('should selectively import only requested operations when selectedOperations is provided', async () => {
+      const spec = {
+        openapi: '3.0.0',
+        info: { title: 'Selective API', version: '1.0' },
+        paths: {
+          '/users': {
+            get: { summary: 'List Users', tags: ['Users'] },
+            post: { summary: 'Create User', tags: ['Users'] },
+          },
+          '/orders': {
+            get: { summary: 'List Orders', tags: ['Orders'] },
+          },
+        },
+      };
+
+      const res = await fetch(`${baseUrl}/workspaces/${workspaceId}/import/openapi`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${memberToken}`,
+        },
+        body: JSON.stringify({
+          document: spec,
+          selectedOperations: ['GET:{{baseUrl}}/users'],
+        }),
+      });
+
+      assert.equal(res.status, 201);
+      const json = await res.json();
+      assert.equal(json.data.requestCount, 1);
+      assert.equal(json.data.folderCount, 1);
+
+      const requests = await prisma.request.findMany({
+        where: { collectionId: json.data.collection.id },
+      });
+      assert.equal(requests.length, 1);
+      assert.equal(requests[0].name, 'List Users');
+    });
+
     it('should reject VIEWER from importing with 403', async () => {
       const spec = {
         openapi: '3.0.0',
