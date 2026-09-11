@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import collectionController from '../controllers/collection.controller.js';
+import exportController from '../controllers/export.controller.js';
 import folderRoutes from './folder.routes.js';
 import requestRoutes from './request.routes.js';
 import { requireCollection } from '../middleware/collection.middleware.js';
@@ -8,6 +9,7 @@ import {
   validateCreateCollection,
   validateUpdateCollection,
 } from '../validators/collection.validator.js';
+import { validateExportOpenApi } from '../validators/export.validator.js';
 import { WORKSPACE_ROLES } from '../constants/workspaceRoles.js';
 
 // Router with mergeParams so :workspaceId is accessible from parent router
@@ -30,6 +32,15 @@ router.get(
   '/',
   requireWorkspaceRole(WORKSPACE_ROLES.VIEWER),
   collectionController.list
+);
+
+// Export collection as OpenAPI 3.0.3 specification (JSON or YAML)
+router.get(
+  '/:collectionId/export/openapi',
+  requireWorkspaceRole(WORKSPACE_ROLES.VIEWER),
+  requireCollection,
+  validateExportOpenApi,
+  exportController.exportCollectionAsOpenApi
 );
 
 router.get(

@@ -338,4 +338,50 @@ APIForge supports importing OpenAPI specifications into workspace-scoped collect
 - **Atomic Transactions**: Multi-record imports execute entirely within a single `prisma.$transaction`. Any database failure causes a complete rollback with zero orphaned collections or requests.
 - **Zero Execution**: Documents are parsed as pure data; no JavaScript or shell commands (`eval`, `child_process`) are ever executed.
 
+### OpenAPI Specification Export
+APIForge supports exporting workspace collections, folders, and request definitions into valid, portable OpenAPI 3.0.3 specifications.
+
+#### Endpoints
+- `GET /api/workspaces/:workspaceId/collections/:collectionId/export/openapi` - Export collection as an OpenAPI 3.0.3 specification. Requires `VIEWER`+ role.
+  - Query parameters:
+    - `format`: `json` (default) or `yaml`.
+  - Response Headers:
+    - `Content-Type`: `application/json; charset=utf-8` or `application/yaml; charset=utf-8`.
+    - `Content-Disposition`: `attachment; filename="<sanitized-collection-name>.openapi.<json|yaml>"`.
+
+#### Export Architecture & Mapping
+- **Specification Version**: OpenAPI `3.0.3`. Validated using `@readme/openapi-parser` prior to response transmission.
+- **Metadata**:
+  - Collection name maps to `info.title`.
+  - Collection description maps to `info.description` (omitted if empty).
+  - Version defaults to `1.0.0`.
+- **URL & Path Parameters**:
+  - Request URLs are normalized into OpenAPI path templates (`{{baseUrl}}/users/{{userId}}` → `/users/{userId}`).
+  - Detected path variables are automatically generated as required path parameters (`in: "path"`, `required: true`, `schema: { type: "string" }`).
+- **Query Parameters**:
+  - Enabled request query parameters map to `in: "query"` parameter objects.
+  - Non-sensitive parameters include example values.
+- **Headers**:
+  - Enabled request headers map to `in: "header"` parameter objects.
+  - Protocol and sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `Content-Type`, `Accept`, `X-API-Key`) are excluded from parameter declarations to prevent credential leakage and comply with OpenAPI 3.0 standards.
+- **Request Bodies**:
+  - `json`: `application/json` with object/array schema and parsed example.
+  - `text`: `text/plain` with string schema and text example.
+  - `x-www-form-urlencoded`: `application/x-www-form-urlencoded` with key-value schema properties.
+  - `form-data`: `multipart/form-data` with string / binary format properties.
+  - `raw`: Content-Type determined by parsing or headers.
+- **Authentication**:
+  - `bearer` → `components.securitySchemes.BearerAuth` with operation-level `security: [{ BearerAuth: [] }]`.
+  - `basic` → `components.securitySchemes.BasicAuth` with operation-level `security: [{ BasicAuth: [] }]`.
+  - `api-key` (header) → `components.securitySchemes.ApiKeyHeaderAuth` with `name: <keyName>` and `in: "header"`.
+  - `api-key` (query) → `components.securitySchemes.ApiKeyQueryAuth` with `name: <keyName>` and `in: "query"`.
+  - **Zero Credential Export**: Actual tokens, passwords, and API key values are never emitted into the exported specification.
+- **Folders & Tags**:
+  - Folders map directly to top-level `tags` and operation `tags`.
+  - Nested folders and root-level requests are seamlessly organized.
+- **Deterministic Deduplication**:
+  - Operation IDs are generated as camelCase strings and disambiguated (`_2`, `_3`) on collision.
+  - Duplicate `(path, method)` pairs are merged without loss of data or specification corruption.
+
+
 
