@@ -14,6 +14,7 @@ import CreateFolderDialog from './CreateFolderDialog';
 import CreateRequestDialog from './CreateRequestDialog';
 import RenameDialog from './RenameDialog';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import ImportDialog from '../../import-export/components/ImportDialog';
 import useCollectionStore from '../store/collectionStore';
 import { useFoldersQuery, useUpdateCollectionMutation, useDeleteCollectionMutation } from '../hooks/useCollections';
 import { listRequests } from '../../requests/services/requestApi';
@@ -26,6 +27,7 @@ export default function CollectionItem({
 }) {
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -102,6 +104,7 @@ export default function CollectionItem({
             <CollectionContextMenu
               type="collection"
               onNewRequest={() => setIsNewRequestOpen(true)}
+              onImportCurl={() => setIsImportOpen(true)}
               onNewFolder={() => setIsNewFolderOpen(true)}
               onRename={() => setIsRenameOpen(true)}
               onDelete={() => setIsDeleteOpen(true)}
@@ -175,6 +178,13 @@ export default function CollectionItem({
         title="Rename Collection"
         initialName={collection.name}
         onSave={handleRename}
+      />
+
+      <ImportDialog
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        workspaceId={workspaceId}
+        defaultCollectionId={collection.id}
       />
 
       <ConfirmDialog

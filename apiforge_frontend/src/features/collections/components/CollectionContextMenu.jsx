@@ -8,6 +8,7 @@ import {
   Copy,
   Move,
   ExternalLink,
+  Download,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -15,6 +16,7 @@ export default function CollectionContextMenu({
   type = 'collection', // 'collection' | 'folder' | 'request'
   onNewFolder,
   onNewRequest,
+  onImportCurl,
   onRename,
   onMove,
   onDuplicate,
@@ -83,6 +85,16 @@ export default function CollectionContextMenu({
                   <span>New Request</span>
                 </button>
               )}
+              {onImportCurl && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onImportCurl)}
+                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#232732] flex items-center gap-2"
+                >
+                  <Download size={13} className="text-sky-400" />
+                  <span>Import cURL</span>
+                </button>
+              )}
               {onNewFolder && (
                 <button
                   type="button"
@@ -127,6 +139,16 @@ export default function CollectionContextMenu({
                 >
                   <FilePlus size={13} className="text-sky-400" />
                   <span>New Request</span>
+                </button>
+              )}
+              {onImportCurl && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onImportCurl)}
+                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#232732] flex items-center gap-2"
+                >
+                  <Download size={13} className="text-sky-400" />
+                  <span>Import cURL</span>
                 </button>
               )}
               {onNewFolder && (

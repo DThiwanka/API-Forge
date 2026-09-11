@@ -141,6 +141,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
         isDirty={isDirty}
         isSaving={isSaving}
         onSave={handleSave}
+        workspaceId={workspaceId}
+        requestId={requestId}
       />
 
       {/* Main Split Grid: Request Editor (left) & Response Inspector (right) */}

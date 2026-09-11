@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Edit2, Check } from 'lucide-react';
+import { Edit2, Check, Terminal } from 'lucide-react';
 import RequestSaveButton from './RequestSaveButton';
+import ExportDialog from '../../import-export/components/ExportDialog';
 import { cn } from '../../../utils/cn';
 
 export default function RequestHeader({
@@ -9,10 +10,13 @@ export default function RequestHeader({
   isDirty,
   isSaving,
   onSave,
+  workspaceId,
+  requestId,
   className,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(name);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   const handleStartEdit = () => {
     setTempName(name);
@@ -87,12 +91,32 @@ export default function RequestHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        {requestId && (
+          <button
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+            title="Export request as cURL command"
+          >
+            <Terminal size={12} className="text-sky-400" />
+            <span>Export</span>
+          </button>
+        )}
+
         <RequestSaveButton
           isSaving={isSaving}
           isDirty={isDirty}
           onSave={onSave}
         />
       </div>
+
+      <ExportDialog
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        workspaceId={workspaceId}
+        requestId={requestId}
+        requestName={name}
+      />
     </div>
   );
 }

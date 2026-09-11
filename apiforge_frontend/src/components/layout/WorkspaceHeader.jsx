@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History } from 'lucide-react';
+import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History, Download } from 'lucide-react';
 import { useWorkspaceQuery, useCollectionsQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 import useWorkspaceStore from '../../features/workspace/store/workspaceStore';
+import ImportDialog from '../../features/import-export/components/ImportDialog';
 import { cn } from '../../utils/cn';
 
 const ROLE_BADGES = {
@@ -22,12 +24,14 @@ export default function WorkspaceHeader({ workspaceId, className }) {
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
 
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const { data: workspace } = useWorkspaceQuery(workspaceId);
   const { data: collections = [] } = useCollectionsQuery(workspaceId);
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
 
   const activeEnv = environments.find((e) => e.isActive);
   const roleBadge = ROLE_BADGES[workspace?.role] || ROLE_BADGES.VIEWER;
+  const canWrite = workspace?.role && ['OWNER', 'ADMIN', 'MEMBER'].includes(workspace.role);
 
   if (!workspaceId) return null;
 
@@ -135,6 +139,18 @@ export default function WorkspaceHeader({ workspaceId, className }) {
       </div>
 
       <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+        {canWrite && (
+          <button
+            type="button"
+            onClick={() => setIsImportOpen(true)}
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 text-sky-300 text-xs font-medium transition-colors cursor-pointer"
+            title="Import API request from cURL command"
+          >
+            <Download size={12} />
+            <span>Import</span>
+          </button>
+        )}
+
         <Link
           to={`/workspace/${workspaceId}/environments`}
           className="flex items-center gap-1.5 hover:text-slate-200 transition-colors"
@@ -146,6 +162,12 @@ export default function WorkspaceHeader({ workspaceId, className }) {
           </span>
         </Link>
       </div>
+
+      <ImportDialog
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        workspaceId={workspaceId}
+      />
     </div>
   );
 }
