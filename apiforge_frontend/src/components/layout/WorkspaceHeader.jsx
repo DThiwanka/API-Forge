@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router-dom';
-import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree } from 'lucide-react';
+import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History } from 'lucide-react';
 import { useWorkspaceQuery, useCollectionsQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 import useWorkspaceStore from '../../features/workspace/store/workspaceStore';
@@ -16,7 +16,8 @@ export default function WorkspaceHeader({ workspaceId, className }) {
   const location = useLocation();
   const isCanvas = location.pathname.endsWith('/canvas');
   const isEnvironments = location.pathname.includes('/environments');
-  const isEditor = !isCanvas && !isEnvironments;
+  const isHistory = location.pathname.includes('/history');
+  const isEditor = !isCanvas && !isEnvironments && !isHistory;
 
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
@@ -115,6 +116,20 @@ export default function WorkspaceHeader({ workspaceId, className }) {
           >
             <Globe size={12} />
             <span>Environments</span>
+          </Link>
+
+          <Link
+            to={`/workspace/${workspaceId}/history`}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
+              isHistory
+                ? 'bg-[#181b22] text-sky-400 border border-[#2b313e] shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+            title="API Execution History"
+          >
+            <History size={12} />
+            <span>History</span>
           </Link>
         </div>
       </div>
