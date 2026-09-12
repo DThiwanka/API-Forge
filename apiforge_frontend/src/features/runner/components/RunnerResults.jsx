@@ -53,15 +53,6 @@ export default function RunnerResults({
   const [filter, setFilter] = useState('ALL'); // 'ALL' | 'PASSED' | 'FAILED' | 'SKIPPED'
   const [expandedItemIds, setExpandedItemIds] = useState(new Set());
 
-  const summary = runData?.summary || {
-    total: 0,
-    completed: 0,
-    passed: 0,
-    failed: 0,
-    skipped: 0,
-    durationMs: 0,
-    status: 'COMPLETED',
-  };
   const summary = useMemo(() => {
     return (
       runData?.summary || {
@@ -171,13 +162,6 @@ export default function RunnerResults({
     <div className={cn('flex flex-col h-full bg-[#0c0e14] overflow-hidden', className)}>
       {/* Top Run Summary Banner */}
       <div className="p-4 bg-[#10131b] border-b border-[#232732] space-y-3 shrink-0">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            {summary.status === 'COMPLETED' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/60 border border-emerald-600/40 text-emerald-400 text-xs font-semibold">
-                <CheckCircle2 size={13} />
-                <span>Run Completed</span>
-              </div>
         {/* Run Completion Status Banner */}
         <div
           className={cn(
@@ -196,19 +180,9 @@ export default function RunnerResults({
             {runOutcome.statusType === 'SUCCESS' && (
               <CheckCircle2 size={18} className="text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
-            {summary.status === 'STOPPED' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-950/60 border border-amber-600/40 text-amber-400 text-xs font-semibold">
-                <AlertTriangle size={13} />
-                <span>Halted on Error</span>
-              </div>
             {runOutcome.statusType === 'TEST_FAILED' && (
               <XCircle size={18} className="text-rose-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
-            {summary.status === 'FAILED' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-950/60 border border-rose-600/40 text-rose-400 text-xs font-semibold">
-                <XCircle size={13} />
-                <span>Run with Failures</span>
-              </div>
             {runOutcome.statusType === 'EXECUTION_ERROR' && (
               <AlertTriangle size={18} className="text-rose-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
@@ -216,11 +190,6 @@ export default function RunnerResults({
               <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
 
-            {metadata.environmentName && (
-              <span className="text-[11px] font-mono text-slate-400 bg-[#171a24] px-2 py-0.5 rounded border border-[#2b3140]">
-                Env: {metadata.environmentName}
-              </span>
-            )}
             <div className="min-w-0">
               <div className="font-semibold text-xs tracking-tight text-slate-100 flex items-center gap-2 flex-wrap">
                 <span>{runOutcome.headline}</span>
@@ -272,7 +241,6 @@ export default function RunnerResults({
             type="button"
             onClick={onRunAgain}
             disabled={disabled}
-            className="flex items-center gap-1.5 px-3 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
             className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-[#1f2433] hover:bg-[#2b3247] text-slate-200 hover:text-white text-xs font-medium border border-[#31394d] transition-colors disabled:opacity-50 shrink-0 cursor-pointer select-none"
           >
             <RotateCw size={12} />
@@ -373,20 +341,7 @@ export default function RunnerResults({
         )}
       </div>
 
-      {/* Filter Tabs */}
-      <div className="px-4 py-1.5 bg-[#0f1219] border-b border-[#232732] flex items-center gap-2 text-xs shrink-0 select-none">
-        <button
-          type="button"
-          onClick={() => setFilter('ALL')}
-          className={cn(
-            'px-2.5 py-1 rounded text-xs transition-colors',
-            filter === 'ALL'
-              ? 'bg-[#1e2330] text-slate-100 font-medium'
-              : 'text-slate-400 hover:text-slate-200'
-          )}
-        >
-          All ({results.length})
-        </button>
+
       <div className="px-4 py-1.5 bg-[#0f1219] border-b border-[#232732] flex items-center justify-between gap-2 text-xs shrink-0 select-none">
         <div className="flex items-center gap-1.5">
           <button
@@ -402,18 +357,6 @@ export default function RunnerResults({
             All ({results.length})
           </button>
 
-        <button
-          type="button"
-          onClick={() => setFilter('PASSED')}
-          className={cn(
-            'px-2.5 py-1 rounded text-xs transition-colors',
-            filter === 'PASSED'
-              ? 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 font-medium'
-              : 'text-slate-400 hover:text-emerald-400'
-          )}
-        >
-          Passed ({summary.passed})
-        </button>
           <button
             type="button"
             onClick={() => setFilter('PASSED')}
@@ -444,40 +387,6 @@ export default function RunnerResults({
             )}
             <span>Failed ({summary.failed})</span>
           </button>
-
-        <button
-          type="button"
-          onClick={() => setFilter('FAILED')}
-          className={cn(
-            'px-2.5 py-1 rounded text-xs transition-colors',
-            filter === 'FAILED'
-              ? 'bg-rose-950/40 border border-rose-800/40 text-rose-300 font-medium'
-              : 'text-slate-400 hover:text-rose-400'
-          )}
-        >
-          Failed ({summary.failed})
-        </button>
-
-        {summary.skipped > 0 && (
-          <button
-            type="button"
-            onClick={() => setFilter('SKIPPED')}
-            onClick={() => setFilter('PASSED')}
-            className={cn(
-              'px-2.5 py-1 rounded text-xs transition-colors',
-              filter === 'SKIPPED'
-                ? 'bg-slate-800 text-slate-200 font-medium'
-                : 'text-slate-400 hover:text-slate-200'
-              'px-2.5 py-1 rounded text-xs transition-colors cursor-pointer',
-              filter === 'PASSED'
-                ? 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 font-medium'
-                : 'text-slate-400 hover:text-emerald-400'
-            )}
-          >
-            Skipped ({summary.skipped})
-            Passed ({summary.passed})
-          </button>
-        )}
 
           {summary.skipped > 0 && (
             <button

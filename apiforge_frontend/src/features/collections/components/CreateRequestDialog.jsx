@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Dialog from '../../../components/ui/Dialog';
 import Button from '../../../components/ui/Button';
 import { useCreateRequestMutation } from '../../requests/hooks/useRequest';
+import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
 import useCollectionStore from '../store/collectionStore';
+import useRequestTabStore from '../../requests/store/requestTabStore';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
@@ -19,9 +21,15 @@ export default function CreateRequestDialog({
   const [method, setMethod] = useState('GET');
   const [url, setUrl] = useState('https://httpbin.org/get');
   const [error, setError] = useState(null);
+  const [selectedCollectionId, setSelectedCollectionId] = useState(collectionId || '');
   const navigate = useNavigate();
 
-  const createMutation = useCreateRequestMutation(workspaceId, collectionId);
+  const { data: collections = [] } = useCollectionsQuery(workspaceId);
+  const effectiveCollectionId =
+    collectionId || selectedCollectionId || (collections.length > 0 ? collections[0].id : null);
+
+
+  const createMutation = useCreateRequestMutation(workspaceId, effectiveCollectionId);
   const expandFolder = useCollectionStore((s) => s.expandFolder);
   const expandCollection = useCollectionStore((s) => s.expandCollection);
 
@@ -30,6 +38,10 @@ export default function CreateRequestDialog({
     const trimmedName = name.trim();
     const trimmedUrl = url.trim();
 
+    if (!effectiveCollectionId) {
+      setError('A collection is required to create a request. Please create a collection first.');
+      return;
+    }
     if (!trimmedName) {
       setError('Request name is required');
       return;
@@ -49,8 +61,19 @@ export default function CreateRequestDialog({
 
       if (folderId) {
         expandFolder(folderId);
-      } else if (collectionId) {
-        expandCollection(collectionId);
+      } else if (effectiveCollectionId) {
+        expandCollection(effectiveCollectionId);
+      }
+
+      // Open tab in requestTabStore
+      if (created?.id) {
+        useRequestTabStore.getState().openTab({
+          workspaceId,
+          collectionId: effectiveCollectionId,
+          requestId: created.id,
+          title: trimmedName,
+          method,
+        });
       }
 
       setName('New Request');
@@ -62,7 +85,7 @@ export default function CreateRequestDialog({
       // Navigate directly to the new request
       if (created?.id) {
         navigate(
-          `/workspace/${workspaceId}/collections/${collectionId}/requests/${created.id}`
+          `/workspace/${workspaceId}/collections/${effectiveCollectionId}/requests/${created.id}`
         );
       }
     } catch (err) {
@@ -91,6 +114,26 @@ export default function CreateRequestDialog({
           </div>
         )}
 
+        {/* Collection Selector if triggered from workspace/tab bar without explicit collection */}
+        {!collectionId && collections.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Target Collection <span className="text-rose-400">*</span>
+            </label>
+            <select
+              value={effectiveCollectionId || ''}
+              onChange={(e) => setSelectedCollectionId(e.target.value)}
+              className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-sans cursor-pointer"
+            >
+              {collections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs font-medium text-slate-300 mb-1">
             Request Name <span className="text-rose-400">*</span>
@@ -115,7 +158,7 @@ export default function CreateRequestDialog({
             <select
               value={method}
               onChange={(e) => setMethod(e.target.value)}
-              className="w-full bg-[#181b22] border border-[#2b313e] rounded px-2 py-2 text-xs font-mono font-bold text-slate-100 focus:outline-none focus:border-sky-500"
+              className="w-full bg-[#181b22] border border-[#2b313e] rounded px-2 py-2 text-xs font-mono font-bold text-slate-100 focus:outline-none focus:border-sky-500 cursor-pointer"
             >
               {METHODS.map((m) => (
                 <option key={m} value={m}>
@@ -147,7 +190,7 @@ export default function CreateRequestDialog({
           <Button
             type="submit"
             variant="primary"
-            disabled={createMutation.isPending || !name.trim() || !url.trim()}
+            disabled={createMutation.isPending || !name.trim() || !url.trim() || !effectiveCollectionId}
           >
             {createMutation.isPending ? 'Creating...' : 'Create Request'}
           </Button>
@@ -156,4 +199,3 @@ export default function CreateRequestDialog({
     </Dialog>
   );
 }
-

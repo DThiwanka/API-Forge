@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode, CheckSquare, Square } from 'lucide-react';
 import {
   ChevronRight,
   ChevronDown,
@@ -259,13 +258,9 @@ export default function RunnerSelectionTree({
   return (
     <div className={cn('flex flex-col bg-[#0f1117] border border-[#232732] rounded-lg overflow-hidden', className)}>
       {/* Header / Selection Controls */}
-      <div className="px-3 py-2 bg-[#141720] border-b border-[#232732] flex items-center justify-between gap-2">
       <div className="px-3 py-2 bg-[#141720] border-b border-[#232732] flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <FileCode size={14} className="text-sky-400" />
-          <span className="text-xs font-semibold text-slate-200">Requests to Execute</span>
-          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[#1c202b] text-slate-400 border border-[#2b3140]">
-            {selectedCount} / {totalRequestsCount} selected
           <span className="text-xs font-semibold text-slate-200">Requests</span>
           <span
             className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#1c202b] text-slate-300 border border-[#2b3140]"
@@ -283,7 +278,6 @@ export default function RunnerSelectionTree({
             type="button"
             onClick={onSelectAll}
             disabled={disabled || selectedCount === totalRequestsCount}
-            className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1"
             className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
             title="Select all requests"
             aria-label="Select all requests"
@@ -296,7 +290,6 @@ export default function RunnerSelectionTree({
             type="button"
             onClick={onDeselectAll}
             disabled={disabled || selectedCount === 0}
-            className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1"
             className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
             title="Deselect all requests"
             aria-label="Deselect all requests"

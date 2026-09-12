@@ -43,7 +43,6 @@ export default function AuthEditor({
               type="button"
               onClick={() => onAuthTypeChange(type.id)}
               className={cn(
-                'px-2.5 py-1 text-xs font-medium rounded transition-colors',
                 'px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer',
                 authType === type.id
                   ? 'bg-sky-600 text-white shadow-sm'
@@ -65,17 +64,6 @@ export default function AuthEditor({
 
       {authType === 'bearer' && (
         <div className="space-y-3 bg-[#111318] p-4 rounded-md border border-[#232732]">
-          <label className="block text-xs font-medium text-slate-300">
-            Bearer Token
-          </label>
-          <div className="relative flex items-center">
-            <input
-              type={showSecret ? 'text' : 'password'}
-              value={auth.bearer?.token || ''}
-              onChange={(e) => onUpdateBearer('token', e.target.value)}
-              placeholder="Token or {{token}}"
-              className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 pr-10"
-            />
           <div className="flex items-center justify-between">
             <label className="block text-xs font-medium text-slate-300">
               Bearer Token
@@ -83,11 +71,9 @@ export default function AuthEditor({
             <button
               type="button"
               onClick={() => setShowSecret(!showSecret)}
-              className="absolute right-3 text-slate-500 hover:text-slate-300"
               className="text-slate-500 hover:text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
               title={showSecret ? 'Hide token' : 'Show token'}
             >
-              {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
               {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
               <span>{showSecret ? 'Hide' : 'Show'}</span>
             </button>
@@ -106,7 +92,6 @@ export default function AuthEditor({
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Will be sent as <code className="text-slate-400">Authorization: Bearer &lt;token&gt;</code>
             Will be sent as <code className="text-slate-400 font-mono">Authorization: Bearer &lt;token&gt;</code>
           </p>
         </div>
@@ -118,13 +103,6 @@ export default function AuthEditor({
             <label className="block text-xs font-medium text-slate-300 mb-1">
               Username
             </label>
-            <input
-              type="text"
-              value={auth.basic?.username || ''}
-              onChange={(e) => onUpdateBasic('username', e.target.value)}
-              placeholder="Username or {{username}}"
-              className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500"
-            />
             <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
               <VariableInput
                 value={auth.basic?.username || ''}
@@ -138,17 +116,6 @@ export default function AuthEditor({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Password
-            </label>
-            <div className="relative flex items-center">
-              <input
-                type={showSecret ? 'text' : 'password'}
-                value={auth.basic?.password || ''}
-                onChange={(e) => onUpdateBasic('password', e.target.value)}
-                placeholder="Password or {{password}}"
-                className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 pr-10"
-              />
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-medium text-slate-300">
                 Password
@@ -156,11 +123,9 @@ export default function AuthEditor({
               <button
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
-                className="absolute right-3 text-slate-500 hover:text-slate-300"
                 className="text-slate-500 hover:text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
                 title={showSecret ? 'Hide password' : 'Show password'}
               >
-                {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
                 {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
                 <span>{showSecret ? 'Hide' : 'Show'}</span>
               </button>
@@ -180,7 +145,6 @@ export default function AuthEditor({
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Will be base64-encoded and sent as <code className="text-slate-400">Authorization: Basic &lt;credentials&gt;</code>
             Will be base64-encoded and sent as <code className="text-slate-400 font-mono">Authorization: Basic &lt;credentials&gt;</code>
           </p>
         </div>
@@ -193,13 +157,6 @@ export default function AuthEditor({
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Key
               </label>
-              <input
-                type="text"
-                value={auth.apiKey?.key || ''}
-                onChange={(e) => onUpdateApiKey('key', e.target.value)}
-                placeholder="e.g. X-API-Key or api_key"
-                className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500"
-              />
               <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
                 <VariableInput
                   value={auth.apiKey?.key || ''}
@@ -219,7 +176,6 @@ export default function AuthEditor({
               <select
                 value={auth.apiKey?.addTo || 'header'}
                 onChange={(e) => onUpdateApiKey('addTo', e.target.value)}
-                className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 cursor-pointer"
               >
                 <option value="header">Header</option>
@@ -229,17 +185,6 @@ export default function AuthEditor({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
-              Value
-            </label>
-            <div className="relative flex items-center">
-              <input
-                type={showSecret ? 'text' : 'password'}
-                value={auth.apiKey?.value || ''}
-                onChange={(e) => onUpdateApiKey('value', e.target.value)}
-                placeholder="Value or {{apiKey}}"
-                className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 pr-10"
-              />
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-medium text-slate-300">
                 Value
@@ -247,11 +192,9 @@ export default function AuthEditor({
               <button
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
-                className="absolute right-3 text-slate-500 hover:text-slate-300"
                 className="text-slate-500 hover:text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
                 title={showSecret ? 'Hide secret' : 'Show secret'}
               >
-                {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
                 {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
                 <span>{showSecret ? 'Hide' : 'Show'}</span>
               </button>
@@ -274,4 +217,3 @@ export default function AuthEditor({
     </div>
   );
 }
-

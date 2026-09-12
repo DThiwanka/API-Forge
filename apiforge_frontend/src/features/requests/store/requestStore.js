@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import useRequestTabStore from './requestTabStore.js';
 
 function normalizeArray(arr) {
   if (!Array.isArray(arr) || arr.length === 0) {
@@ -100,16 +101,83 @@ export const useRequestStore = create((set, get) => ({
   isExecuting: false,
   activeTab: 'params', // 'params' | 'headers' | 'auth' | 'body' | 'settings'
 
+  // Per-request draft storage to preserve edits across tab switches
+  drafts: {},
+
+  // Helper to notify requestTabStore of dirty status
+  notifyDirty: () => {
+    const state = get();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().setTabDirty(state.workspaceId, state.id, true);
+    }
+  },
+
   loadRequest: (request, workspaceId, collectionId) => {
     if (!request) return;
+    const current = get();
+    const drafts = { ...current.drafts };
+
+    const targetWId = workspaceId || request.workspaceId;
+    const targetCId = collectionId || request.collectionId;
+
+    // 1. If currently displaying a different request that has unsaved changes, snapshot it into drafts
+    if (current.id && current.id !== request.id && current.isDirty) {
+      drafts[current.id] = {
+        name: current.name,
+        method: current.method,
+        url: current.url,
+        queryParams: current.queryParams,
+        headers: current.headers,
+        auth: current.auth,
+        body: current.body,
+        settings: current.settings,
+        activeTab: current.activeTab,
+        isDirty: true,
+      };
+    }
+
+    // 2. If the incoming request has a saved draft, restore it
+    const draft = drafts[request.id];
+    if (draft) {
+      set({
+        id: request.id,
+        workspaceId: targetWId,
+        collectionId: targetCId,
+        folderId: request.folderId || null,
+        name: draft.name,
+        method: draft.method,
+        url: draft.url,
+        queryParams: draft.queryParams,
+        headers: draft.headers,
+        auth: draft.auth,
+        body: draft.body,
+        settings: draft.settings,
+        activeTab: draft.activeTab || 'params',
+        isDirty: true,
+        isSaving: false,
+        isExecuting: false,
+        drafts,
+      });
+
+      if (targetWId) {
+        useRequestTabStore.getState().setTabDirty(targetWId, request.id, true);
+        useRequestTabStore.getState().updateTabMeta(targetWId, request.id, {
+          title: draft.name,
+          method: draft.method,
+        });
+      }
+      return;
+    }
+
+    // 3. Otherwise, load fresh request data from backend
     const settingsInput = request.settings || (request.extract ? { extract: request.extract } : {});
     if (request.settings && !request.settings.extract && request.extract) {
       settingsInput.extract = request.extract;
     }
     set({
       id: request.id,
-      workspaceId: workspaceId || request.workspaceId,
-      collectionId: collectionId || request.collectionId,
+      workspaceId: targetWId,
+      collectionId: targetCId,
       folderId: request.folderId || null,
       name: request.name || 'Untitled Request',
       method: (request.method || 'GET').toUpperCase(),
@@ -122,14 +190,57 @@ export const useRequestStore = create((set, get) => ({
       isDirty: false,
       isSaving: false,
       isExecuting: false,
+      drafts,
     });
+
+    if (targetWId) {
+      useRequestTabStore.getState().updateTabMeta(targetWId, request.id, {
+        title: request.name,
+        method: request.method,
+      });
+    }
   },
 
-  setName: (name) => set({ name, isDirty: true }),
+  clearDraft: (requestId) => {
+    set((state) => {
+      const nextDrafts = { ...state.drafts };
+      delete nextDrafts[requestId];
+      const isCurrent = state.id === requestId;
+      return {
+        drafts: nextDrafts,
+        ...(isCurrent ? { isDirty: false } : {}),
+      };
+    });
 
-  setMethod: (method) => set({ method: method.toUpperCase(), isDirty: true }),
+    const state = get();
+    if (state.workspaceId) {
+      useRequestTabStore.getState().setTabDirty(state.workspaceId, requestId, false);
+    }
+  },
 
-  setUrl: (url) => set({ url, isDirty: true }),
+  setName: (name) => {
+    set({ name, isDirty: true });
+    get().notifyDirty();
+    const state = get();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { title: name });
+    }
+  },
+
+  setMethod: (method) => {
+    const upper = method.toUpperCase();
+    set({ method: upper, isDirty: true });
+    get().notifyDirty();
+    const state = get();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { method: upper });
+    }
+  },
+
+  setUrl: (url) => {
+    set({ url, isDirty: true });
+    get().notifyDirty();
+  },
 
   setActiveTab: (activeTab) => set({ activeTab }),
 
@@ -138,7 +249,10 @@ export const useRequestStore = create((set, get) => ({
   setIsExecuting: (isExecuting) => set({ isExecuting }),
 
   // Query Params
-  setQueryParams: (queryParams) => set({ queryParams, isDirty: true }),
+  setQueryParams: (queryParams) => {
+    set({ queryParams, isDirty: true });
+    get().notifyDirty();
+  },
 
   updateQueryParam: (index, field, value) => {
     const list = [...get().queryParams];
@@ -149,6 +263,7 @@ export const useRequestStore = create((set, get) => ({
       list.push({ key: '', value: '', enabled: true, description: '' });
     }
     set({ queryParams: list, isDirty: true });
+    get().notifyDirty();
   },
 
   addQueryParam: () => {
@@ -156,6 +271,7 @@ export const useRequestStore = create((set, get) => ({
       queryParams: [...state.queryParams, { key: '', value: '', enabled: true, description: '' }],
       isDirty: true,
     }));
+    get().notifyDirty();
   },
 
   removeQueryParam: (index) => {
@@ -166,10 +282,14 @@ export const useRequestStore = create((set, get) => ({
       }
       return { queryParams: next, isDirty: true };
     });
+    get().notifyDirty();
   },
 
   // Headers
-  setHeaders: (headers) => set({ headers, isDirty: true }),
+  setHeaders: (headers) => {
+    set({ headers, isDirty: true });
+    get().notifyDirty();
+  },
 
   updateHeader: (index, field, value) => {
     const list = [...get().headers];
@@ -180,6 +300,7 @@ export const useRequestStore = create((set, get) => ({
       list.push({ key: '', value: '', enabled: true, description: '' });
     }
     set({ headers: list, isDirty: true });
+    get().notifyDirty();
   },
 
   addHeader: () => {
@@ -187,6 +308,7 @@ export const useRequestStore = create((set, get) => ({
       headers: [...state.headers, { key: '', value: '', enabled: true, description: '' }],
       isDirty: true,
     }));
+    get().notifyDirty();
   },
 
   removeHeader: (index) => {
@@ -197,58 +319,77 @@ export const useRequestStore = create((set, get) => ({
       }
       return { headers: next, isDirty: true };
     });
+    get().notifyDirty();
   },
 
   // Auth
-  setAuth: (auth) => set({ auth: normalizeAuth(auth), isDirty: true }),
+  setAuth: (auth) => {
+    set({ auth: normalizeAuth(auth), isDirty: true });
+    get().notifyDirty();
+  },
 
-  setAuthType: (type) =>
+  setAuthType: (type) => {
     set((state) => ({
       auth: { ...state.auth, type },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
-  updateAuthBearer: (field, value) =>
+  updateAuthBearer: (field, value) => {
     set((state) => ({
       auth: {
         ...state.auth,
         bearer: { ...state.auth.bearer, [field]: value },
       },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
-  updateAuthBasic: (field, value) =>
+  updateAuthBasic: (field, value) => {
     set((state) => ({
       auth: {
         ...state.auth,
         basic: { ...state.auth.basic, [field]: value },
       },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
-  updateAuthApiKey: (field, value) =>
+  updateAuthApiKey: (field, value) => {
     set((state) => ({
       auth: {
         ...state.auth,
         apiKey: { ...state.auth.apiKey, [field]: value },
       },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
   // Body
-  setBody: (body) => set({ body: normalizeBody(body), isDirty: true }),
+  setBody: (body) => {
+    set({ body: normalizeBody(body), isDirty: true });
+    get().notifyDirty();
+  },
 
-  setBodyMode: (mode) =>
+  setBodyMode: (mode) => {
     set((state) => ({
       body: { ...state.body, mode },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
-  setBodyRaw: (raw) =>
+  setBodyRaw: (raw) => {
     set((state) => ({
       body: { ...state.body, raw },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
   updateBodyUrlEncoded: (index, field, value) => {
     const list = [...get().body.urlencoded];
@@ -261,6 +402,7 @@ export const useRequestStore = create((set, get) => ({
       body: { ...state.body, urlencoded: list },
       isDirty: true,
     }));
+    get().notifyDirty();
   },
 
   addBodyUrlEncoded: () => {
@@ -274,6 +416,7 @@ export const useRequestStore = create((set, get) => ({
       },
       isDirty: true,
     }));
+    get().notifyDirty();
   },
 
   removeBodyUrlEncoded: (index) => {
@@ -287,18 +430,34 @@ export const useRequestStore = create((set, get) => ({
         isDirty: true,
       };
     });
+    get().notifyDirty();
   },
 
   // Settings
-  setSettings: (settings) => set({ settings: normalizeSettings(settings), isDirty: true }),
+  setSettings: (settings) => {
+    set({ settings: normalizeSettings(settings), isDirty: true });
+    get().notifyDirty();
+  },
 
-  updateSetting: (field, value) =>
+  updateSetting: (field, value) => {
     set((state) => ({
       settings: { ...state.settings, [field]: value },
       isDirty: true,
-    })),
+    }));
+    get().notifyDirty();
+  },
 
-  markClean: () => set({ isDirty: false }),
+  markClean: () => {
+    const state = get();
+    const nextDrafts = { ...state.drafts };
+    if (state.id) {
+      delete nextDrafts[state.id];
+      if (state.workspaceId) {
+        useRequestTabStore.getState().setTabDirty(state.workspaceId, state.id, false);
+      }
+    }
+    set({ isDirty: false, drafts: nextDrafts });
+  },
 
   // Serialize payload for saving to API
   getCleanPayload: () => {
@@ -354,4 +513,3 @@ export const useRequestStore = create((set, get) => ({
 }));
 
 export default useRequestStore;
-

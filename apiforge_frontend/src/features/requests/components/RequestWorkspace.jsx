@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import RequestMethodSelector from './RequestMethodSelector';
 import RequestUrlInput from './RequestUrlInput';
@@ -15,12 +15,12 @@ import ResponseInspector from '../../response/components/ResponseInspector';
 import VariableToken from './VariableToken';
 import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
-import { useEnvironmentsQuery } from '../../environments/hooks/useEnvironments';
 import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
+import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
 import { useVariableSuggestions, extractVariableNames } from '../hooks/useVariableSuggestions';
 import useRequestStore from '../store/requestStore';
-import { Loader2, AlertCircle, Globe } from 'lucide-react';
 import { Loader2, AlertCircle, Globe, AlertTriangle } from 'lucide-react';
+import { cn } from '../../../utils/cn';
 
 export default function RequestWorkspace({ workspaceId: propWId, collectionId: propCId, requestId: propRId }) {
   const routeParams = useParams();
@@ -28,12 +28,19 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   const collectionId = propCId || routeParams.collectionId;
   const requestId = propRId || routeParams.requestId;
 
+  const { data: collections = [] } = useCollectionsQuery(workspaceId);
+  const activeCollection = collections.find((c) => c.id === collectionId);
+  const collectionName = activeCollection?.name;
+
   const { isLoading, error } = useRequestQuery(workspaceId, collectionId, requestId);
-  const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
   const { data: tests = [] } = useApiTestsQuery(workspaceId, requestId);
-  const activeEnv = environments.find((e) => e.isActive);
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, requestId);
   const executeMutation = useRequestExecution(workspaceId, collectionId, requestId);
+
+  // Resizable split state (Desktop)
+  const [splitPercent, setSplitPercent] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const splitContainerRef = useRef(null);
 
   // Variable suggestions and detection across workspace
   const {
@@ -81,12 +88,6 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     getCleanPayload,
   } = useRequestStore();
 
-  const urlVariables = useMemo(() => {
-    if (!url) return [];
-    const matches = url.match(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g);
-    if (!matches) return [];
-    return [...new Set(matches.map((m) => m.replace(/[{}]/g, '').trim()))];
-  }, [url]);
   // Extract all variables referenced anywhere in the request
   const allReferencedVariables = useMemo(() => {
     const rawTokens = [];
@@ -157,6 +158,56 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     executeMutation.mutate();
   }, [workspaceId, collectionId, requestId, executeMutation]);
 
+  // Drag listeners for panel resizing
+  const handleSplitMouseDown = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      const container = splitContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const rawPercent = (pointerX / rect.width) * 100;
+      const clamped = Math.min(Math.max(rawPercent, 25), 75);
+      setSplitPercent(Math.round(clamped * 10) / 10);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const handleDividerKeyDown = (e) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setSplitPercent((prev) => Math.max(prev - 2, 25));
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setSplitPercent((prev) => Math.min(prev + 2, 75));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setSplitPercent(25);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setSplitPercent(75);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      setSplitPercent(50);
+    }
+  };
+
   // Global keyboard shortcuts: Ctrl+S to Save, Ctrl+Enter to Send
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -203,21 +254,37 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0d0f14] overflow-hidden select-text">
-      {/* 1. Request Header: Name + Save button */}
+      {/* 1. Request Header: Name + Breadcrumb + Save button */}
       <RequestHeader
         name={name}
         onNameChange={setName}
         isDirty={isDirty}
         isSaving={isSaving}
+        isError={updateMutation.isError}
         onSave={handleSave}
         workspaceId={workspaceId}
+        collectionName={collectionName}
         requestId={requestId}
       />
 
       {/* Main Split Grid: Request Editor (left) & Response Inspector (right) */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+      <div
+        ref={splitContainerRef}
+        style={{
+          '--split-left': `${splitPercent}%`,
+          '--split-right': `${100 - splitPercent}%`,
+        }}
+        className={cn(
+          'flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden relative',
+          isDragging && 'select-none'
+        )}
+      >
+        {isDragging && (
+          <div className="fixed inset-0 z-50 cursor-col-resize select-none pointer-events-auto" />
+        )}
+
         {/* LEFT PANE: REQUEST CONFIGURATION */}
-        <div className="flex-1 flex flex-col min-w-0 border-b lg:border-b-0 lg:border-r border-[#232732] overflow-hidden">
+        <div className="w-full lg:w-[var(--split-left)] flex flex-col min-w-0 border-b lg:border-b-0 border-[#232732] overflow-hidden shrink-0">
           {/* Method + URL + Send Input Bar */}
           <div className="p-4 bg-[#111318] border-b border-[#232732]">
             <div className="flex items-stretch rounded-md shadow-sm">
@@ -246,12 +313,9 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
               />
             </div>
 
-            {/* Active Environment & Variable Status Indicator */}
-            <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono select-none">
             {/* Active Environment & Variable Status Indicator Bar */}
             <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] font-mono select-none flex-wrap">
               <div className="flex items-center gap-1.5 text-slate-400">
-                <Globe size={11} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
                 <Globe size={12} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
                 <span>
                   Environment:{' '}
@@ -261,16 +325,6 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 </span>
               </div>
 
-              {urlVariables.length > 0 && (
-                <div className="flex items-center gap-1 text-slate-400">
-                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">Variables:</span>
-                  {urlVariables.map((v) => (
-                    <span
-                      key={v}
-                      className="px-1.5 py-0.2 rounded bg-[#181b22] border border-[#2b313e] text-sky-400 text-[10px]"
-                      title={`Variable referenced in URL: {{${v}}}`}
-                    >
-                      &#123;&#123;{v}&#125;&#125;
               {/* Variables Used Status */}
               <div className="flex items-center gap-2 flex-wrap">
                 {undefinedVariables.length > 0 && (
@@ -288,9 +342,6 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider font-sans">
                       Used ({allReferencedVariables.length}):
                     </span>
-                  ))}
-                </div>
-              )}
                     {allReferencedVariables.map((v) => {
                       const meta = getVariable(v);
                       const isKnown = isVariableKnown(v);
@@ -391,12 +442,37 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
           </div>
         </div>
 
+        {/* Resizable Divider Handle (Desktop) */}
+        <div
+          role="separator"
+          tabIndex={0}
+          aria-orientation="vertical"
+          aria-valuenow={Math.round(splitPercent)}
+          aria-valuemin={25}
+          aria-valuemax={75}
+          aria-label="Resize request and response panels"
+          onMouseDown={handleSplitMouseDown}
+          onDoubleClick={() => setSplitPercent(50)}
+          onKeyDown={handleDividerKeyDown}
+          className={cn(
+            'hidden lg:flex items-center justify-center w-2 -mx-1 z-20 cursor-col-resize select-none group focus:outline-none shrink-0',
+            isDragging && 'cursor-col-resize'
+          )}
+          title="Drag to resize panels (Double-click to reset to 50%)"
+        >
+          <div
+            className={cn(
+              'w-[2px] h-full bg-[#232732] group-hover:bg-sky-500 group-focus:bg-sky-500 transition-colors',
+              isDragging && 'bg-sky-500'
+            )}
+          />
+        </div>
+
         {/* RIGHT PANE: RESPONSE INSPECTOR */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="w-full lg:w-[var(--split-right)] flex flex-col min-w-0 overflow-hidden shrink-0">
           <ResponseInspector />
         </div>
       </div>
     </div>
   );
 }
-

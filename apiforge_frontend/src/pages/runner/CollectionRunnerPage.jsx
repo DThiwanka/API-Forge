@@ -1,4 +1,3 @@
-import { useState, useEffect, useMemo } from 'react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -7,7 +6,6 @@ import {
   ChevronDown,
   Loader2,
   AlertCircle,
-  Sparkles,
   ShieldAlert,
   Settings2,
 } from 'lucide-react';
@@ -188,8 +186,6 @@ export default function CollectionRunnerPage() {
   // Permission check: VIEWER role cannot run
   const canRun = workspace?.role !== 'VIEWER';
 
-  const handleRun = async () => {
-    if (!currentWorkspaceId || !selectedCollectionId || selectedRequestIds.length === 0) {
   const handleRun = useCallback(async () => {
     if (
       !currentWorkspaceId ||
@@ -222,7 +218,6 @@ export default function CollectionRunnerPage() {
       payload.environmentId = selectedEnvironmentId;
     }
 
-    // Runtime variables
     // Runtime variables (ephemeral only)
     const varsRecord = {};
     for (const v of runtimeVariables) {
@@ -242,7 +237,6 @@ export default function CollectionRunnerPage() {
         err.response?.data?.message || err.message || 'Collection execution failed';
       setRunError(message);
     }
-  };
   }, [
     currentWorkspaceId,
     selectedCollectionId,
@@ -310,14 +304,10 @@ export default function CollectionRunnerPage() {
         {/* Main Runner Area */}
         {/* Main Runner Area: 3-Area Layout */}
         <div className="flex-1 flex flex-col overflow-hidden bg-[#0a0c11]">
-          {/* Header Bar */}
-          <div className="px-4 py-3 bg-[#101218] border-b border-[#232732] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 select-none">
           {/* Top Header Bar */}
           <header className="px-4 py-3 bg-[#101218] border-b border-[#232732] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 select-none">
             {/* Left Title & Mode */}
             <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-[#181b24] border border-[#2b3140] flex items-center justify-center text-emerald-400">
-                <Play size={15} />
               <div className="w-7 h-7 rounded-md bg-[#181b24] border border-[#2b3140] flex items-center justify-center text-emerald-400 shrink-0">
                 <Play size={14} className="fill-current" />
               </div>
@@ -332,18 +322,12 @@ export default function CollectionRunnerPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Execute multiple requests in sequence with environment and runtime variables
                 <p className="text-[11px] text-slate-500 hidden sm:block">
                   Execute selected requests sequentially with chained runtime variables and assertions
                 </p>
               </div>
             </div>
 
-            {/* Collection Selector Dropdown */}
-            {collections.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 hidden lg:inline">Collection:</span>
             {/* Right Controls: Collection Selector + Action Buttons */}
             <div className="flex items-center gap-2.5 flex-wrap">
               {/* Collection Selector Dropdown */}
@@ -366,9 +350,6 @@ export default function CollectionRunnerPage() {
                     className="absolute right-2.5 top-2.5 text-slate-400 pointer-events-none"
                   />
                 </div>
-              </div>
-            )}
-          </div>
               )}
 
               {/* Configure Run Button (when viewing results) */}
@@ -448,7 +429,6 @@ export default function CollectionRunnerPage() {
               {/* Left Column: Configuration & Request Selection (w-full lg:w-96) */}
               {/* Area 1: Left Column: Selection Area (w-full lg:w-96) */}
               <div className="w-full lg:w-96 border-b lg:border-b-0 lg:border-r border-[#232732] bg-[#0c0e14] flex flex-col shrink-0 overflow-y-auto">
-                <div className="p-4 space-y-5">
                 <div className="p-4 space-y-4">
                   {/* Permission warning banner if viewer */}
                   {!canRun && (
@@ -464,13 +444,11 @@ export default function CollectionRunnerPage() {
                       Requests to Execute
                     </h2>
                     {loadingRequests ? (
-                      <div className="py-6 flex items-center justify-center text-xs text-slate-500 gap-2 font-mono">
                       <div className="py-8 flex items-center justify-center text-xs text-slate-500 gap-2 font-mono">
                         <Loader2 size={13} className="animate-spin" />
                         <span>Loading requests...</span>
                       </div>
                     ) : requests.length === 0 ? (
-                      <div className="p-3 rounded border border-dashed border-[#2b3140] bg-[#11131a] text-center text-xs text-slate-500">
                       <div className="p-4 rounded border border-dashed border-[#2b3140] bg-[#11131a] text-center text-xs text-slate-500">
                         No requests found in this collection.
                       </div>
@@ -581,14 +559,10 @@ export default function CollectionRunnerPage() {
                 </div>
               </div>
 
-              {/* Right Column: Execution Progress / Results */}
-              {/* Area 2 & 3: Right Column: Configuration / Execution Progress / Results */}
               {/* Right Column: Configuration / Execution Progress / Results */}
               <div className="flex-1 flex flex-col overflow-y-auto bg-[#0a0c11]">
-                {/* Pending State */}
                 {/* 1. Pending Execution Progress State */}
                 {runnerMutation.isPending && (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none">
                   <div
                     className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none"
                     aria-live="polite"
@@ -599,12 +573,9 @@ export default function CollectionRunnerPage() {
                     <h3 className="text-sm font-semibold text-slate-200 mb-1">
                       Executing Collection...
                     </h3>
-                    <p className="text-xs text-slate-500 max-w-sm mb-3">
-                      Running {selectedRequestIds.length} requests sequentially against your target endpoints.
                     <p className="text-xs text-slate-400 max-w-sm mb-3">
                       Running {selectedRequestIds.length} {selectedRequestIds.length === 1 ? 'request' : 'requests'} sequentially against your target endpoints.
                     </p>
-                    <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-800/30 px-3 py-1 rounded-full">
                     <div className="flex items-center gap-2 text-[11px] font-mono text-emerald-400 bg-emerald-950/30 border border-emerald-800/30 px-3 py-1 rounded-full mb-3">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                       <span>{selectedCollection?.name}</span>
@@ -615,7 +586,6 @@ export default function CollectionRunnerPage() {
                   </div>
                 )}
 
-                {/* Idle / Ready State */}
                 {/* 2. Run Results View */}
                 {!runnerMutation.isPending && runData && (
                   <RunnerResults
@@ -629,9 +599,6 @@ export default function CollectionRunnerPage() {
 
                 {/* 3. Idle / Configuration Area */}
                 {!runnerMutation.isPending && !runData && (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto select-none">
-                    <div className="w-14 h-14 rounded-2xl bg-[#11131a] border border-[#232732] flex items-center justify-center text-slate-500 mb-4 shadow-xl">
-                      <Sparkles size={24} />
                   <div className="p-5 space-y-5 max-w-3xl">
                     {/* Runner Pre-run Configuration Summary Card */}
                     <RunnerConfigSummary
@@ -668,19 +635,7 @@ export default function CollectionRunnerPage() {
                         disabled={runnerMutation.isPending}
                       />
                     </div>
-                    <h3 className="text-sm font-medium text-slate-200 mb-1">
-                      Ready to Execute
-                    </h3>
-                    <p className="text-xs text-slate-500 max-w-sm mb-6 leading-relaxed">
-                      Select which folders or requests to include, configure runtime variables or environments, then click <strong className="text-slate-300">Run Collection</strong> to start sequential execution.
-                    </p>
 
-                    <div className="w-full max-w-sm p-3 rounded-lg border border-[#1e222c] bg-[#111319] text-left space-y-2 text-xs">
-                      <div className="flex items-center justify-between text-slate-400">
-                        <span>Target Collection:</span>
-                        <span className="text-slate-200 font-medium truncate max-w-[180px]">
-                          {selectedCollection?.name || 'None'}
-                        </span>
                     {/* Runtime Variables Editor */}
                     <div className="p-4 rounded-lg bg-[#10131b] border border-[#232732]">
                       <RuntimeVariablesEditor
@@ -695,12 +650,6 @@ export default function CollectionRunnerPage() {
                       <div className="text-xs font-semibold text-slate-200">
                         Execution Policies
                       </div>
-                      <div className="flex items-center justify-between text-slate-400">
-                        <span>Selected Requests:</span>
-                        <span className="text-sky-400 font-mono font-medium">
-                          {selectedRequestIds.length} of {requests.length}
-                        </span>
-
                       <div className="space-y-2.5">
                         <label className="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer select-none">
                           <input
@@ -734,29 +683,9 @@ export default function CollectionRunnerPage() {
                           </div>
                         </label>
                       </div>
-                      <div className="flex items-center justify-between text-slate-400">
-                        <span>Stop on Error:</span>
-                        <span className="font-mono text-slate-300">
-                          {stopOnError ? 'Enabled' : 'Disabled'}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 )}
-
-                {/* Results State */}
-                {!runnerMutation.isPending && runData && (
-                  <div className="p-6">
-                    <RunnerResults
-                      runData={runData}
-                      workspaceId={currentWorkspaceId}
-                      collectionId={selectedCollectionId}
-                      onRunAgain={handleRun}
-                      disabled={runnerMutation.isPending}
-                    />
-                  </div>
-                )}
-              </div>
               </div>
             </div>
           )}

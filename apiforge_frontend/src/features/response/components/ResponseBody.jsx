@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Copy, Check, FileQuestion } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { isBinaryContentType, parseBodyContent } from '../utils/responseFormatters';
 
 // Helper to highlight search matches safely
 function highlightText(text, query) {
@@ -17,7 +18,26 @@ function highlightText(text, query) {
   );
 }
 
-// Colorize JSON tokens line by line
+// Colorize JSON tokens line by line with IDE syntax highlighting
+function renderPrettyValue(valStr, searchQuery) {
+  const trimmed = valStr.trim();
+
+  // String value
+  if (trimmed.startsWith('"')) {
+    return <span className="text-emerald-300">{highlightText(valStr, searchQuery)}</span>;
+  }
+  // Number
+  if (!isNaN(Number(trimmed.replace(/,$/, '')))) {
+    return <span className="text-purple-300">{highlightText(valStr, searchQuery)}</span>;
+  }
+  // Boolean or null
+  if (trimmed.startsWith('true') || trimmed.startsWith('false') || trimmed.startsWith('null')) {
+    return <span className="text-amber-300">{highlightText(valStr, searchQuery)}</span>;
+  }
+
+  return <span className="text-slate-300">{highlightText(valStr, searchQuery)}</span>;
+}
+
 function renderPrettyJson(jsonStr, searchQuery) {
   const lines = jsonStr.split('\n');
 
@@ -33,7 +53,7 @@ function renderPrettyJson(jsonStr, searchQuery) {
           <span className="text-slate-500">{indent}</span>
           <span className="text-sky-300 font-semibold">{highlightText(key, searchQuery)}</span>
           <span className="text-slate-400">{colon}</span>
-          <span className="text-emerald-300">{highlightText(rest, searchQuery)}</span>
+          {renderPrettyValue(rest, searchQuery)}
         </div>
       );
     }
@@ -49,35 +69,6 @@ function renderPrettyJson(jsonStr, searchQuery) {
   });
 }
 
-function parseBodyContent(body) {
-  if (body === null || body === undefined) {
-    return { formattedText: '', isJson: false };
-  }
-
-  if (typeof body === 'object') {
-    try {
-      return { formattedText: JSON.stringify(body, null, 2), isJson: true };
-    } catch {
-      return { formattedText: String(body), isJson: false };
-    }
-  }
-
-  if (typeof body === 'string') {
-    const trimmed = body.trim();
-    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        return { formattedText: JSON.stringify(parsed, null, 2), isJson: true };
-      } catch {
-        return { formattedText: body, isJson: false };
-      }
-    }
-    return { formattedText: body, isJson: false };
-  }
-
-  return { formattedText: String(body), isJson: false };
-}
-
 export default function ResponseBody({
   body,
   contentType = '',
@@ -88,14 +79,7 @@ export default function ResponseBody({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const isBinary =
-    Boolean(contentType) &&
-    (contentType.includes('image/') ||
-      contentType.includes('audio/') ||
-      contentType.includes('video/') ||
-      contentType.includes('application/octet-stream') ||
-      contentType.includes('application/pdf'));
-
+  const isBinary = isBinaryContentType(contentType);
   const { formattedText, isJson } = parseBodyContent(body);
 
   useEffect(() => {
@@ -117,17 +101,17 @@ export default function ResponseBody({
 
   if (body === null || body === undefined || formattedText === '') {
     return (
-      <div className="py-12 text-center text-slate-500 font-mono text-xs">
-        &lt;Empty Response Body&gt;
+      <div className="py-12 text-center text-slate-500 font-mono text-xs select-none">
+        &lt;Response body is empty (0 bytes)&gt;
       </div>
     );
   }
 
   if (isBinary) {
     return (
-      <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2">
+      <div className="py-12 flex flex-col items-center justify-center text-slate-400 gap-2 select-none">
         <FileQuestion size={32} className="text-slate-500" />
-        <span className="font-semibold text-xs">Binary response stream ({contentType})</span>
+        <span className="font-semibold text-xs text-slate-200">Binary response stream ({contentType})</span>
         <span className="text-[11px] text-slate-500">Binary preview is not rendered directly in text mode.</span>
       </div>
     );
@@ -139,7 +123,7 @@ export default function ResponseBody({
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 font-mono transition-colors shadow-md"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 font-mono transition-colors shadow-md cursor-pointer"
           title="Copy response body"
         >
           {copied ? (
@@ -170,4 +154,3 @@ export default function ResponseBody({
     </div>
   );
 }
-

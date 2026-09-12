@@ -1,10 +1,8 @@
 import React from 'react';
-import { ShieldCheck, AlertCircle, CheckCircle2, XCircle, Info } from 'lucide-react';
 import { ShieldCheck, AlertCircle, CheckCircle2, XCircle, Info, ExternalLink } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import RunnerAssertionResult from './RunnerAssertionResult';
 
-export default function RunnerTestResult({ tests, execution, className }) {
 export default function RunnerTestResult({ tests, execution, onOpenRequest, className }) {
   if (!tests) return null;
 
