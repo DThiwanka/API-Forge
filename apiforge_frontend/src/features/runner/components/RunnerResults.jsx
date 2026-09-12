@@ -11,9 +11,12 @@ import {
   ChevronRight,
   AlertTriangle,
   Variable,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import RunnerExtractionResult from './RunnerExtractionResult';
+import RunnerTestSummary from './RunnerTestSummary';
+import RunnerTestResult from './RunnerTestResult';
 
 const METHOD_COLORS = {
   GET: 'text-emerald-400 bg-emerald-950/40 border-emerald-800/40',
@@ -59,6 +62,19 @@ export default function RunnerResults({
     durationMs: 0,
     status: 'COMPLETED',
   };
+  const summary = useMemo(() => {
+    return (
+      runData?.summary || {
+        total: 0,
+        completed: 0,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        durationMs: 0,
+        status: 'COMPLETED',
+      }
+    );
+  }, [runData?.summary]);
 
   const metadata = runData?.metadata || {};
   const results = runData?.results || [];
@@ -93,6 +109,60 @@ export default function RunnerResults({
     return list;
   }, [runData?.results, filter]);
 
+  // Detailed Outcome Analysis
+  const runOutcome = useMemo(() => {
+    const list = runData?.results || [];
+    const hasExecutionErrors = list.some(
+      (r) => !r.success && !r.skipped && r.execution && !r.execution.success
+    );
+    const hasTestFailures = list.some((r) => r.tests && r.tests.failed > 0);
+    const hasExtractionFailures = list.some((r) => r.extraction && !r.extraction.success);
+    const stoppedRequest =
+      summary.status === 'STOPPED' ? list.find((r) => !r.success && !r.skipped) : null;
+
+    let stopReason = 'Execution error';
+    if (stoppedRequest) {
+      if (
+        stoppedRequest.errorType === 'ASSERTION_ERROR' ||
+        (stoppedRequest.tests && stoppedRequest.tests.failed > 0)
+      ) {
+        stopReason = 'Test failure';
+      } else if (stoppedRequest.errorType === 'EXTRACTION_ERROR') {
+        stopReason = 'Variable extraction failure';
+      } else if (stoppedRequest.errorMessage) {
+        stopReason = stoppedRequest.errorType || 'HTTP / transport error';
+      }
+    }
+
+    let headline;
+    let statusType;
+
+    if (summary.status === 'STOPPED') {
+      headline = 'Collection run stopped early on error';
+      statusType = 'STOPPED';
+    } else if (summary.failed > 0) {
+      if (hasTestFailures && !hasExecutionErrors && !hasExtractionFailures) {
+        headline = 'Collection run completed with test failures';
+        statusType = 'TEST_FAILED';
+      } else {
+        headline = 'Collection run completed with execution errors';
+        statusType = 'EXECUTION_ERROR';
+      }
+    } else {
+      headline = 'Collection run passed';
+      statusType = 'SUCCESS';
+    }
+
+    return {
+      statusType,
+      headline,
+      stopReason,
+      stoppedRequest,
+      hasTestFailures,
+      hasExecutionErrors,
+    };
+  }, [runData?.results, summary]);
+
   const handleOpenRequest = (requestId) => {
     navigate(`/workspace/${workspaceId}/collections/${collectionId}/requests/${requestId}`);
   };
@@ -108,18 +178,42 @@ export default function RunnerResults({
                 <CheckCircle2 size={13} />
                 <span>Run Completed</span>
               </div>
+        {/* Run Completion Status Banner */}
+        <div
+          className={cn(
+            'p-3 rounded-lg border flex flex-col sm:flex-row sm:items-center justify-between gap-3',
+            runOutcome.statusType === 'SUCCESS' &&
+              'bg-emerald-950/30 border-emerald-800/40 text-emerald-300',
+            runOutcome.statusType === 'TEST_FAILED' &&
+              'bg-rose-950/30 border-rose-800/40 text-rose-300',
+            runOutcome.statusType === 'EXECUTION_ERROR' &&
+              'bg-rose-950/30 border-rose-800/40 text-rose-300',
+            runOutcome.statusType === 'STOPPED' &&
+              'bg-amber-950/30 border-amber-800/40 text-amber-300'
+          )}
+        >
+          <div className="flex items-start sm:items-center gap-2.5 min-w-0">
+            {runOutcome.statusType === 'SUCCESS' && (
+              <CheckCircle2 size={18} className="text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
             {summary.status === 'STOPPED' && (
               <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-950/60 border border-amber-600/40 text-amber-400 text-xs font-semibold">
                 <AlertTriangle size={13} />
                 <span>Halted on Error</span>
               </div>
+            {runOutcome.statusType === 'TEST_FAILED' && (
+              <XCircle size={18} className="text-rose-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
             {summary.status === 'FAILED' && (
               <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-950/60 border border-rose-600/40 text-rose-400 text-xs font-semibold">
                 <XCircle size={13} />
                 <span>Run with Failures</span>
               </div>
+            {runOutcome.statusType === 'EXECUTION_ERROR' && (
+              <AlertTriangle size={18} className="text-rose-400 shrink-0 mt-0.5 sm:mt-0" />
+            )}
+            {runOutcome.statusType === 'STOPPED' && (
+              <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
             )}
 
             {metadata.environmentName && (
@@ -127,6 +221,51 @@ export default function RunnerResults({
                 Env: {metadata.environmentName}
               </span>
             )}
+            <div className="min-w-0">
+              <div className="font-semibold text-xs tracking-tight text-slate-100 flex items-center gap-2 flex-wrap">
+                <span>{runOutcome.headline}</span>
+                {metadata.environmentName && (
+                  <span className="text-[10px] font-mono text-slate-400 bg-[#161922] px-1.5 py-0.2 rounded border border-[#262c3c]">
+                    Env: {metadata.environmentName}
+                  </span>
+                )}
+              </div>
+
+              {runOutcome.statusType === 'STOPPED' ? (
+                <div className="text-[11px] text-amber-300/90 font-mono mt-0.5 flex flex-wrap items-center gap-x-2">
+                  <span>
+                    Reason: <strong className="text-amber-200">{runOutcome.stopReason}</strong>
+                  </span>
+                  <span>·</span>
+                  <span>
+                    Completed: <strong>{summary.completed} / {summary.total}</strong> requests
+                  </span>
+                  <span>·</span>
+                  <span>
+                    Skipped: <strong>{summary.skipped}</strong> requests
+                  </span>
+                  {runOutcome.stoppedRequest && (
+                    <>
+                      <span>·</span>
+                      <span className="truncate">
+                        Halted at: <strong className="text-amber-200">{runOutcome.stoppedRequest.name}</strong>
+                      </span>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex flex-wrap items-center gap-x-2">
+                  <span>{summary.completed} requests executed</span>
+                  {summary.skipped > 0 && <span>· {summary.skipped} skipped</span>}
+                  <span>· Duration: {formatDuration(summary.durationMs)}</span>
+                  {summary.tests && summary.tests.total > 0 && (
+                    <span>
+                      · Tests: {summary.tests.passed} passed, {summary.tests.failed} failed
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <button
@@ -134,6 +273,7 @@ export default function RunnerResults({
             onClick={onRunAgain}
             disabled={disabled}
             className="flex items-center gap-1.5 px-3 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded bg-[#1f2433] hover:bg-[#2b3247] text-slate-200 hover:text-white text-xs font-medium border border-[#31394d] transition-colors disabled:opacity-50 shrink-0 cursor-pointer select-none"
           >
             <RotateCw size={12} />
             <span>Run Again</span>
@@ -141,7 +281,14 @@ export default function RunnerResults({
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+        <div
+          className={cn(
+            'grid gap-2 text-xs',
+            summary.tests && summary.tests.total > 0
+              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-6'
+              : 'grid-cols-2 sm:grid-cols-5'
+          )}
+        >
           <div className="p-2 rounded bg-[#151822] border border-[#232732] text-center">
             <div className="text-slate-400 text-[10px] font-medium uppercase tracking-wider">Total</div>
             <div className="text-base font-semibold text-slate-100 font-mono mt-0.5">{summary.total}</div>
@@ -162,7 +309,33 @@ export default function RunnerResults({
             <div className="text-base font-semibold text-slate-400 font-mono mt-0.5">{summary.skipped}</div>
           </div>
 
-          <div className="p-2 rounded bg-[#151822] border border-[#232732] text-center col-span-2 sm:col-span-1">
+          {summary.tests && summary.tests.total > 0 && (
+            <div className="p-2 rounded bg-[#151822] border border-[#232732] text-center">
+              <div className="text-slate-400 text-[10px] font-medium uppercase tracking-wider flex items-center justify-center gap-1">
+                <ShieldCheck
+                  size={11}
+                  className={summary.tests.failed === 0 ? 'text-emerald-400' : 'text-rose-400'}
+                />
+                <span>Assertions</span>
+              </div>
+              <div
+                className={cn(
+                  'text-base font-semibold font-mono mt-0.5',
+                  summary.tests.failed === 0 ? 'text-emerald-400' : 'text-rose-400'
+                )}
+                title={`${summary.tests.passed} passed, ${summary.tests.failed} failed of ${summary.tests.total} assertions`}
+              >
+                {summary.tests.passed}/{summary.tests.total}
+              </div>
+            </div>
+          )}
+
+          <div
+            className={cn(
+              'p-2 rounded bg-[#151822] border border-[#232732] text-center',
+              summary.tests && summary.tests.total > 0 ? '' : 'col-span-2 sm:col-span-1'
+            )}
+          >
             <div className="text-slate-400 text-[10px] font-medium uppercase tracking-wider flex items-center justify-center gap-1">
               <Clock size={10} />
               <span>Duration</span>
@@ -214,6 +387,20 @@ export default function RunnerResults({
         >
           All ({results.length})
         </button>
+      <div className="px-4 py-1.5 bg-[#0f1219] border-b border-[#232732] flex items-center justify-between gap-2 text-xs shrink-0 select-none">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setFilter('ALL')}
+            className={cn(
+              'px-2.5 py-1 rounded text-xs transition-colors cursor-pointer',
+              filter === 'ALL'
+                ? 'bg-[#1e2330] text-slate-100 font-medium'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+          >
+            All ({results.length})
+          </button>
 
         <button
           type="button"
@@ -227,6 +414,23 @@ export default function RunnerResults({
         >
           Passed ({summary.passed})
         </button>
+          <button
+            type="button"
+            onClick={() => setFilter('FAILED')}
+            className={cn(
+              'px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer',
+              filter === 'FAILED'
+                ? 'bg-rose-950/50 border border-rose-700/50 text-rose-200 font-medium'
+                : summary.failed > 0
+                ? 'text-rose-400 hover:bg-rose-950/30'
+                : 'text-slate-400 hover:text-rose-400'
+            )}
+          >
+            {summary.failed > 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0" />
+            )}
+            <span>Failed ({summary.failed})</span>
+          </button>
 
         <button
           type="button"
@@ -245,16 +449,42 @@ export default function RunnerResults({
           <button
             type="button"
             onClick={() => setFilter('SKIPPED')}
+            onClick={() => setFilter('PASSED')}
             className={cn(
               'px-2.5 py-1 rounded text-xs transition-colors',
               filter === 'SKIPPED'
                 ? 'bg-slate-800 text-slate-200 font-medium'
                 : 'text-slate-400 hover:text-slate-200'
+              'px-2.5 py-1 rounded text-xs transition-colors cursor-pointer',
+              filter === 'PASSED'
+                ? 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 font-medium'
+                : 'text-slate-400 hover:text-emerald-400'
             )}
           >
             Skipped ({summary.skipped})
+            Passed ({summary.passed})
           </button>
         )}
+
+          {summary.skipped > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilter('SKIPPED')}
+              className={cn(
+                'px-2.5 py-1 rounded text-xs transition-colors cursor-pointer',
+                filter === 'SKIPPED'
+                  ? 'bg-slate-800 text-slate-200 font-medium'
+                  : 'text-slate-400 hover:text-slate-200'
+              )}
+            >
+              Skipped ({summary.skipped})
+            </button>
+          )}
+        </div>
+
+        <span className="text-[11px] text-slate-500 font-mono hidden sm:inline">
+          Showing {filteredResults.length} of {results.length}
+        </span>
       </div>
 
       {/* Results List */}
@@ -322,6 +552,21 @@ export default function RunnerResults({
 
                   {/* Right Metrics: Status Code & Time */}
                   <div className="flex items-center gap-2.5 shrink-0 font-mono text-xs">
+                    {/* Halted Here badge if this request stopped the run */}
+                    {runOutcome.statusType === 'STOPPED' && item === runOutcome.stoppedRequest && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-950/70 border border-amber-600/60 text-amber-300 shrink-0">
+                        Halted Here
+                      </span>
+                    )}
+
+                    {/* Test summary badge */}
+                    {item.tests && (
+                      <RunnerTestSummary
+                        tests={item.tests}
+                        skipped={item.skipped}
+                      />
+                    )}
+
                     {/* Extraction badge if present */}
                     {item.extraction && (
                       item.extraction.success ? (
@@ -411,6 +656,17 @@ export default function RunnerResults({
                         </div>
                       )}
                     </div>
+
+                    {/* Tests & Assertions if available */}
+                    {item.tests && (
+                      <div className="pt-2">
+                        <RunnerTestResult
+                          tests={item.tests}
+                          execution={item.execution}
+                          onOpenRequest={() => handleOpenRequest(item.id)}
+                        />
+                      </div>
+                    )}
 
                     {/* Variable Extraction Result if defined */}
                     {item.extraction && (

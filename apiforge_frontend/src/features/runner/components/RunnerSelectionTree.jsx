@@ -1,5 +1,15 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode, CheckSquare, Square } from 'lucide-react';
+import {
+  ChevronRight,
+  ChevronDown,
+  Folder,
+  FolderOpen,
+  FileCode,
+  CheckSquare,
+  Square,
+  AlertCircle,
+} from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 const METHOD_COLORS = {
@@ -124,6 +134,17 @@ export default function RunnerSelectionTree({
   const totalRequestsCount = requests.length;
   const selectedCount = selectedRequestIds.length;
 
+  const selectedFoldersCount = useMemo(() => {
+    let count = 0;
+    for (const folder of folders) {
+      const descendantIds = folderDescendantRequests.get(folder.id) || [];
+      if (descendantIds.length > 0 && descendantIds.some((id) => selectedSet.has(id))) {
+        count++;
+      }
+    }
+    return count;
+  }, [folders, folderDescendantRequests, selectedSet]);
+
   const renderFolder = (folder, depth = 0) => {
     const isExpanded = expandedFolderIds.has(folder.id);
     const descendantIds = folderDescendantRequests.get(folder.id) || [];
@@ -239,11 +260,21 @@ export default function RunnerSelectionTree({
     <div className={cn('flex flex-col bg-[#0f1117] border border-[#232732] rounded-lg overflow-hidden', className)}>
       {/* Header / Selection Controls */}
       <div className="px-3 py-2 bg-[#141720] border-b border-[#232732] flex items-center justify-between gap-2">
+      <div className="px-3 py-2 bg-[#141720] border-b border-[#232732] flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <FileCode size={14} className="text-sky-400" />
           <span className="text-xs font-semibold text-slate-200">Requests to Execute</span>
           <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[#1c202b] text-slate-400 border border-[#2b3140]">
             {selectedCount} / {totalRequestsCount} selected
+          <span className="text-xs font-semibold text-slate-200">Requests</span>
+          <span
+            className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#1c202b] text-slate-300 border border-[#2b3140]"
+            title={`${selectedCount} requests selected across ${selectedFoldersCount} folders`}
+          >
+            {selectedCount} selected · {selectedCount} {selectedCount === 1 ? 'req' : 'reqs'}
+            {folders.length > 0
+              ? ` · ${selectedFoldersCount} ${selectedFoldersCount === 1 ? 'folder' : 'folders'}`
+              : ''}
           </span>
         </div>
 
@@ -253,7 +284,9 @@ export default function RunnerSelectionTree({
             onClick={onSelectAll}
             disabled={disabled || selectedCount === totalRequestsCount}
             className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1"
+            className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
             title="Select all requests"
+            aria-label="Select all requests"
           >
             <CheckSquare size={11} />
             <span>All</span>
@@ -264,13 +297,23 @@ export default function RunnerSelectionTree({
             onClick={onDeselectAll}
             disabled={disabled || selectedCount === 0}
             className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1"
+            className="px-2 py-0.5 rounded text-[11px] text-slate-400 hover:text-slate-200 hover:bg-[#1e2330] transition-colors disabled:opacity-40 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
             title="Deselect all requests"
+            aria-label="Deselect all requests"
           >
             <Square size={11} />
             <span>None</span>
           </button>
         </div>
       </div>
+
+      {/* Empty Selection Warning Alert */}
+      {selectedCount === 0 && (
+        <div className="px-3 py-2 bg-rose-950/20 border-b border-rose-900/40 text-[11px] text-rose-300 flex items-center gap-2">
+          <AlertCircle size={13} className="text-rose-400 shrink-0" />
+          <span>Select at least one request to run.</span>
+        </div>
+      )}
 
       {/* Tree Content */}
       <div className="p-2 overflow-y-auto max-h-[380px] space-y-0.5">

@@ -57,6 +57,15 @@ export default function RuntimeVariablesEditor({
           <span>Runtime Variables</span>
           <span className="text-[10px] font-normal text-slate-500">(in-memory only)</span>
         </label>
+        <div>
+          <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+            <Variable size={13} className="text-sky-400" />
+            <span>Runtime Variables</span>
+          </label>
+          <p className="text-[10px] text-slate-500 mt-0.5">
+            Runtime variables apply only to this collection run.
+          </p>
+        </div>
 
         <button
           type="button"
