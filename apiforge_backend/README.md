@@ -424,6 +424,37 @@ APIForge provides a synchronous backend Collection Runner allowing users to exec
   - If `environmentId` is not provided, the active workspace environment is resolved automatically.
   - If `environmentId` is specified, its variables are loaded (verifying workspace isolation).
   - Runtime variables (`runtimeVariables`) override environment variables in-memory for the run without persisting to the database.
+- **Request Chaining & Runtime Variable Extraction**:
+  - **Declarative Extraction**: Requests define extraction rules in `settings.extract` (or `extract` in creation/update payloads) to capture response data into runtime variables for subsequent requests in the same run:
+    ```json
+    {
+      "extract": [
+        { "variable": "accessToken", "source": "json", "path": "$.token" },
+        { "variable": "sessionId", "source": "header", "header": "X-Session-Id" },
+        { "variable": "rawOutput", "source": "text" }
+      ]
+    }
+    ```
+  - **Extraction Sources**:
+    - `json`: Evaluates safe JSONPath expressions (`$.token`, `token`, `$.user.id`, `$.items[0].id`) against JSON response bodies. Distinguishes missing paths from explicit `null`, `false`, and `0`.
+    - `header`: Performs case-insensitive lookup against response headers (`X-Request-Id`, `Location`, `Content-Type`).
+    - `text`: Captures the full response body as raw text.
+  - **Chaining Workflow**:
+    ```text
+    POST /login ──extract $.token──> accessToken
+                                          │
+    GET /profile (Bearer {{accessToken}}) ┘ ──extract $.user.id──> userId
+                                                                      │
+    GET /orders?userId={{userId}} <───────────────────────────────────┘
+    ```
+  - **Variable Precedence Hierarchy**:
+    ```text
+    Explicit Run Variables > Extracted Variables > Environment Variables
+    ```
+    User-supplied runtime variables always take top precedence and cannot be unexpectedly overwritten by response extractions. Extracted variables override environment variables with the same key.
+  - **Ephemeral Scope**: Extracted variables exist solely in-memory for the duration of the current run. They are never saved to the database, environment variables, or workspace settings.
+  - **Stop-on-Error Integration**: If an extraction rule fails (e.g. missing JSONPath or missing header), the request is flagged with `errorType: 'EXTRACTION_ERROR'`. When `stopOnError: true`, the run halts immediately and subsequent requests are skipped.
+  - **Security & Secret Redaction**: Extracted values are treated as sensitive credentials. Actual extracted values are never echoed in runner responses, server logs, or execution history. Only variable names appear in diagnostic metadata (`extraction: { success: true, variables: ["accessToken"] }`). Zero arbitrary code execution (`eval`, `Function`) is permitted.
 - **History & Security**:
   - Reuses the existing Step 7 execution engine, SSRF protection, timeout clamping, and Step 13 history persistence.
   - Every executed request is recorded in API history with its resolved environment, duration, and status without duplicates.

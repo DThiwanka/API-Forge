@@ -28,6 +28,16 @@ export function resolveJsonPath(target, path) {
     .map((t) => t.trim())
     .filter((t) => t.length > 0);
 
+  // If path starts with root indicator '$', remove it
+  if (tokens.length > 0 && tokens[0] === '$') {
+    tokens.shift();
+  }
+
+  // If path was simply '$', return the target root value
+  if (tokens.length === 0 && cleanPath.startsWith('$')) {
+    return { found: true, value: target };
+  }
+
   let current = target;
 
   for (const token of tokens) {

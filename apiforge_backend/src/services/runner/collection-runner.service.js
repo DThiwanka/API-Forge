@@ -3,6 +3,7 @@ import prisma from '../../config/database.js';
 import requestExecutionService from '../execution/request-execution.service.js';
 import environmentRepository from '../../repositories/environment.repository.js';
 import { classifyExecutionError } from '../history/history.service.js';
+import { extractVariablesFromResponse } from './variable-extraction.service.js';
 import { AppError } from '../../utils/appError.js';
 
 /**
@@ -246,6 +247,8 @@ export async function runCollection({
     ...(runtimeVariables || {}),
   };
 
+  const extractedVariables = {};
+
   const results = [];
   let stoppedEarly = false;
   let completedCount = 0;
@@ -278,6 +281,7 @@ export async function runCollection({
         errorType: null,
         errorMessage: null,
         error: null,
+        extraction: null,
         skipped: true,
       });
       continue;
@@ -285,26 +289,59 @@ export async function runCollection({
 
     const reqStart = performance.now();
     try {
+      // Merge variables with strict precedence:
+      // explicit runtime variables > extracted variables > environment variables
+      const currentRunVars = {
+        ...extractedVariables,
+        ...mergedRuntimeVars,
+      };
+
       const execResult = await requestExecutionService.executeRequest({
         workspaceId,
         collectionId,
         requestId: reqDef.id,
         environmentId: targetEnv?.id || null,
-        variables: mergedRuntimeVars,
+        variables: currentRunVars,
         allowLocalTargets,
       });
 
       const duration = execResult.response.timeMs || Math.round(performance.now() - reqStart);
-      const isSuccess = execResult.response.status >= 200 && execResult.response.status < 400;
+      const isHttpSuccess = execResult.response.status >= 200 && execResult.response.status < 400;
+
+      // Evaluate declarative extraction rules if defined on the request
+      const extractRules = reqDef.settings?.extract || reqDef.extract || [];
+      let extractionResult = null;
+      let extractionFailed = false;
+
+      if (Array.isArray(extractRules) && extractRules.length > 0) {
+        extractionResult = extractVariablesFromResponse(execResult.response, extractRules);
+        if (extractionResult.success) {
+          Object.assign(extractedVariables, extractionResult.extractedVariables);
+        } else {
+          extractionFailed = true;
+        }
+      }
+
+      const overallSuccess = isHttpSuccess && !extractionFailed;
 
       completedCount++;
-      if (isSuccess) {
+      if (overallSuccess) {
         passedCount++;
       } else {
         failedCount++;
         if (stopOnError) {
           stoppedEarly = true;
         }
+      }
+
+      let errorType = null;
+      let errorMessage = null;
+      if (extractionFailed) {
+        errorType = 'EXTRACTION_ERROR';
+        errorMessage = extractionResult.error;
+      } else if (!isHttpSuccess) {
+        errorType = 'HTTP_ERROR';
+        errorMessage = `HTTP ${execResult.response.status} ${execResult.response.statusText}`;
       }
 
       results.push({
@@ -320,13 +357,20 @@ export async function runCollection({
         timeMs: duration,
         sizeBytes: execResult.response.sizeBytes,
         contentType: execResult.response.contentType,
-        success: isSuccess,
-        errorType: isSuccess ? null : 'HTTP_ERROR',
-        errorMessage: isSuccess ? null : `HTTP ${execResult.response.status} ${execResult.response.statusText}`,
-        error: isSuccess ? null : {
-          type: 'HTTP_ERROR',
-          message: `HTTP ${execResult.response.status} ${execResult.response.statusText}`,
-        },
+        success: overallSuccess,
+        errorType,
+        errorMessage,
+        error: errorType ? {
+          type: errorType,
+          message: errorMessage,
+        } : null,
+        extraction: extractionResult
+          ? {
+              success: extractionResult.success,
+              variables: extractionResult.variableNames,
+              ...(extractionResult.error ? { error: extractionResult.error } : {}),
+            }
+          : null,
         skipped: false,
       });
     } catch (err) {
@@ -357,6 +401,7 @@ export async function runCollection({
           type: errorType,
           message: err.message,
         },
+        extraction: null,
         skipped: false,
       });
     }

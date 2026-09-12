@@ -1,4 +1,5 @@
 import { isValidHttpMethod, isValidAuthType, isValidBodyMode } from '../constants/httpMethods.js';
+import { validateExtractionRules } from '../services/runner/variable-extraction.service.js';
 import { AppError } from '../utils/appError.js';
 
 /**
@@ -63,9 +64,23 @@ export function validateCreateRequest(req, res, next) {
   }
 
   // Validate Settings
+  // Validate Settings and Extraction Rules
   if (settings !== undefined && settings !== null) {
     if (typeof settings !== 'object' || Array.isArray(settings)) {
       errors.push({ field: 'settings', message: 'settings must be an object' });
+    }
+  }
+
+  const extractRules = settings?.extract !== undefined ? settings.extract : req.body.extract;
+  if (extractRules !== undefined && extractRules !== null) {
+    const extractValidation = validateExtractionRules(extractRules);
+    if (!extractValidation.valid) {
+      errors.push(...extractValidation.errors);
+    } else {
+      if (!req.body.settings || typeof req.body.settings !== 'object') {
+        req.body.settings = {};
+      }
+      req.body.settings.extract = extractRules;
     }
   }
 
@@ -155,9 +170,23 @@ export function validateUpdateRequest(req, res, next) {
   }
 
   // Validate Settings if provided
+  // Validate Settings and Extraction Rules if provided
   if (settings !== undefined && settings !== null) {
     if (typeof settings !== 'object' || Array.isArray(settings)) {
       errors.push({ field: 'settings', message: 'settings must be an object' });
+    }
+  }
+
+  const extractRules = settings?.extract !== undefined ? settings.extract : req.body.extract;
+  if (extractRules !== undefined && extractRules !== null) {
+    const extractValidation = validateExtractionRules(extractRules);
+    if (!extractValidation.valid) {
+      errors.push(...extractValidation.errors);
+    } else {
+      if (!req.body.settings || typeof req.body.settings !== 'object') {
+        req.body.settings = {};
+      }
+      req.body.settings.extract = extractRules;
     }
   }
 
