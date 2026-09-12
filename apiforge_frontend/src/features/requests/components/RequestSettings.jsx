@@ -1,19 +1,20 @@
 import { ShieldAlert } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import ExtractionEditor from './ExtractionEditor';
 
 export default function RequestSettings({
-  settings = { timeout: 30000, followRedirects: true },
+  settings = { timeout: 30000, followRedirects: true, extract: [] },
   onUpdateSetting,
   className,
 }) {
   return (
-    <div className={cn('p-4 space-y-6 max-w-xl', className)}>
+    <div className={cn('p-4 space-y-6 max-w-2xl', className)}>
       <div>
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
           Request Settings
         </h3>
         <p className="text-xs text-slate-500 mt-0.5">
-          Configure runtime behavior for this specific request
+          Configure runtime behavior and response variable extraction for this request
         </p>
       </div>
 
@@ -58,6 +59,14 @@ export default function RequestSettings({
         </div>
       </div>
 
+      {/* Response Variable Extraction (Step 26 Request Chaining) */}
+      <div className="pt-2 border-t border-[#232732]">
+        <ExtractionEditor
+          rules={settings.extract || []}
+          onChange={(newRules) => onUpdateSetting('extract', newRules)}
+        />
+      </div>
+
       <div className="p-3 rounded-md bg-[#181b22] border border-[#232732] flex items-start gap-2.5 text-xs text-slate-400">
         <ShieldAlert size={16} className="text-sky-400 flex-shrink-0 mt-0.5" />
         <div>
@@ -70,4 +79,5 @@ export default function RequestSettings({
     </div>
   );
 }
+
 

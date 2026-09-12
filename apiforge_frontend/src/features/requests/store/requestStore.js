@@ -56,9 +56,16 @@ function normalizeBody(body) {
 }
 
 function normalizeSettings(settings) {
+  const extract = Array.isArray(settings?.extract)
+    ? settings.extract
+    : Array.isArray(settings?.extractions)
+    ? settings.extractions
+    : [];
+
   return {
     timeout: typeof settings?.timeout === 'number' ? settings.timeout : 30000,
     followRedirects: settings?.followRedirects !== false,
+    extract,
   };
 }
 
@@ -86,6 +93,7 @@ export const useRequestStore = create((set, get) => ({
   settings: {
     timeout: 30000,
     followRedirects: true,
+    extract: [],
   },
   isDirty: false,
   isSaving: false,
@@ -94,6 +102,10 @@ export const useRequestStore = create((set, get) => ({
 
   loadRequest: (request, workspaceId, collectionId) => {
     if (!request) return;
+    const settingsInput = request.settings || (request.extract ? { extract: request.extract } : {});
+    if (request.settings && !request.settings.extract && request.extract) {
+      settingsInput.extract = request.extract;
+    }
     set({
       id: request.id,
       workspaceId: workspaceId || request.workspaceId,
@@ -106,7 +118,7 @@ export const useRequestStore = create((set, get) => ({
       headers: normalizeArray(request.headers),
       auth: normalizeAuth(request.auth),
       body: normalizeBody(request.body),
-      settings: normalizeSettings(request.settings),
+      settings: normalizeSettings(settingsInput),
       isDirty: false,
       isSaving: false,
       isExecuting: false,

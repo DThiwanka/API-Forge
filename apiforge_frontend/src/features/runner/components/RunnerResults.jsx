@@ -10,8 +10,10 @@ import {
   ChevronDown,
   ChevronRight,
   AlertTriangle,
+  Variable,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import RunnerExtractionResult from './RunnerExtractionResult';
 
 const METHOD_COLORS = {
   GET: 'text-emerald-400 bg-emerald-950/40 border-emerald-800/40',
@@ -60,6 +62,19 @@ export default function RunnerResults({
 
   const metadata = runData?.metadata || {};
   const results = runData?.results || [];
+
+  const allExtractedVars = useMemo(() => {
+    const list = runData?.results || [];
+    const set = new Set();
+    for (const r of list) {
+      if (r.extraction?.success && Array.isArray(r.extraction.variables)) {
+        for (const v of r.extraction.variables) {
+          if (v) set.add(v);
+        }
+      }
+    }
+    return Array.from(set);
+  }, [runData?.results]);
 
   const toggleExpand = (id) => {
     setExpandedItemIds((prev) => {
@@ -157,6 +172,32 @@ export default function RunnerResults({
             </div>
           </div>
         </div>
+
+        {/* Chained Runtime Variables Summary (if any were extracted) */}
+        {allExtractedVars.length > 0 && (
+          <div className="p-2.5 rounded bg-[#131722] border border-[#232938] flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                <Variable size={13} />
+                <span>Chained Variables ({allExtractedVars.length}):</span>
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {allExtractedVars.map((v) => (
+                  <span
+                    key={v}
+                    className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50 text-emerald-300 font-mono text-[11px]"
+                    title={`Extracted and available as {{${v}}}`}
+                  >
+                    &#123;&#123;{v}&#125;&#125;
+                  </span>
+                ))}
+              </div>
+            </div>
+            <span className="text-[11px] text-slate-400 italic">
+              Extracted during run &amp; piped downstream
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Filter Tabs */}
@@ -280,7 +321,31 @@ export default function RunnerResults({
                   </div>
 
                   {/* Right Metrics: Status Code & Time */}
-                  <div className="flex items-center gap-3 shrink-0 font-mono text-xs">
+                  <div className="flex items-center gap-2.5 shrink-0 font-mono text-xs">
+                    {/* Extraction badge if present */}
+                    {item.extraction && (
+                      item.extraction.success ? (
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-emerald-400 bg-emerald-950/50 border border-emerald-800/50 flex items-center gap-1 shrink-0"
+                          title={`Extracted variables: ${(item.extraction.variables || []).join(', ')}`}
+                        >
+                          <Variable size={10} />
+                          <span>
+                            {item.extraction.variables?.length || 0}{' '}
+                            {item.extraction.variables?.length === 1 ? 'var' : 'vars'}
+                          </span>
+                        </span>
+                      ) : (
+                        <span
+                          className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium text-rose-400 bg-rose-950/50 border border-rose-800/50 flex items-center gap-1 shrink-0"
+                          title={item.extraction.error || 'Extraction failed'}
+                        >
+                          <Variable size={10} />
+                          <span>Extraction failed</span>
+                        </span>
+                      )
+                    )}
+
                     {item.skipped ? (
                       <span className="text-[11px] text-slate-500 italic">Skipped</span>
                     ) : item.status !== null ? (
@@ -346,6 +411,13 @@ export default function RunnerResults({
                         </div>
                       )}
                     </div>
+
+                    {/* Variable Extraction Result if defined */}
+                    {item.extraction && (
+                      <div className="pt-2">
+                        <RunnerExtractionResult extraction={item.extraction} />
+                      </div>
+                    )}
 
                     {/* Error Diagnostics if failed */}
                     {!item.success && !item.skipped && item.errorMessage && (

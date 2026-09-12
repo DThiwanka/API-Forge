@@ -129,6 +129,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
   const enabledParamsCount = (queryParams || []).filter((p) => p.enabled !== false && p.key?.trim()).length;
   const enabledHeadersCount = (headers || []).filter((h) => h.enabled !== false && h.key?.trim()).length;
+  const extractionsCount = (settings?.extract || []).length;
   const hasAuth = auth?.type && auth.type !== 'none';
   const hasBody = body?.mode && body.mode !== 'none';
 
@@ -209,6 +210,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
             paramsCount={enabledParamsCount}
             headersCount={enabledHeadersCount}
             testsCount={tests.length}
+            extractionsCount={extractionsCount}
             hasAuth={hasAuth}
             hasBody={hasBody}
           />
