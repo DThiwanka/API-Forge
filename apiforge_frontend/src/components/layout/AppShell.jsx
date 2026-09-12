@@ -1,6 +1,7 @@
 import TopBar from './TopBar';
 import WorkspaceHeader from './WorkspaceHeader';
 import StatusBar from './StatusBar';
+import CommandCenter from '../../features/command-center/components/CommandCenter';
 
 export default function AppShell({ children, workspaceId }) {
   return (
@@ -11,6 +12,7 @@ export default function AppShell({ children, workspaceId }) {
         {children}
       </main>
       <StatusBar workspaceId={workspaceId} />
+      {workspaceId && <CommandCenter workspaceId={workspaceId} />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Terminal, Search, LogOut, ChevronDown } from 'lucide-react';
 import WorkspaceSwitcher from '../../features/workspace/components/WorkspaceSwitcher';
 import EnvironmentSwitcher from '../../features/environments/components/EnvironmentSwitcher';
 import { useCurrentUser, useLogoutMutation } from '../../features/auth/hooks/useAuth';
+import useCommandCenterStore from '../../features/command-center/store/commandCenterStore';
 
 export default function TopBar({ workspaceId }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -60,7 +61,11 @@ export default function TopBar({ workspaceId }) {
 
       {/* Center Command Center / Search Affordance */}
       <div className="hidden md:flex items-center flex-1 max-w-sm mx-6">
-        <div className="w-full flex items-center justify-between px-2.5 py-1 bg-[#14171f] hover:bg-[#181b22] border border-[#2b313e] rounded text-xs text-slate-400 transition-colors cursor-pointer group">
+        <button
+          type="button"
+          onClick={() => useCommandCenterStore.getState().open()}
+          className="w-full flex items-center justify-between px-2.5 py-1 bg-[#14171f] hover:bg-[#181b22] border border-[#2b313e] hover:border-slate-600 rounded text-xs text-slate-400 transition-colors cursor-pointer group text-left"
+        >
           <div className="flex items-center gap-2">
             <Search size={12} className="text-slate-500 group-hover:text-slate-300" />
             <span className="text-[11px] text-slate-400 group-hover:text-slate-300">
@@ -70,7 +75,7 @@ export default function TopBar({ workspaceId }) {
           <kbd className="px-1.5 py-0.2 rounded bg-[#1c212c] border border-[#2b313e] font-mono text-[10px] text-slate-400">
             Ctrl+K
           </kbd>
-        </div>
+        </button>
       </div>
 
       {/* Right Controls: Environment, User & Sign Out */}
