@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
+import VariableInput from './VariableInput';
 import { cn } from '../../../utils/cn';
 
 export default function ParamsEditor({
@@ -6,6 +7,8 @@ export default function ParamsEditor({
   onUpdateParam,
   onAddParam,
   onRemoveParam,
+  variables = [],
+  activeEnvName,
   className,
 }) {
   return (
@@ -18,6 +21,7 @@ export default function ParamsEditor({
           type="button"
           onClick={onAddParam}
           className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors cursor-pointer"
         >
           <Plus size={13} />
           <span>Add Parameter</span>
@@ -64,10 +68,15 @@ export default function ParamsEditor({
                 <td className="px-3 py-1.5">
                   <input
                     type="text"
+                  <VariableInput
                     value={param.value || ''}
                     onChange={(e) => onUpdateParam(index, 'value', e.target.value)}
+                    onChange={(val) => onUpdateParam(index, 'value', val)}
                     placeholder="Value (e.g. {{userId}})"
                     className="w-full bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+                    variables={variables}
+                    activeEnvName={activeEnvName}
+                    pickerButtonTitle="Insert variable into parameter value..."
                   />
                 </td>
                 <td className="px-3 py-1.5">
@@ -85,6 +94,7 @@ export default function ParamsEditor({
                     onClick={() => onRemoveParam(index)}
                     title="Remove parameter"
                     className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                    className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer"
                   >
                     <Trash2 size={12} />
                   </button>

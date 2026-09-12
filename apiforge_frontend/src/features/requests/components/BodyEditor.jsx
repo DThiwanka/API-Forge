@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Plus, Trash2, Wand2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useMemo, useState, useRef } from 'react';
+import { Plus, Trash2, Wand2, CheckCircle2, AlertCircle, Variable } from 'lucide-react';
+import VariableInput from './VariableInput';
+import VariablePicker from '../../environments/components/VariablePicker';
+import VariableSuggestionsDropdown from './VariableSuggestionsDropdown';
+import { useInlineVariableAutocomplete } from '../hooks/useInlineVariableAutocomplete';
 import { cn } from '../../../utils/cn';
 
 const BODY_MODES = [
@@ -17,11 +23,30 @@ export default function BodyEditor({
   onUpdateUrlEncoded,
   onAddUrlEncoded,
   onRemoveUrlEncoded,
+  variables = [],
+  activeEnvName,
   className,
 }) {
   const [jsonFormatError, setJsonFormatError] = useState(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const textareaRef = useRef(null);
 
   const mode = body.mode || 'none';
+
+  // Autocomplete hook for raw textarea
+  const {
+    showSuggestions,
+    suggestions,
+    selectedIndex,
+    handleInputChange,
+    handleKeyDown,
+    handleSelect,
+    closeSuggestions,
+  } = useInlineVariableAutocomplete({
+    value: body.raw || '',
+    onChange: onRawChange,
+    variables,
+  });
 
   // Validate JSON if in JSON mode
   const jsonStatus = useMemo(() => {
@@ -48,9 +73,32 @@ export default function BodyEditor({
     }
   };
 
+  const handleInsertVariableFromPicker = (varKey) => {
+    const textarea = textareaRef.current;
+    const currentVal = body.raw || '';
+    const start = textarea ? textarea.selectionStart : currentVal.length;
+    const end = textarea ? textarea.selectionEnd : currentVal.length;
+
+    const before = currentVal.slice(0, start);
+    const after = currentVal.slice(end);
+    const token = `{{${varKey}}}`;
+    const nextVal = `${before}${token}${after}`;
+
+    onRawChange?.(nextVal);
+
+    if (textarea) {
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + token.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 10);
+    }
+  };
+
   return (
     <div className={cn('p-4 space-y-3', className)}>
       <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-1 bg-[#14171f] p-0.5 rounded-md border border-[#2b313e]">
           {BODY_MODES.map((m) => (
             <button
@@ -59,6 +107,7 @@ export default function BodyEditor({
               onClick={() => onModeChange(m.id)}
               className={cn(
                 'px-2.5 py-1 text-xs font-medium rounded transition-colors',
+                'px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer',
                 mode === m.id
                   ? 'bg-sky-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
@@ -70,9 +119,13 @@ export default function BodyEditor({
         </div>
 
         {mode === 'json' && (
+        {/* Toolbar actions for raw / json / text */}
+        {(mode === 'json' || mode === 'text' || mode === 'raw') && (
           <div className="flex items-center gap-2">
             {jsonStatus && (
               <div className="flex items-center gap-1 text-[11px] font-mono">
+            {mode === 'json' && jsonStatus && (
+              <div className="flex items-center gap-1 text-[11px] font-mono mr-1">
                 {jsonStatus.valid ? (
                   <span className="text-emerald-400 flex items-center gap-1">
                     <CheckCircle2 size={12} /> Valid JSON
@@ -84,14 +137,32 @@ export default function BodyEditor({
                 )}
               </div>
             )}
+
+            {mode === 'json' && (
+              <button
+                type="button"
+                onClick={handlePrettify}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-xs text-slate-300 transition-colors cursor-pointer"
+                title="Prettify JSON"
+              >
+                <Wand2 size={12} className="text-sky-400" />
+                <span>Format</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handlePrettify}
               className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-xs text-slate-300 transition-colors"
               title="Prettify JSON"
+              onClick={() => setIsPickerOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+              title="Insert variable from environment or runner..."
             >
               <Wand2 size={12} className="text-sky-400" />
               <span>Format</span>
+              <Variable size={12} className="text-sky-400" />
+              <span>Insert Variable</span>
             </button>
           </div>
         )}
@@ -101,6 +172,7 @@ export default function BodyEditor({
             type="button"
             onClick={onAddUrlEncoded}
             className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors cursor-pointer"
           >
             <Plus size={13} />
             <span>Add Field</span>
@@ -123,17 +195,32 @@ export default function BodyEditor({
       {(mode === 'json' || mode === 'text' || mode === 'raw') && (
         <div className="relative border border-[#232732] rounded-md overflow-hidden bg-[#0c0d12]">
           <textarea
+            ref={textareaRef}
             value={body.raw || ''}
             onChange={(e) => onRawChange(e.target.value)}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder={
               mode === 'json'
                 ? '{\n  "key": "value"\n}'
+                ? '{\n  "key": "value",\n  "userId": "{{userId}}"\n}'
                 : 'Enter request body content or {{variables}}...'
             }
             spellCheck={false}
             rows={12}
             className="w-full p-3 bg-transparent text-slate-100 placeholder-slate-600 font-mono text-xs leading-relaxed focus:outline-none resize-y min-h-[160px]"
           />
+
+          {/* Autocomplete dropdown inside textarea */}
+          <div className="absolute left-4 top-12">
+            <VariableSuggestionsDropdown
+              isOpen={showSuggestions}
+              suggestions={suggestions}
+              selectedIndex={selectedIndex}
+              onSelect={handleSelect}
+              onClose={closeSuggestions}
+            />
+          </div>
         </div>
       )}
 
@@ -178,10 +265,16 @@ export default function BodyEditor({
                   <td className="px-3 py-1.5">
                     <input
                       type="text"
+                    <VariableInput
                       value={item.value || ''}
                       onChange={(e) => onUpdateUrlEncoded(index, 'value', e.target.value)}
                       placeholder="Value"
                       className="w-full bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+                      onChange={(val) => onUpdateUrlEncoded(index, 'value', val)}
+                      placeholder="Value (e.g. {{token}})"
+                      variables={variables}
+                      activeEnvName={activeEnvName}
+                      pickerButtonTitle="Insert variable into form value..."
                     />
                   </td>
                   <td className="px-3 py-1.5">
@@ -199,6 +292,7 @@ export default function BodyEditor({
                       onClick={() => onRemoveUrlEncoded(index)}
                       title="Remove field"
                       className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                      className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -209,6 +303,16 @@ export default function BodyEditor({
           </table>
         </div>
       )}
+
+      {/* Variable Picker Modal for Body */}
+      <VariablePicker
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={handleInsertVariableFromPicker}
+        variables={variables}
+        activeEnvName={activeEnvName}
+        title="Insert Variable into Body"
+      />
     </div>
   );
 }

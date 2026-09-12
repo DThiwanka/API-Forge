@@ -416,6 +416,19 @@ export default function RunnerResults({
         </button>
           <button
             type="button"
+            onClick={() => setFilter('PASSED')}
+            className={cn(
+              'px-2.5 py-1 rounded text-xs transition-colors cursor-pointer',
+              filter === 'PASSED'
+                ? 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-300 font-medium'
+                : 'text-slate-400 hover:text-emerald-400'
+            )}
+          >
+            Passed ({summary.passed})
+          </button>
+
+          <button
+            type="button"
             onClick={() => setFilter('FAILED')}
             className={cn(
               'px-2.5 py-1 rounded text-xs transition-colors flex items-center gap-1 cursor-pointer',

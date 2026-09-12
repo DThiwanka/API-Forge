@@ -583,6 +583,7 @@ export default function CollectionRunnerPage() {
 
               {/* Right Column: Execution Progress / Results */}
               {/* Area 2 & 3: Right Column: Configuration / Execution Progress / Results */}
+              {/* Right Column: Configuration / Execution Progress / Results */}
               <div className="flex-1 flex flex-col overflow-y-auto bg-[#0a0c11]">
                 {/* Pending State */}
                 {/* 1. Pending Execution Progress State */}
@@ -755,6 +756,7 @@ export default function CollectionRunnerPage() {
                     />
                   </div>
                 )}
+              </div>
               </div>
             </div>
           )}

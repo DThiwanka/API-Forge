@@ -12,12 +12,15 @@ import BodyEditor from './BodyEditor';
 import RequestSettings from './RequestSettings';
 import TestPanel from '../../testing/components/TestPanel';
 import ResponseInspector from '../../response/components/ResponseInspector';
+import VariableToken from './VariableToken';
 import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
 import { useEnvironmentsQuery } from '../../environments/hooks/useEnvironments';
 import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
+import { useVariableSuggestions, extractVariableNames } from '../hooks/useVariableSuggestions';
 import useRequestStore from '../store/requestStore';
 import { Loader2, AlertCircle, Globe } from 'lucide-react';
+import { Loader2, AlertCircle, Globe, AlertTriangle } from 'lucide-react';
 
 export default function RequestWorkspace({ workspaceId: propWId, collectionId: propCId, requestId: propRId }) {
   const routeParams = useParams();
@@ -31,6 +34,15 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   const activeEnv = environments.find((e) => e.isActive);
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, requestId);
   const executeMutation = useRequestExecution(workspaceId, collectionId, requestId);
+
+  // Variable suggestions and detection across workspace
+  const {
+    allVariables,
+    knownVariableKeys,
+    activeEnv,
+    getVariable,
+    isVariableKnown,
+  } = useVariableSuggestions(workspaceId);
 
   // Store state
   const {
@@ -75,6 +87,62 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     if (!matches) return [];
     return [...new Set(matches.map((m) => m.replace(/[{}]/g, '').trim()))];
   }, [url]);
+  // Extract all variables referenced anywhere in the request
+  const allReferencedVariables = useMemo(() => {
+    const rawTokens = [];
+
+    // URL
+    if (url) rawTokens.push(...extractVariableNames(url));
+
+    // Query params
+    if (Array.isArray(queryParams)) {
+      for (const p of queryParams) {
+        if (p.enabled !== false) {
+          rawTokens.push(...extractVariableNames(p.key));
+          rawTokens.push(...extractVariableNames(p.value));
+        }
+      }
+    }
+
+    // Headers
+    if (Array.isArray(headers)) {
+      for (const h of headers) {
+        if (h.enabled !== false) {
+          rawTokens.push(...extractVariableNames(h.key));
+          rawTokens.push(...extractVariableNames(h.value));
+        }
+      }
+    }
+
+    // Auth
+    if (auth?.type === 'bearer' && auth.bearer?.token) {
+      rawTokens.push(...extractVariableNames(auth.bearer.token));
+    } else if (auth?.type === 'basic') {
+      if (auth.basic?.username) rawTokens.push(...extractVariableNames(auth.basic.username));
+      if (auth.basic?.password) rawTokens.push(...extractVariableNames(auth.basic.password));
+    } else if (auth?.type === 'api-key') {
+      if (auth.apiKey?.key) rawTokens.push(...extractVariableNames(auth.apiKey.key));
+      if (auth.apiKey?.value) rawTokens.push(...extractVariableNames(auth.apiKey.value));
+    }
+
+    // Body
+    if (body?.mode === 'json' || body?.mode === 'text' || body?.mode === 'raw') {
+      if (body.raw) rawTokens.push(...extractVariableNames(body.raw));
+    } else if (body?.mode === 'x-www-form-urlencoded' && Array.isArray(body.urlencoded)) {
+      for (const item of body.urlencoded) {
+        if (item.enabled !== false) {
+          rawTokens.push(...extractVariableNames(item.key));
+          rawTokens.push(...extractVariableNames(item.value));
+        }
+      }
+    }
+
+    return Array.from(new Set(rawTokens));
+  }, [url, queryParams, headers, auth, body]);
+
+  const undefinedVariables = useMemo(() => {
+    return allReferencedVariables.filter((name) => !isVariableKnown(name));
+  }, [allReferencedVariables, isVariableKnown]);
 
   // Save handler
   const handleSave = useCallback(() => {
@@ -166,6 +234,10 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                     handleExecute();
                   }
                 }}
+                variables={allVariables}
+                knownVariableKeys={knownVariableKeys}
+                activeEnvName={activeEnv?.name}
+                getVariable={getVariable}
               />
               <RequestSendButton
                 isExecuting={isExecuting}
@@ -176,8 +248,11 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
             {/* Active Environment & Variable Status Indicator */}
             <div className="mt-2.5 flex items-center justify-between text-[11px] font-mono select-none">
+            {/* Active Environment & Variable Status Indicator Bar */}
+            <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] font-mono select-none flex-wrap">
               <div className="flex items-center gap-1.5 text-slate-400">
                 <Globe size={11} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
+                <Globe size={12} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
                 <span>
                   Environment:{' '}
                   <span className={activeEnv ? 'text-sky-300 font-medium' : 'text-slate-500'}>
@@ -196,10 +271,46 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                       title={`Variable referenced in URL: {{${v}}}`}
                     >
                       &#123;&#123;{v}&#125;&#125;
+              {/* Variables Used Status */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {undefinedVariables.length > 0 && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-sans font-semibold bg-amber-950/60 border border-amber-600/50 text-amber-300"
+                    title={`${undefinedVariables.length} variable(s) used in this request are undefined in the active environment, extractions, or runtime.`}
+                  >
+                    <AlertTriangle size={11} className="text-amber-400" />
+                    <span>{undefinedVariables.length} undefined</span>
+                  </span>
+                )}
+
+                {allReferencedVariables.length > 0 && (
+                  <div className="flex items-center gap-1 text-slate-400 flex-wrap">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-sans">
+                      Used ({allReferencedVariables.length}):
                     </span>
                   ))}
                 </div>
               )}
+                    {allReferencedVariables.map((v) => {
+                      const meta = getVariable(v);
+                      const isKnown = isVariableKnown(v);
+                      return (
+                        <VariableToken
+                          key={v}
+                          name={v}
+                          isKnown={isKnown}
+                          source={meta?.source || 'environment'}
+                          isSecret={meta?.isSecret}
+                          previewValue={meta?.value}
+                          envName={meta?.envName || activeEnv?.name}
+                          description={meta?.description}
+                          className="py-0.2 text-[10px]"
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -223,6 +334,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onUpdateParam={updateQueryParam}
                 onAddParam={addQueryParam}
                 onRemoveParam={removeQueryParam}
+                variables={allVariables}
+                activeEnvName={activeEnv?.name}
               />
             )}
 
@@ -232,6 +345,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onUpdateHeader={updateHeader}
                 onAddHeader={addHeader}
                 onRemoveHeader={removeHeader}
+                variables={allVariables}
+                activeEnvName={activeEnv?.name}
               />
             )}
 
@@ -242,6 +357,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onUpdateBearer={updateAuthBearer}
                 onUpdateBasic={updateAuthBasic}
                 onUpdateApiKey={updateAuthApiKey}
+                variables={allVariables}
+                activeEnvName={activeEnv?.name}
               />
             )}
 
@@ -253,6 +370,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onUpdateUrlEncoded={updateBodyUrlEncoded}
                 onAddUrlEncoded={addBodyUrlEncoded}
                 onRemoveUrlEncoded={removeBodyUrlEncoded}
+                variables={allVariables}
+                activeEnvName={activeEnv?.name}
               />
             )}
 

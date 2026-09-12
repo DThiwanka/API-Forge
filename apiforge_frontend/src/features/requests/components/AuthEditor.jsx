@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff, Shield } from 'lucide-react';
+import VariableInput from './VariableInput';
 import { cn } from '../../../utils/cn';
 
 const AUTH_TYPES = [
@@ -15,6 +16,8 @@ export default function AuthEditor({
   onUpdateBearer,
   onUpdateBasic,
   onUpdateApiKey,
+  variables = [],
+  activeEnvName,
   className,
 }) {
   const [showSecret, setShowSecret] = useState(false);
@@ -41,6 +44,7 @@ export default function AuthEditor({
               onClick={() => onAuthTypeChange(type.id)}
               className={cn(
                 'px-2.5 py-1 text-xs font-medium rounded transition-colors',
+                'px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer',
                 authType === type.id
                   ? 'bg-sky-600 text-white shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
@@ -72,17 +76,38 @@ export default function AuthEditor({
               placeholder="Token or {{token}}"
               className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 pr-10"
             />
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-medium text-slate-300">
+              Bearer Token
+            </label>
             <button
               type="button"
               onClick={() => setShowSecret(!showSecret)}
               className="absolute right-3 text-slate-500 hover:text-slate-300"
+              className="text-slate-500 hover:text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
               title={showSecret ? 'Hide token' : 'Show token'}
             >
               {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
+              <span>{showSecret ? 'Hide' : 'Show'}</span>
             </button>
           </div>
+
+          <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
+            <VariableInput
+              type={showSecret ? 'text' : 'password'}
+              value={auth.bearer?.token || ''}
+              onChange={(val) => onUpdateBearer('token', val)}
+              placeholder="Token or {{token}}"
+              variables={variables}
+              activeEnvName={activeEnvName}
+              pickerButtonTitle="Insert variable into token..."
+            />
+          </div>
+
           <p className="text-[11px] text-slate-500">
             Will be sent as <code className="text-slate-400">Authorization: Bearer &lt;token&gt;</code>
+            Will be sent as <code className="text-slate-400 font-mono">Authorization: Bearer &lt;token&gt;</code>
           </p>
         </div>
       )}
@@ -100,7 +125,18 @@ export default function AuthEditor({
               placeholder="Username or {{username}}"
               className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500"
             />
+            <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
+              <VariableInput
+                value={auth.basic?.username || ''}
+                onChange={(val) => onUpdateBasic('username', val)}
+                placeholder="Username or {{username}}"
+                variables={variables}
+                activeEnvName={activeEnvName}
+                pickerButtonTitle="Insert variable into username..."
+              />
+            </div>
           </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
               Password
@@ -113,18 +149,39 @@ export default function AuthEditor({
                 placeholder="Password or {{password}}"
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 pr-10"
               />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-slate-300">
+                Password
+              </label>
               <button
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
                 className="absolute right-3 text-slate-500 hover:text-slate-300"
+                className="text-slate-500 hover:text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
                 title={showSecret ? 'Hide password' : 'Show password'}
               >
                 {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
+                <span>{showSecret ? 'Hide' : 'Show'}</span>
               </button>
             </div>
+
+            <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
+              <VariableInput
+                type={showSecret ? 'text' : 'password'}
+                value={auth.basic?.password || ''}
+                onChange={(val) => onUpdateBasic('password', val)}
+                placeholder="Password or {{password}}"
+                variables={variables}
+                activeEnvName={activeEnvName}
+                pickerButtonTitle="Insert variable into password..."
+              />
+            </div>
           </div>
+
           <p className="text-[11px] text-slate-500">
             Will be base64-encoded and sent as <code className="text-slate-400">Authorization: Basic &lt;credentials&gt;</code>
+            Will be base64-encoded and sent as <code className="text-slate-400 font-mono">Authorization: Basic &lt;credentials&gt;</code>
           </p>
         </div>
       )}
@@ -143,7 +200,18 @@ export default function AuthEditor({
                 placeholder="e.g. X-API-Key or api_key"
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500"
               />
+              <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
+                <VariableInput
+                  value={auth.apiKey?.key || ''}
+                  onChange={(val) => onUpdateApiKey('key', val)}
+                  placeholder="e.g. X-API-Key or api_key"
+                  variables={variables}
+                  activeEnvName={activeEnvName}
+                  pickerButtonTitle="Insert variable into key..."
+                />
+              </div>
             </div>
+
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Add To
@@ -152,12 +220,14 @@ export default function AuthEditor({
                 value={auth.apiKey?.addTo || 'header'}
                 onChange={(e) => onUpdateApiKey('addTo', e.target.value)}
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 cursor-pointer"
               >
                 <option value="header">Header</option>
                 <option value="query">Query Params</option>
               </select>
             </div>
           </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">
               Value
@@ -170,14 +240,33 @@ export default function AuthEditor({
                 placeholder="Value or {{apiKey}}"
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs font-mono text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 pr-10"
               />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-slate-300">
+                Value
+              </label>
               <button
                 type="button"
                 onClick={() => setShowSecret(!showSecret)}
                 className="absolute right-3 text-slate-500 hover:text-slate-300"
+                className="text-slate-500 hover:text-slate-300 text-xs flex items-center gap-1 cursor-pointer"
                 title={showSecret ? 'Hide secret' : 'Show secret'}
               >
                 {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+                {showSecret ? <EyeOff size={13} /> : <Eye size={13} />}
+                <span>{showSecret ? 'Hide' : 'Show'}</span>
               </button>
+            </div>
+
+            <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
+              <VariableInput
+                type={showSecret ? 'text' : 'password'}
+                value={auth.apiKey?.value || ''}
+                onChange={(val) => onUpdateApiKey('value', val)}
+                placeholder="Value or {{apiKey}}"
+                variables={variables}
+                activeEnvName={activeEnvName}
+                pickerButtonTitle="Insert variable into API key value..."
+              />
             </div>
           </div>
         </div>

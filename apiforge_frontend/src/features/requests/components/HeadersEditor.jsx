@@ -1,4 +1,5 @@
 import { Plus, Trash2 } from 'lucide-react';
+import VariableInput from './VariableInput';
 import { cn } from '../../../utils/cn';
 
 const COMMON_HEADERS = [
@@ -20,6 +21,8 @@ export default function HeadersEditor({
   onUpdateHeader,
   onAddHeader,
   onRemoveHeader,
+  variables = [],
+  activeEnvName,
   className,
 }) {
   return (
@@ -38,6 +41,7 @@ export default function HeadersEditor({
           type="button"
           onClick={onAddHeader}
           className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors cursor-pointer"
         >
           <Plus size={13} />
           <span>Add Header</span>
@@ -85,10 +89,15 @@ export default function HeadersEditor({
                 <td className="px-3 py-1.5">
                   <input
                     type="text"
+                  <VariableInput
                     value={header.value || ''}
                     onChange={(e) => onUpdateHeader(index, 'value', e.target.value)}
+                    onChange={(val) => onUpdateHeader(index, 'value', val)}
                     placeholder="Value (e.g. {{token}})"
                     className="w-full bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
+                    variables={variables}
+                    activeEnvName={activeEnvName}
+                    pickerButtonTitle="Insert variable into header value..."
                   />
                 </td>
                 <td className="px-3 py-1.5">
@@ -106,6 +115,7 @@ export default function HeadersEditor({
                     onClick={() => onRemoveHeader(index)}
                     title="Remove header"
                     className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                    className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer"
                   >
                     <Trash2 size={12} />
                   </button>
