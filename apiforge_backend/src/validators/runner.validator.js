@@ -92,12 +92,21 @@ export function validateCollectionRun(req, res, next) {
     }
   }
 
+  // 6. Validate executeTests (optional boolean, defaults to true)
+  const executeTests = body.executeTests;
+  if (executeTests !== undefined && executeTests !== null) {
+    if (typeof executeTests !== 'boolean') {
+      errors.push({ field: 'executeTests', message: 'executeTests must be a boolean' });
+    }
+  }
+
   if (errors.length > 0) {
     return next(new AppError('Validation failed', 400, errors));
   }
 
   // Normalize defaults on req.body
   req.body.stopOnError = Boolean(stopOnError);
+  req.body.executeTests = executeTests !== undefined ? Boolean(executeTests) : true;
   if (requestIds && Array.isArray(requestIds)) {
     req.body.requestIds = requestIds.map((id) => id.trim());
   }

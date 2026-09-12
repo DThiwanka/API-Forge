@@ -4,7 +4,39 @@ import requestExecutionService from '../execution/request-execution.service.js';
 import environmentRepository from '../../repositories/environment.repository.js';
 import { classifyExecutionError } from '../history/history.service.js';
 import { extractVariablesFromResponse } from './variable-extraction.service.js';
+import assertionRunnerService from '../testing/assertion-runner.service.js';
 import { AppError } from '../../utils/appError.js';
+
+const SENSITIVE_KEY_REGEX =
+  /(authorization|cookie|set-cookie|x[_-]?api[_-]?key|api[_-]?key|apikey|x[_-]?auth[_-]?token|token|secret|password|client[_-]?secret)/i;
+
+/**
+ * Sanitize assertion result so sensitive values and headers are not leaked
+ * @param {object} result - Single assertion evaluation result
+ * @returns {object} Sanitized assertion result
+ */
+function sanitizeAssertionResult(result) {
+  if (!result || typeof result !== 'object') return result;
+
+  const isSensitive =
+    (result.type === 'header' && SENSITIVE_KEY_REGEX.test(result.path || '')) ||
+    (result.type === 'json_path' && SENSITIVE_KEY_REGEX.test(result.path || ''));
+
+  if (!isSensitive) return result;
+
+  return {
+    ...result,
+    actualValue: result.actualValue !== null && result.actualValue !== undefined ? '[REDACTED]' : null,
+    expectedValue: result.expectedValue !== null && result.expectedValue !== undefined ? '[REDACTED]' : null,
+    message: result.message
+      ? result.message
+          .replace(/to equal ".*?"/, 'to equal "[REDACTED]"')
+          .replace(/got ".*?"/, 'got "[REDACTED]"')
+          .replace(/value: ".*?"/, 'value: "[REDACTED]"')
+          .replace(/Expected '.*?' not to exist, but found value: .*/, 'Expected sensitive field not to exist, but it was found')
+      : null,
+  };
+}
 
 /**
  * Determine deterministic execution order of requests across collection and folders
@@ -145,6 +177,7 @@ export async function runCollection({
   variables = {},
   stopOnError = false,
   allowLocalTargets = false,
+  executeTests = true,
 }) {
   if (!workspaceId || !collectionId) {
     throw new AppError('workspaceId and collectionId are required', 400);
@@ -168,6 +201,17 @@ export async function runCollection({
           { position: 'asc' },
           { createdAt: 'asc' },
         ],
+        include: {
+          apiTests: {
+            where: { enabled: true },
+            orderBy: { createdAt: 'asc' },
+            include: {
+              assertions: {
+                orderBy: { position: 'asc' },
+              },
+            },
+          },
+        },
       },
     },
   });
@@ -249,6 +293,10 @@ export async function runCollection({
 
   const extractedVariables = {};
 
+  let totalAssertionsAllRequests = 0;
+  let passedAssertionsAllRequests = 0;
+  let failedAssertionsAllRequests = 0;
+
   const results = [];
   let stoppedEarly = false;
   let completedCount = 0;
@@ -278,9 +326,13 @@ export async function runCollection({
         sizeBytes: null,
         contentType: null,
         success: false,
+        execution: {
+          success: false,
+        },
         errorType: null,
         errorMessage: null,
         error: null,
+        tests: null,
         extraction: null,
         skipped: true,
       });
@@ -308,7 +360,69 @@ export async function runCollection({
       const duration = execResult.response.timeMs || Math.round(performance.now() - reqStart);
       const isHttpSuccess = execResult.response.status >= 200 && execResult.response.status < 400;
 
-      // Evaluate declarative extraction rules if defined on the request
+      // 1. Evaluate saved API tests if enabled and present
+      const savedTests = reqDef.apiTests || reqDef.tests || [];
+      const enabledTests = savedTests.filter((t) => t.enabled !== false);
+
+      let testsResult = null;
+      let testsFailed = false;
+      let itemTotalAssertions = 0;
+      let itemPassedAssertions = 0;
+      let itemFailedAssertions = 0;
+
+      if (executeTests && enabledTests.length > 0) {
+        const testResultsList = [];
+
+        for (const test of enabledTests) {
+          const assertions = test.assertions || [];
+          const assertionSummary = assertionRunnerService.runAssertions(
+            execResult.response,
+            assertions
+          );
+
+          itemTotalAssertions += assertionSummary.total;
+          itemPassedAssertions += assertionSummary.passedCount;
+          itemFailedAssertions += assertionSummary.failedCount;
+
+          const sanitizedResults = (assertionSummary.results || []).map(sanitizeAssertionResult);
+
+          testResultsList.push({
+            id: test.id,
+            testId: test.id,
+            name: test.name,
+            testName: test.name,
+            passed: assertionSummary.passed,
+            total: assertionSummary.total,
+            passedCount: assertionSummary.passedCount,
+            failedCount: assertionSummary.failedCount,
+            assertions: sanitizedResults,
+          });
+        }
+
+        testsFailed = itemFailedAssertions > 0;
+
+        testsResult = {
+          total: itemTotalAssertions,
+          passed: itemPassedAssertions,
+          failed: itemFailedAssertions,
+          executed: true,
+          results: testResultsList,
+        };
+      } else {
+        testsResult = {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          executed: executeTests,
+          results: [],
+        };
+      }
+
+      totalAssertionsAllRequests += itemTotalAssertions;
+      passedAssertionsAllRequests += itemPassedAssertions;
+      failedAssertionsAllRequests += itemFailedAssertions;
+
+      // 2. Evaluate declarative extraction rules if defined on the request
       const extractRules = reqDef.settings?.extract || reqDef.extract || [];
       let extractionResult = null;
       let extractionFailed = false;
@@ -322,7 +436,12 @@ export async function runCollection({
         }
       }
 
-      const overallSuccess = isHttpSuccess && !extractionFailed;
+      // Check if status is explicitly asserted by any test
+      const allAssertions = (enabledTests || []).flatMap((t) => t.assertions || []);
+      const hasStatusAssertion = allAssertions.some((a) => a.type === 'status');
+      const httpAcceptable = hasStatusAssertion ? true : isHttpSuccess;
+
+      const overallSuccess = httpAcceptable && !testsFailed && !extractionFailed;
 
       completedCount++;
       if (overallSuccess) {
@@ -339,7 +458,13 @@ export async function runCollection({
       if (extractionFailed) {
         errorType = 'EXTRACTION_ERROR';
         errorMessage = extractionResult.error;
-      } else if (!isHttpSuccess) {
+      } else if (testsFailed) {
+        errorType = 'ASSERTION_ERROR';
+        const firstFailed = testsResult.results
+          .flatMap((t) => t.assertions)
+          .find((a) => !a.passed);
+        errorMessage = firstFailed?.message || `${itemFailedAssertions} assertion(s) failed`;
+      } else if (!httpAcceptable) {
         errorType = 'HTTP_ERROR';
         errorMessage = `HTTP ${execResult.response.status} ${execResult.response.statusText}`;
       }
@@ -358,12 +483,18 @@ export async function runCollection({
         sizeBytes: execResult.response.sizeBytes,
         contentType: execResult.response.contentType,
         success: overallSuccess,
+        execution: {
+          success: true,
+        },
         errorType,
         errorMessage,
-        error: errorType ? {
-          type: errorType,
-          message: errorMessage,
-        } : null,
+        error: errorType
+          ? {
+              type: errorType,
+              message: errorMessage,
+            }
+          : null,
+        tests: testsResult,
         extraction: extractionResult
           ? {
               success: extractionResult.success,
@@ -395,11 +526,22 @@ export async function runCollection({
         sizeBytes: null,
         contentType: null,
         success: false,
+        execution: {
+          success: false,
+          error: err.message,
+        },
         errorType,
         errorMessage: err.message,
         error: {
           type: errorType,
           message: err.message,
+        },
+        tests: {
+          total: 0,
+          passed: 0,
+          failed: 0,
+          executed: false,
+          results: [],
         },
         extraction: null,
         skipped: false,
@@ -434,6 +576,11 @@ export async function runCollection({
     durationMs: totalDurationMs,
     totalDurationMs,
     status: runStatus,
+    tests: {
+      total: totalAssertionsAllRequests,
+      passed: passedAssertionsAllRequests,
+      failed: failedAssertionsAllRequests,
+    },
   };
 
   const metadata = {

@@ -460,6 +460,48 @@ APIForge provides a synchronous backend Collection Runner allowing users to exec
   - Every executed request is recorded in API history with its resolved environment, duration, and status without duplicates.
   - Environment secrets and authorization tokens are masked and not exposed in runner results.
 
+- **Test & Assertion Integration (Step 27)**:
+  - **Automatic Assertion Evaluation**: Saved API tests and assertions associated with each request are evaluated automatically against the normalized HTTP response.
+  - **Execution Pipeline**:
+    ```text
+    Load Request & Saved Tests (single query, zero N+1)
+          ↓
+    Resolve Current Runner Variables
+          ↓
+    Execute HTTP Request
+          ↓
+    Normalize Response
+          ↓
+    Evaluate Saved Assertions (assertion-runner.service.js)
+          ↓
+    Extract Runtime Variables (variable-extraction.service.js)
+          ↓
+    Update Runner Context & Check stopOnError
+          ↓
+    Next Request
+    ```
+  - **Multiple Tests & Assertions**:
+    - Requests may contain multiple named tests (e.g. "Response Validation", "User Structure"), each containing multiple assertions.
+    - All assertions within a test are evaluated so developers see complete failure diagnostics rather than just the first error.
+    - Disabled tests (`enabled: false`) are ignored and never executed.
+    - Requests with zero saved tests continue normally without failing.
+  - **HTTP Status vs Test Failure**:
+    - The runner clearly distinguishes HTTP execution completion (`execution: { success: true }`) from assertion success (`tests: { passed, failed }`).
+    - HTTP non-2xx responses (e.g. 404 Not Found, 401 Unauthorized) reach the assertion runner. If a test explicitly expects that status (`status equals 404`), the assertion passes and the request succeeds.
+    - When an assertion fails, the request is flagged with `errorType: 'ASSERTION_ERROR'` and diagnostic failure details.
+  - **Execution Failure Handling**:
+    - If transport or network errors occur (timeout, DNS resolution failure, SSRF rejection), no response exists. Tests are marked `executed: false` and are not evaluated against a nonexistent response.
+  - **Stop-on-Error Semantics**:
+    - When `stopOnError: true`, an assertion failure halts the runner immediately and marks all subsequent requests as `skipped: true`.
+    - When `stopOnError: false`, subsequent requests continue executing.
+  - **Chaining Compatibility**:
+    - Assertions are strictly read-only and inspect the response without modifying runtime variables. Only extraction rules mutate the runner context.
+  - **Security & Credential Redaction**:
+    - Assertion results on sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`, etc.) or sensitive JSON paths (`token`, `secret`, `password`) automatically mask `actualValue`, `expectedValue`, and failure messages (`[REDACTED]`) to prevent credential leakage.
+    - Client requests cannot inject arbitrary assertion code; only saved server-side definitions are executed. Zero arbitrary JavaScript execution (`eval`, `Function`) is permitted.
+  - **Bypass Option**:
+    - An optional `executeTests: false` parameter can be passed in the runner request body to bypass test evaluation if desired.
+
 #### Response Structure
 ```json
 {
@@ -484,7 +526,12 @@ APIForge provides a synchronous backend Collection Runner allowing users to exec
       "skipped": 2,
       "stopped": true,
       "durationMs": 1200,
-      "status": "STOPPED"
+      "status": "STOPPED",
+      "tests": {
+        "total": 8,
+        "passed": 7,
+        "failed": 1
+      }
     },
     "results": [
       {
@@ -498,36 +545,108 @@ APIForge provides a synchronous backend Collection Runner allowing users to exec
         "sizeBytes": 128,
         "contentType": "application/json",
         "success": true,
+        "execution": {
+          "success": true
+        },
+        "tests": {
+          "total": 2,
+          "passed": 2,
+          "failed": 0,
+          "executed": true,
+          "results": [
+            {
+              "id": "test_uuid_1",
+              "name": "Status Test",
+              "passed": true,
+              "total": 2,
+              "passedCount": 2,
+              "failedCount": 0,
+              "assertions": [
+                {
+                  "assertionId": "assert_1",
+                  "type": "status",
+                  "path": null,
+                  "operator": "equals",
+                  "passed": true,
+                  "actualValue": 200,
+                  "expectedValue": "200",
+                  "message": null
+                }
+              ]
+            }
+          ]
+        },
+        "extraction": {
+          "success": true,
+          "variables": ["accessToken"]
+        },
         "errorType": null,
         "errorMessage": null,
         "skipped": false
       },
       {
         "id": "req_uuid_2",
-        "name": "Failed Request",
+        "name": "Get Profile",
         "method": "GET",
-        "url": "https://api.example.com/missing",
-        "status": 404,
-        "statusText": "Not Found",
-        "duration": 15,
-        "sizeBytes": 45,
+        "url": "https://api.example.com/profile",
+        "status": 200,
+        "statusText": "OK",
+        "duration": 25,
+        "sizeBytes": 64,
         "contentType": "application/json",
         "success": false,
-        "errorType": "HTTP_ERROR",
-        "errorMessage": "HTTP 404 Not Found",
+        "execution": {
+          "success": true
+        },
+        "tests": {
+          "total": 1,
+          "passed": 0,
+          "failed": 1,
+          "executed": true,
+          "results": [
+            {
+              "id": "test_uuid_2",
+              "name": "User Validation",
+              "passed": false,
+              "total": 1,
+              "passedCount": 0,
+              "failedCount": 1,
+              "assertions": [
+                {
+                  "assertionId": "assert_2",
+                  "type": "json_path",
+                  "path": "$.userId",
+                  "operator": "equals",
+                  "passed": false,
+                  "actualValue": "usr-456",
+                  "expectedValue": "usr-123",
+                  "message": "Expected json_path ($.userId) to equal \"usr-123\", but got \"usr-456\""
+                }
+              ]
+            }
+          ]
+        },
+        "extraction": null,
+        "errorType": "ASSERTION_ERROR",
+        "errorMessage": "Expected json_path ($.userId) to equal \"usr-123\", but got \"usr-456\"",
         "skipped": false
       },
       {
         "id": "req_uuid_3",
-        "name": "Skipped Request",
+        "name": "Get Orders",
         "method": "GET",
-        "url": "https://api.example.com/data",
+        "url": "https://api.example.com/orders",
         "status": null,
         "statusText": null,
         "duration": 0,
         "sizeBytes": null,
         "contentType": null,
         "success": false,
+        "execution": {
+          "success": false
+        },
+        "tests": null,
+        "extraction": null,
         "errorType": null,
         "errorMessage": null,
         "skipped": true
@@ -538,5 +657,6 @@ APIForge provides a synchronous backend Collection Runner allowing users to exec
 ```
 
 #### Current Limitations
-- Initial synchronous execution mode: runs synchronously during the HTTP request lifecycle.
-- Asynchronous job runners, BullMQ/Redis queues, WebSockets, scheduled executions, scripts, and frontend runner UI will be introduced in subsequent steps.
+- Synchronous execution mode: runs synchronously during the HTTP request lifecycle.
+- Asynchronous job queues (BullMQ/Redis), WebSockets live execution streaming, scheduled cron testing, and frontend test runner UI will be introduced in subsequent steps.
+

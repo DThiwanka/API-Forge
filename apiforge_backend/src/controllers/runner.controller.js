@@ -20,6 +20,7 @@ export const runCollection = asyncHandler(async (req, res) => {
     runtimeVariables: req.body?.runtimeVariables,
     variables: req.body?.variables,
     stopOnError: req.body?.stopOnError,
+    executeTests: req.body?.executeTests,
     allowLocalTargets,
   });
 
