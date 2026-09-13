@@ -156,13 +156,23 @@ export default function RequestTabBar({
                 }
               }}
               onContextMenu={(e) => handleContextMenu(e, tab)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectTab(tab.requestId);
+                } else if (e.key === 'Delete') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCloseTab(tab.requestId);
+                }
+              }}
               className={cn(
-                'group relative flex items-center gap-2 px-3 py-1 text-xs border-r border-[#212634] cursor-pointer transition-colors max-w-[200px] min-w-[120px]',
+                'group relative flex items-center gap-2 px-3 py-1 text-xs border-r border-[#212634] cursor-pointer transition-colors max-w-[200px] min-w-[120px] focus:outline-none focus:bg-[#151926]',
                 isActive
-                  ? 'bg-[#12151f] text-slate-100 font-medium border-t-2 border-t-sky-500 shadow-xs'
+                  ? 'bg-[#131722] text-white font-semibold border-t-2 border-t-sky-400 shadow-xs'
                   : 'bg-[#0b0d13] text-slate-400 hover:text-slate-200 hover:bg-[#0f1118]'
               )}
-              title={`${tab.method || 'GET'} ${tab.title || 'Untitled Request'}`}
+              title={`${tab.method || 'GET'} ${tab.title || 'Untitled Request'}${tab.isDirty ? ' • (Unsaved)' : ''}`}
             >
               {/* Method badge */}
               <span className={cn('font-mono font-bold text-[10px] shrink-0', methodColor)}>

@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useMemo, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import RequestMethodSelector from './RequestMethodSelector';
 import RequestUrlInput from './RequestUrlInput';
 import RequestSendButton from './RequestSendButton';
@@ -15,7 +15,12 @@ import ResponseInspector from '../../response/components/ResponseInspector';
 import VariableToken from './VariableToken';
 import RequestPreviewModal from './RequestPreviewModal';
 import RequestExecutionStatus from './RequestExecutionStatus';
-import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
+import {
+  useRequestQuery,
+  useUpdateRequestMutation,
+  useDuplicateRequestMutation,
+  useDeleteRequestMutation,
+} from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
 import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
 import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
@@ -26,11 +31,12 @@ import RequestSaveButton from './RequestSaveButton';
 import { checkMethodBodyCompatibility } from '../utils/requestMethods';
 import useResponseStore from '../../response/store/responseStore';
 import { useToastStore } from '../../../stores/toastStore';
-import { Loader2, AlertCircle, Globe, AlertTriangle, Eye, Info } from 'lucide-react';
+import { Loader2, AlertCircle, Globe, AlertTriangle, Eye, Info, Columns2, PanelLeft, PanelRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function RequestWorkspace({ workspaceId: propWId, collectionId: propCId, requestId: propRId }) {
   const routeParams = useParams();
+  const navigate = useNavigate();
   const workspaceId = propWId || routeParams.workspaceId;
   const collectionId = propCId || routeParams.collectionId;
   const requestId = propRId || routeParams.requestId;
@@ -42,6 +48,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   const { isLoading, error } = useRequestQuery(workspaceId, collectionId, requestId);
   const { data: tests = [] } = useApiTestsQuery(workspaceId, requestId);
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, requestId);
+  const duplicateMutation = useDuplicateRequestMutation(workspaceId, collectionId);
+  const deleteMutation = useDeleteRequestMutation(workspaceId, collectionId);
   const executeMutation = useRequestExecution(workspaceId, collectionId, requestId);
 
   // Resizable split state (Desktop)
@@ -198,6 +206,36 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     updateMutation.mutate(payload);
   }, [workspaceId, collectionId, requestId, getCleanPayload, updateMutation]);
 
+  // Duplicate handler
+  const handleDuplicate = useCallback(() => {
+    if (!workspaceId || !collectionId || !requestId) return;
+    duplicateMutation.mutate(requestId, {
+      onSuccess: (newReq) => {
+        useToastStore.getState().toast.success(`Duplicated "${name || 'Request'}"`);
+        if (newReq?.id) {
+          navigate(`/workspace/${workspaceId}/collections/${collectionId}/requests/${newReq.id}`);
+        }
+      },
+      onError: (err) => {
+        useToastStore.getState().toast.error(`Failed to duplicate request: ${err.message}`);
+      },
+    });
+  }, [workspaceId, collectionId, requestId, name, duplicateMutation, navigate]);
+
+  // Delete handler
+  const handleDelete = useCallback(() => {
+    if (!workspaceId || !collectionId || !requestId) return;
+    deleteMutation.mutate(requestId, {
+      onSuccess: () => {
+        useToastStore.getState().toast.success(`Deleted "${name || 'Request'}"`);
+        navigate(`/workspace/${workspaceId}/collections/${collectionId}`);
+      },
+      onError: (err) => {
+        useToastStore.getState().toast.error(`Failed to delete request: ${err.message}`);
+      },
+    });
+  }, [workspaceId, collectionId, requestId, name, deleteMutation, navigate]);
+
   // Subscribe to current request response state
   const responseState = useResponseStore(
     useCallback((s) => s.getResponseState(requestId), [requestId])
@@ -247,7 +285,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
       const rect = container.getBoundingClientRect();
       const pointerX = e.clientX - rect.left;
       const rawPercent = (pointerX / rect.width) * 100;
-      const clamped = Math.min(Math.max(rawPercent, 25), 75);
+      const clamped = Math.min(Math.max(rawPercent, 20), 80);
       setSplitPercent(Math.round(clamped * 10) / 10);
     };
 
@@ -267,15 +305,19 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
       setSplitPercent((prev) => Math.max(prev - 2, 25));
+      setSplitPercent((prev) => Math.max(prev - 2, 20));
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       setSplitPercent((prev) => Math.min(prev + 2, 75));
+      setSplitPercent((prev) => Math.min(prev + 2, 80));
     } else if (e.key === 'Home') {
       e.preventDefault();
       setSplitPercent(25);
+      setSplitPercent(20);
     } else if (e.key === 'End') {
       e.preventDefault();
       setSplitPercent(75);
+      setSplitPercent(80);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       setSplitPercent(50);
@@ -283,6 +325,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   };
 
   // Global keyboard shortcuts: Ctrl+S to Save, Ctrl+Enter to Send
+  // Global keyboard shortcuts: Ctrl+S to Save, Ctrl+Enter to Send, Alt+1..6 for Config Tabs
   useEffect(() => {
     const handleKeyDown = (e) => {
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
@@ -297,12 +340,32 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
       } else if ((isCtrlOrCmd && e.key.toLowerCase() === 'l') || (e.altKey && e.key.toLowerCase() === 'd')) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('apiforge:focus-url'));
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          setActiveTab('params');
+        } else if (e.key === '2') {
+          e.preventDefault();
+          setActiveTab('headers');
+        } else if (e.key === '3') {
+          e.preventDefault();
+          setActiveTab('auth');
+        } else if (e.key === '4') {
+          e.preventDefault();
+          setActiveTab('body');
+        } else if (e.key === '5') {
+          e.preventDefault();
+          setActiveTab('settings');
+        } else if (e.key === '6') {
+          e.preventDefault();
+          setActiveTab('tests');
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave, handleExecute]);
+  }, [handleSave, handleExecute, setActiveTab]);
 
   if (isLoading) {
     return (
@@ -341,8 +404,13 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
         isError={updateMutation.isError}
         onSave={handleSave}
         workspaceId={workspaceId}
+        collectionId={collectionId}
         collectionName={collectionName}
         requestId={requestId}
+        url={url}
+        method={method}
+        onDuplicate={handleDuplicate}
+        onDelete={handleDelete}
       />
 
       {/* Main Split Grid: Request Editor (left) & Response Inspector (right) */}
@@ -468,6 +536,50 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                   </div>
                 )}
 
+                {/* Quick Split Layout Presets */}
+                <div
+                  className="hidden lg:flex items-center rounded bg-[#181b22] border border-[#2b313e] p-0.5"
+                  role="group"
+                  aria-label="Panel layout presets"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSplitPercent(80)}
+                    className={cn(
+                      'p-1 rounded text-slate-400 hover:text-slate-200 transition-colors cursor-pointer',
+                      splitPercent >= 75 && 'bg-sky-500/20 text-sky-300'
+                    )}
+                    title="Focus Request Editor (80% / 20%)"
+                    aria-label="Focus Request Editor"
+                  >
+                    <PanelLeft size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitPercent(50)}
+                    className={cn(
+                      'p-1 rounded text-slate-400 hover:text-slate-200 transition-colors cursor-pointer',
+                      splitPercent === 50 && 'bg-sky-500/20 text-sky-300'
+                    )}
+                    title="Balanced Split (50% / 50%)"
+                    aria-label="Balanced Split"
+                  >
+                    <Columns2 size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSplitPercent(25)}
+                    className={cn(
+                      'p-1 rounded text-slate-400 hover:text-slate-200 transition-colors cursor-pointer',
+                      splitPercent <= 30 && 'bg-sky-500/20 text-sky-300'
+                    )}
+                    title="Maximize Response Panel (25% / 75%)"
+                    aria-label="Maximize Response Panel"
+                  >
+                    <PanelRight size={13} />
+                  </button>
+                </div>
+
                 <button
                   type="button"
                   onClick={() => setIsPreviewOpen(true)}
@@ -490,7 +602,9 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
             testsCount={tests.length}
             extractionsCount={extractionsCount}
             hasAuth={hasAuth}
+            authType={auth?.type}
             hasBody={hasBody}
+            bodyMode={body?.mode}
           />
 
           {/* Active Tab Configuration Panel */}
@@ -585,6 +699,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
           aria-valuenow={Math.round(splitPercent)}
           aria-valuemin={25}
           aria-valuemax={75}
+          aria-valuemin={20}
+          aria-valuemax={80}
           aria-label="Resize request and response panels"
           onMouseDown={handleSplitMouseDown}
           onDoubleClick={() => setSplitPercent(50)}

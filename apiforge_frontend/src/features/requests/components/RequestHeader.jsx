@@ -1,7 +1,21 @@
-import { useState } from 'react';
-import { Edit2, Check, X, Terminal, FolderGit2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Edit2,
+  Check,
+  X,
+  Terminal,
+  FolderGit2,
+  MoreHorizontal,
+  Copy,
+  CopyPlus,
+  Workflow,
+  Trash2,
+} from 'lucide-react';
 import RequestSaveButton from './RequestSaveButton';
 import ExportDialog from '../../import-export/components/ExportDialog';
+import { useToastStore } from '../../../stores/toastStore';
+import { useCanvasStore } from '../../canvas/store/canvasStore';
 import { cn } from '../../../utils/cn';
 
 export default function RequestHeader({
@@ -12,14 +26,43 @@ export default function RequestHeader({
   isError = false,
   onSave,
   workspaceId,
+  collectionId,
   collectionName,
   folderName,
   requestId,
+  url = '',
+  method = 'GET',
+  onDuplicate,
+  onDelete,
   className,
 }) {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(name || '');
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close dropdown menu on outside click or Escape
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen]);
 
   const handleStartEdit = () => {
     setTempName(name || '');
@@ -47,6 +90,46 @@ export default function RequestHeader({
     }
   };
 
+  const handleCopyUrl = async () => {
+    setIsMenuOpen(false);
+    if (!url || !url.trim()) {
+      useToastStore.getState().toast.info('No URL configured on this request');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      useToastStore.getState().toast.success('Request URL copied to clipboard');
+    } catch {
+      useToastStore.getState().toast.error('Failed to copy URL');
+    }
+  };
+
+  const handleOpenInCanvas = () => {
+    setIsMenuOpen(false);
+    if (!requestId) return;
+    useCanvasStore.getState().addRequestNode({
+      id: requestId,
+      name: name || 'Untitled Request',
+      method: method || 'GET',
+      url: url || '',
+      collectionId,
+    });
+    useToastStore.getState().toast.success(`Added "${name || 'Request'}" to Canvas`);
+    navigate(`/workspace/${workspaceId}/canvas`);
+  };
+
+  const handleDuplicate = () => {
+    setIsMenuOpen(false);
+    onDuplicate?.();
+  };
+
+  const handleDelete = () => {
+    setIsMenuOpen(false);
+    if (window.confirm(`Are you sure you want to delete "${name || 'this request'}"?`)) {
+      onDelete?.();
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -57,11 +140,24 @@ export default function RequestHeader({
       <div className="flex items-center gap-2 flex-1 min-w-0 mr-4">
         {/* Breadcrumb Context */}
         {collectionName && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 max-w-[280px] truncate shrink-0">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex items-center gap-1.5 text-xs text-slate-400 max-w-[280px] truncate shrink-0"
+          >
             <FolderGit2 size={13} className="text-sky-400 shrink-0" />
-            <span className="truncate hover:text-slate-300 font-medium" title={collectionName}>
-              {collectionName}
-            </span>
+            {workspaceId && collectionId ? (
+              <Link
+                to={`/workspace/${workspaceId}/collections/${collectionId}`}
+                className="truncate hover:text-sky-300 font-medium transition-colors"
+                title={`Go to collection ${collectionName}`}
+              >
+                {collectionName}
+              </Link>
+            ) : (
+              <span className="truncate hover:text-slate-300 font-medium" title={collectionName}>
+                {collectionName}
+              </span>
+            )}
             {folderName && (
               <>
                 <span className="text-slate-600">/</span>
@@ -71,7 +167,7 @@ export default function RequestHeader({
               </>
             )}
             <span className="text-slate-600">/</span>
-          </div>
+          </nav>
         )}
 
         {/* Request Name or Inline Editor */}
@@ -86,12 +182,14 @@ export default function RequestHeader({
               autoFocus
               className="px-2.5 py-1 bg-[#181b22] text-slate-100 text-sm font-semibold rounded border border-sky-500 focus:outline-none w-full shadow-inner"
               placeholder="Request Name"
+              aria-label="Request Name"
             />
             <button
               type="button"
               onClick={handleSaveName}
               className="p-1 text-sky-400 hover:text-sky-300 hover:bg-[#181b22] rounded transition-colors cursor-pointer"
               title="Save Name (Enter)"
+              aria-label="Save Name"
             >
               <Check size={14} />
             </button>
@@ -100,6 +198,7 @@ export default function RequestHeader({
               onClick={handleCancelEdit}
               className="p-1 text-slate-400 hover:text-slate-300 hover:bg-[#181b22] rounded transition-colors cursor-pointer"
               title="Cancel (Esc)"
+              aria-label="Cancel editing"
             >
               <X size={14} />
             </button>
@@ -113,6 +212,13 @@ export default function RequestHeader({
             <h1 className="text-sm font-semibold text-slate-100 truncate">
               {name || 'Untitled Request'}
             </h1>
+            {isDirty && (
+              <span
+                className="w-2 h-2 rounded-full bg-amber-400 shrink-0"
+                title="Unsaved changes"
+                aria-label="Unsaved changes"
+              />
+            )}
             <Edit2
               size={12}
               className="text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
@@ -128,11 +234,100 @@ export default function RequestHeader({
             onClick={() => setIsExportOpen(true)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-sm"
             title="Export request as cURL command"
+            aria-label="Export request"
           >
             <Terminal size={12} className="text-sky-400" />
             <span className="hidden sm:inline">Export</span>
           </button>
         )}
+
+        {/* More Actions Dropdown Menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className={cn(
+              'p-1.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white transition-colors cursor-pointer',
+              isMenuOpen && 'bg-[#232732] text-white border-sky-500/50'
+            )}
+            title="More request actions"
+            aria-label="More request actions"
+            aria-expanded={isMenuOpen}
+          >
+            <MoreHorizontal size={14} />
+          </button>
+
+          {isMenuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full mt-1.5 w-48 bg-[#141720] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 text-xs select-none animate-in fade-in zoom-in-95 duration-100"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleCopyUrl}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#1f2430] transition-colors cursor-pointer"
+              >
+                <Copy size={13} className="text-sky-400" />
+                <span>Copy Request URL</span>
+              </button>
+
+              {onDuplicate && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleDuplicate}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#1f2430] transition-colors cursor-pointer"
+                >
+                  <CopyPlus size={13} className="text-indigo-400" />
+                  <span>Duplicate Request</span>
+                </button>
+              )}
+
+              {requestId && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleOpenInCanvas}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#1f2430] transition-colors cursor-pointer"
+                >
+                  <Workflow size={13} className="text-emerald-400" />
+                  <span>Open in Canvas</span>
+                </button>
+              )}
+
+              {requestId && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setIsExportOpen(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#1f2430] transition-colors cursor-pointer"
+                >
+                  <Terminal size={13} className="text-amber-400" />
+                  <span>Export cURL</span>
+                </button>
+              )}
+
+              {onDelete && (
+                <>
+                  <div className="my-1 border-t border-[#232732]" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleDelete}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={13} />
+                    <span>Delete Request</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         <RequestSaveButton
           isSaving={isSaving}
