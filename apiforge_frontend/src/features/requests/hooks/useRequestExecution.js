@@ -2,7 +2,15 @@ import { useMutation } from '@tanstack/react-query';
 import { executeRequest, updateRequest } from '../services/requestApi';
 import useRequestStore from '../store/requestStore';
 import useResponseStore from '../../response/store/responseStore';
+import { classifyClientExecutionError } from '../utils/executionUtils';
 
+/**
+ * Hook to manage the request execution lifecycle
+ * 
+ * Synchronizes store states across request and response stores,
+ * manages dirty state preservation, handles execution errors with classification,
+ * and guards against concurrent duplicate runs.
+ */
 export function useRequestExecution(workspaceId, collectionId, requestId) {
   const getCleanPayload = useRequestStore((s) => s.getCleanPayload);
   const isDirty = useRequestStore((s) => s.isDirty);
@@ -14,11 +22,16 @@ export function useRequestExecution(workspaceId, collectionId, requestId) {
 
   return useMutation({
     mutationFn: async (runtimeVariables = {}) => {
+      // Guard against concurrent execution on the active request
+      if (useRequestStore.getState().isExecuting) {
+        return;
+      }
+
       setIsExecuting(true);
       setLoading(requestId);
 
       try {
-        // If there are unsaved edits, save them before executing
+        // If there are unsaved edits, save them before executing so backend runs current draft
         if (isDirty) {
           const payload = getCleanPayload();
           await updateRequest(workspaceId, collectionId, requestId, payload);
@@ -40,13 +53,19 @@ export function useRequestExecution(workspaceId, collectionId, requestId) {
       }
     },
     onError: (err) => {
+      const classified = classifyClientExecutionError(err);
       const responseData = err.response?.data;
+
       const errorObj = {
-        message: responseData?.message || err.message || 'Execution failed',
-        status: err.response?.status || 0,
+        type: classified.type,
+        title: classified.title,
+        message: classified.message,
+        status: classified.status,
+        suggestions: classified.suggestions,
         details: responseData?.error || null,
         response: responseData?.data?.response || null,
       };
+
       setError(requestId, errorObj);
     },
   });

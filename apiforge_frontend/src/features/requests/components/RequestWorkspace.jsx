@@ -14,14 +14,19 @@ import TestPanel from '../../testing/components/TestPanel';
 import ResponseInspector from '../../response/components/ResponseInspector';
 import VariableToken from './VariableToken';
 import RequestPreviewModal from './RequestPreviewModal';
+import RequestExecutionStatus from './RequestExecutionStatus';
 import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
 import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
 import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
 import { useVariableSuggestions, extractVariableNames } from '../hooks/useVariableSuggestions';
+import { validateRequestBeforeSend } from '../utils/executionUtils';
 import useRequestStore from '../store/requestStore';
+import RequestSaveButton from './RequestSaveButton';
+import { checkMethodBodyCompatibility } from '../utils/requestMethods';
 import useResponseStore from '../../response/store/responseStore';
-import { Loader2, AlertCircle, Globe, AlertTriangle, Eye } from 'lucide-react';
+import { useToastStore } from '../../../stores/toastStore';
+import { Loader2, AlertCircle, Globe, AlertTriangle, Eye, Info } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function RequestWorkspace({ workspaceId: propWId, collectionId: propCId, requestId: propRId }) {
@@ -181,6 +186,11 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     return allReferencedVariables.filter((name) => !isVariableKnown(name));
   }, [allReferencedVariables, isVariableKnown]);
 
+  // Method + Body compatibility notice
+  const methodBodyNotice = useMemo(() => {
+    return checkMethodBodyCompatibility(method, body);
+  }, [method, body]);
+
   // Save handler
   const handleSave = useCallback(() => {
     if (!workspaceId || !collectionId || !requestId) return;
@@ -188,11 +198,39 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     updateMutation.mutate(payload);
   }, [workspaceId, collectionId, requestId, getCleanPayload, updateMutation]);
 
-  // Execute handler
+  // Subscribe to current request response state
+  const responseState = useResponseStore(
+    useCallback((s) => s.getResponseState(requestId), [requestId])
+  );
+
+  // Live timer during execution
+  const [execElapsedMs, setExecElapsedMs] = useState(0);
+  useEffect(() => {
+    if (!isExecuting) return;
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      setExecElapsedMs(Date.now() - startTime);
+    }, 50);
+    return () => clearInterval(interval);
+  }, [isExecuting]);
+
+  // Execute handler with pre-flight validation and duplicate submission protection
   const handleExecute = useCallback(() => {
     if (!workspaceId || !collectionId || !requestId) return;
+    if (isExecuting || executeMutation.isPending) return;
+
+    const validation = validateRequestBeforeSend(
+      { url, method, body },
+      { knownVariableKeys }
+    );
+
+    if (!validation.isValid) {
+      useToastStore.getState().toast.error(validation.error || 'Please enter a valid request URL.');
+      return;
+    }
+
     executeMutation.mutate();
-  }, [workspaceId, collectionId, requestId, executeMutation]);
+  }, [workspaceId, collectionId, requestId, isExecuting, executeMutation, url, method, body, knownVariableKeys]);
 
   // Drag listeners for panel resizing
   const handleSplitMouseDown = useCallback((e) => {
@@ -254,7 +292,11 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
         handleSave();
       } else if (isCtrlOrCmd && e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         handleExecute();
+      } else if ((isCtrlOrCmd && e.key.toLowerCase() === 'l') || (e.altKey && e.key.toLowerCase() === 'd')) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('apiforge:focus-url'));
       }
     };
 
@@ -334,6 +376,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onKeyDown={(e) => {
                   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                     e.preventDefault();
+                    e.stopPropagation();
                     handleExecute();
                   }
                 }}
@@ -346,19 +389,46 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 isExecuting={isExecuting}
                 onSend={handleExecute}
                 disabled={!url || !url.trim()}
+                className="rounded-none border-r border-[#2b313e]"
+              />
+              <RequestSaveButton
+                isSaving={isSaving}
+                isDirty={isDirty}
+                isError={updateMutation.isError}
+                onSave={handleSave}
+                className="rounded-l-none rounded-r-md border-l-0"
               />
             </div>
 
+            {/* Method + Body Compatibility Notice */}
+            {methodBodyNotice.hasNotice && (
+              <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-950/25 border border-amber-800/40 text-[11px] font-sans text-amber-300 select-none">
+                <Info size={12} className="shrink-0 text-amber-400" />
+                <span>{methodBodyNotice.message}</span>
+              </div>
+            )}
+
             {/* Active Environment & Variable Status Indicator Bar */}
             <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] font-mono select-none flex-wrap">
-              <div className="flex items-center gap-1.5 text-slate-400">
-                <Globe size={12} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
-                <span>
-                  Environment:{' '}
-                  <span className={activeEnv ? 'text-sky-300 font-medium' : 'text-slate-500'}>
-                    {activeEnv ? activeEnv.name : 'No Environment'}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 text-slate-400">
+                  <Globe size={12} className={activeEnv ? 'text-sky-400' : 'text-slate-500'} />
+                  <span>
+                    Environment:{' '}
+                    <span className={activeEnv ? 'text-sky-300 font-medium' : 'text-slate-500'}>
+                      {activeEnv ? activeEnv.name : 'No Environment'}
+                    </span>
                   </span>
-                </span>
+                </div>
+
+                {/* Execution Lifecycle Status */}
+                <RequestExecutionStatus
+                  isExecuting={isExecuting}
+                  status={responseState.status}
+                  response={responseState.response}
+                  error={responseState.error}
+                  elapsedMs={execElapsedMs}
+                />
               </div>
 
               {/* Variables Used Status and Preview Button */}
@@ -539,6 +609,8 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
             workspaceId={workspaceId}
             collectionId={collectionId}
             requestId={requestId}
+            originalUrl={url}
+            onRetry={handleExecute}
           />
         </div>
       </div>

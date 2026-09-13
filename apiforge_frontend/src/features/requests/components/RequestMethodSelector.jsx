@@ -3,6 +3,12 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { METHODS, getMethodConfig } from '../utils/requestMethods';
 
+/**
+ * Request HTTP Method Selector
+ * 
+ * Compact, accessible selector supporting standard HTTP methods with
+ * restrained visual differentiation, contextual descriptions, and full keyboard navigation.
+ */
 export default function RequestMethodSelector({ value = 'GET', onChange, className }) {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -81,8 +87,9 @@ export default function RequestMethodSelector({ value = 'GET', onChange, classNa
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={`HTTP Method: ${currentMethod.method}`}
+        aria-activedescendant={isOpen && focusedIndex >= 0 ? `method-opt-${METHODS[focusedIndex]?.method}` : undefined}
         className={cn(
-          'h-full flex items-center gap-1.5 px-3 py-2 rounded-l-md font-mono font-bold text-xs border border-r-0 border-[#2b313e] bg-[#14171f] hover:bg-[#1c212c] transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500 select-none cursor-pointer',
+          'h-full flex items-center gap-1.5 px-3 py-2 rounded-l-md font-mono font-bold text-xs border border-r-0 border-[#2b313e] bg-[#14171f] hover:bg-[#1c212c] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-500 select-none cursor-pointer',
           currentMethod.color
         )}
       >
@@ -96,7 +103,7 @@ export default function RequestMethodSelector({ value = 'GET', onChange, classNa
           tabIndex={-1}
           onKeyDown={handleMenuKeyDown}
           autoFocus
-          className="absolute top-full left-0 mt-1 w-32 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs font-semibold focus:outline-none"
+          className="absolute top-full left-0 mt-1 w-64 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs focus:outline-none"
         >
           {METHODS.map((m, idx) => {
             const isSelected = normalizedValue === m.method;
@@ -105,6 +112,7 @@ export default function RequestMethodSelector({ value = 'GET', onChange, classNa
             return (
               <button
                 key={m.method}
+                id={`method-opt-${m.method}`}
                 type="button"
                 role="option"
                 aria-selected={isSelected}
@@ -112,12 +120,18 @@ export default function RequestMethodSelector({ value = 'GET', onChange, classNa
                 onMouseEnter={() => setFocusedIndex(idx)}
                 className={cn(
                   'w-full text-left px-3 py-1.5 transition-colors flex items-center justify-between cursor-pointer focus:outline-none',
-                  m.color,
-                  (isFocused || isSelected) && 'bg-[#232732]'
+                  (isFocused || isSelected) ? 'bg-[#232732]' : 'hover:bg-[#1c212c]'
                 )}
               >
-                <span>{m.method}</span>
-                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-current" />}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={cn('font-bold w-14 shrink-0', m.color)}>{m.method}</span>
+                  {m.description && (
+                    <span className="text-[11px] font-sans text-slate-400 truncate">
+                      {m.description}
+                    </span>
+                  )}
+                </div>
+                {isSelected && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0 ml-1.5 bg-current', m.color)} />}
               </button>
             );
           })}

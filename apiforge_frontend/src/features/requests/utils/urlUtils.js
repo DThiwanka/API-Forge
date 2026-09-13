@@ -258,6 +258,100 @@ export function maskSensitiveHeaderValue(key = '', value = '') {
   return '••••••••';
 }
 
+/**
+ * Detect path parameters and variables in a URL string.
+ * Distinguishes:
+ * - variables: `{{varName}}` (APIForge template variables)
+ * - colonParams: `:param` (Express / path-to-regexp route parameters)
+ * - braceParams: `{param}` (OpenAPI / URI template placeholders, not `{{...}}`)
+ * 
+ * @param {string} url 
+ * @returns {{
+ *   variables: string[],
+ *   colonParams: string[],
+ *   braceParams: string[]
+ * }}
+ */
+export function detectPathParameters(url = '') {
+  if (!url || typeof url !== 'string') {
+    return { variables: [], colonParams: [], braceParams: [] };
+  }
+
+  // 1. Extract {{variables}}
+  const varMatches = url.match(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g) || [];
+  const variables = Array.from(
+    new Set(varMatches.map((m) => m.replace(/[{}]/g, '').trim()))
+  ).filter(Boolean);
+
+  // 2. Remove query string and hash before path param inspection
+  const pathOnly = url.split(/[?#]/)[0];
+
+  // 3. Extract :colonParams (e.g. /users/:userId/posts/:postId)
+  const colonMatches = pathOnly.match(/(^|\/):([a-zA-Z0-9_]+)/g) || [];
+  const colonParams = Array.from(
+    new Set(colonMatches.map((m) => m.replace(/^[/:]{1,2}/, '').trim()))
+  ).filter(Boolean);
+
+  // 4. Extract single-brace {braceParams} (e.g. /users/{id}) without matching {{variables}}
+  const maskedVars = pathOnly.replace(/\{\{[^{}]*\}\}/g, '');
+  const braceMatches = maskedVars.match(/\{([a-zA-Z0-9_.-]+)\}/g) || [];
+  const braceParams = Array.from(
+    new Set(braceMatches.map((m) => m.replace(/[{}]/g, '').trim()))
+  ).filter(Boolean);
+
+  return {
+    variables,
+    colonParams,
+    braceParams,
+  };
+}
+
+/**
+ * Normalize a user-entered URL safely without modifying template variables or query strings.
+ * Rejects non-HTTP dangerous schemes.
+ * 
+ * @param {string} rawUrl 
+ * @returns {{
+ *   url: string,
+ *   isDangerousScheme: boolean,
+ *   scheme: string | null
+ * }}
+ */
+export function normalizeUrl(rawUrl = '') {
+  if (!rawUrl || typeof rawUrl !== 'string') {
+    return { url: '', isDangerousScheme: false, scheme: null };
+  }
+
+  const trimmed = rawUrl.trim();
+  const lower = trimmed.toLowerCase();
+
+  // Check dangerous schemes
+  if (
+    lower.startsWith('javascript:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('file:') ||
+    lower.startsWith('vbscript:')
+  ) {
+    const colonIdx = lower.indexOf(':');
+    const scheme = colonIdx !== -1 ? lower.slice(0, colonIdx) : 'unknown';
+    return {
+      url: trimmed,
+      isDangerousScheme: true,
+      scheme,
+    };
+  }
+
+  return {
+    url: trimmed,
+    isDangerousScheme: false,
+    scheme: trimmed.startsWith('http://')
+      ? 'http'
+      : trimmed.startsWith('https://')
+      ? 'https'
+      : null,
+  };
+}
+
 export default {
   splitUrl,
   parseQueryString,
@@ -267,5 +361,7 @@ export default {
   findDuplicateKeys,
   isSensitiveHeader,
   maskSensitiveHeaderValue,
+  detectPathParameters,
+  normalizeUrl,
   SENSITIVE_HEADER_NAMES,
 };

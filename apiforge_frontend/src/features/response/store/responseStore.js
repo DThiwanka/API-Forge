@@ -161,6 +161,14 @@ export const useResponseStore = create((set, get) => ({
     });
   },
 
+  clearAllResponses: () => {
+    set({
+      ...DEFAULT_STATE,
+      responsesByRequest: {},
+      activeRequestId: null,
+    });
+  },
+
   setActiveTab: (activeTab, requestId) => {
     set((state) => {
       const targetId = requestId || state.activeRequestId;
