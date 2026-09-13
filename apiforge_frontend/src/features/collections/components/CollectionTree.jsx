@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   Search,
@@ -12,19 +13,32 @@ import {
 } from 'lucide-react';
 import CollectionItem from './CollectionItem';
 import CreateCollectionDialog from './CreateCollectionDialog';
+import SelectionToolbar from './SelectionToolbar';
+import BulkMoveDialog from './BulkMoveDialog';
+import BulkDeleteDialog from './BulkDeleteDialog';
 import LoadingScreen from '../../../components/common/LoadingScreen';
 import ErrorState from '../../../components/common/ErrorState';
 import { useCollectionsQuery } from '../hooks/useCollections';
 import { useWorkspaceQuery } from '../../workspace/hooks/useWorkspace';
 import useCollectionStore from '../store/collectionStore';
+import useCanvasStore from '../../canvas/store/canvasStore';
+import { duplicateRequest } from '../../requests/services/requestApi';
+import { toast } from '../../../stores/toastStore';
 import { cn } from '../../../utils/cn';
+
+const METHOD_FILTERS = ['ALL', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 export default function CollectionTree({
   workspaceId,
   activeRequestId,
   className,
 }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isBulkMoveOpen, setIsBulkMoveOpen] = useState(false);
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkDuplicating, setIsBulkDuplicating] = useState(false);
   const treeContainerRef = useRef(null);
 
   const searchQuery = useCollectionStore((s) => s.searchQuery);
@@ -32,6 +46,22 @@ export default function CollectionTree({
   const clearSearch = useCollectionStore((s) => s.clearSearch);
   const expandAll = useCollectionStore((s) => s.expandAll);
   const collapseAll = useCollectionStore((s) => s.collapseAll);
+
+  const selectedRequests = useCollectionStore((s) => s.selectedRequests);
+  const selectedMethodFilter = useCollectionStore((s) => s.selectedMethodFilter);
+  const setSelectedMethodFilter = useCollectionStore((s) => s.setSelectedMethodFilter);
+  const clearSelection = useCollectionStore((s) => s.clearSelection);
+  const resetWorkspaceState = useCollectionStore((s) => s.resetWorkspaceState);
+
+  const addCollectionNodes = useCanvasStore((s) => s.addCollectionNodes);
+
+  // Reset workspace state on workspace change for strict isolation
+  useEffect(() => {
+    resetWorkspaceState();
+  }, [workspaceId, resetWorkspaceState]);
+
+  const selectedRequestsList = Object.values(selectedRequests);
+  const selectedCount = selectedRequestsList.length;
 
   const { data: workspace } = useWorkspaceQuery(workspaceId);
   const isViewer = workspace?.role === 'VIEWER';
@@ -52,6 +82,54 @@ export default function CollectionTree({
   const handleCollapseAll = () => {
     const colIds = collections.map((c) => c.id);
     collapseAll(colIds);
+  };
+
+  const handleBulkAddToCanvas = () => {
+    if (selectedCount === 0) return;
+    addCollectionNodes(selectedRequestsList, 'Selection');
+    toast.success(`Added ${selectedCount} request${selectedCount === 1 ? '' : 's'} to Canvas`);
+    clearSelection();
+    navigate(`/workspace/${workspaceId}/canvas`);
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (selectedCount === 0 || isViewer) return;
+    setIsBulkDuplicating(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedRequestsList.map((req) =>
+          duplicateRequest(workspaceId, req.collectionId, req.id)
+        )
+      );
+      let successCount = 0;
+      let failCount = 0;
+      const affected = new Set();
+      for (let i = 0; i < results.length; i++) {
+        if (results[i].status === 'fulfilled') {
+          successCount += 1;
+          affected.add(selectedRequestsList[i].collectionId);
+        } else {
+          failCount += 1;
+        }
+      }
+      for (const colId of affected) {
+        queryClient.invalidateQueries({
+          queryKey: ['requests', workspaceId, colId],
+        });
+      }
+      if (failCount === 0) {
+        toast.success(`Duplicated ${successCount} request${successCount === 1 ? '' : 's'}`);
+      } else if (successCount > 0) {
+        toast.info(`${successCount} duplicated, ${failCount} failed`);
+      } else {
+        toast.error('Failed to duplicate selected requests');
+      }
+      clearSelection();
+    } catch {
+      toast.error('Failed to duplicate requests');
+    } finally {
+      setIsBulkDuplicating(false);
+    }
   };
 
   // Keyboard navigation within the tree
@@ -175,7 +253,45 @@ export default function CollectionTree({
             </button>
           )}
         </div>
+
+        {/* HTTP Method Filter Chips */}
+        <div className="flex items-center gap-1 overflow-x-auto pt-0.5 scrollbar-none text-[10px]">
+          {METHOD_FILTERS.map((m) => {
+            const isChipActive = selectedMethodFilter === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setSelectedMethodFilter(m)}
+                className={cn(
+                  'px-1.5 py-0.5 rounded font-mono font-semibold transition-colors cursor-pointer shrink-0',
+                  isChipActive
+                    ? 'bg-sky-500/25 text-sky-300 border border-sky-500/40'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-[#181b22] border border-transparent'
+                )}
+              >
+                {m}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Contextual Bulk Selection Toolbar */}
+      {selectedCount > 0 && (
+        <div className="px-2.5 py-1.5 border-b border-[#232732] bg-[#14171f]/60">
+          <SelectionToolbar
+            selectedCount={selectedCount}
+            onMove={() => setIsBulkMoveOpen(true)}
+            onDuplicate={handleBulkDuplicate}
+            onDelete={() => setIsBulkDeleteOpen(true)}
+            onAddToCanvas={handleBulkAddToCanvas}
+            onClear={clearSelection}
+            isViewer={isViewer}
+            isDuplicating={isBulkDuplicating}
+          />
+        </div>
+      )}
 
       {/* Tree Content with Keyboard Navigation */}
       <div
@@ -233,18 +349,26 @@ export default function CollectionTree({
             />
           ))}
 
-        {/* Clear Search helper if query active */}
-        {!isLoading && !isError && searchQuery && collections.length > 0 && (
-          <div className="pt-4 pb-2 text-center text-[11px] text-slate-500">
-            <button
-              type="button"
-              onClick={clearSearch}
-              className="text-sky-400 hover:text-sky-300 transition-colors cursor-pointer"
-            >
-              Clear filter &quot;{searchQuery}&quot;
-            </button>
-          </div>
-        )}
+        {/* Clear Search & Filter helper if active */}
+        {!isLoading &&
+          !isError &&
+          (searchQuery || selectedMethodFilter !== 'ALL') &&
+          collections.length > 0 && (
+            <div className="pt-4 pb-2 text-center text-[11px] text-slate-500">
+              <button
+                type="button"
+                onClick={() => {
+                  clearSearch();
+                  setSelectedMethodFilter('ALL');
+                }}
+                className="text-sky-400 hover:text-sky-300 transition-colors cursor-pointer"
+              >
+                Clear filter &quot;
+                {searchQuery || selectedMethodFilter}
+                &quot;
+              </button>
+            </div>
+          )}
       </div>
 
       <CreateCollectionDialog
@@ -252,6 +376,26 @@ export default function CollectionTree({
         onClose={() => setIsCreateOpen(false)}
         workspaceId={workspaceId}
       />
+
+      {isBulkMoveOpen && (
+        <BulkMoveDialog
+          isOpen={isBulkMoveOpen}
+          onClose={() => setIsBulkMoveOpen(false)}
+          selectedRequests={selectedRequestsList}
+          workspaceId={workspaceId}
+          onSuccess={clearSelection}
+        />
+      )}
+
+      {isBulkDeleteOpen && (
+        <BulkDeleteDialog
+          isOpen={isBulkDeleteOpen}
+          onClose={() => setIsBulkDeleteOpen(false)}
+          selectedRequests={selectedRequestsList}
+          workspaceId={workspaceId}
+          onSuccess={clearSelection}
+        />
+      )}
     </aside>
   );
 }
