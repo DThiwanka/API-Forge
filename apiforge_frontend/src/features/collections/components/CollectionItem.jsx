@@ -21,7 +21,8 @@ import { toast } from '../../../stores/toastStore';
 import { useFoldersQuery, useUpdateCollectionMutation, useDeleteCollectionMutation } from '../hooks/useCollections';
 import { listRequests } from '../../requests/services/requestApi';
 import { useQuery } from '@tanstack/react-query';
-import { doesCollectionMatch, findAncestorFolderIds } from '../utils/collectionTreeUtils';
+import { doesCollectionMatchFilters, findAncestorFolderIds } from '../utils/collectionTreeUtils';
+import CollectionOverviewDialog from './CollectionOverviewDialog';
 
 export default function CollectionItem({
   collection,
@@ -33,6 +34,7 @@ export default function CollectionItem({
   const navigate = useNavigate();
   const [isInlineRenaming, setIsInlineRenaming] = useState(false);
   const [tempName, setTempName] = useState(collection.name || '');
+  const [isOverviewOpen, setIsOverviewOpen] = useState(false);
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -46,6 +48,7 @@ export default function CollectionItem({
   const toggleCollection = useCollectionStore((s) => s.toggleCollection);
   const expandCollection = useCollectionStore((s) => s.expandCollection);
   const revealAncestors = useCollectionStore((s) => s.revealAncestors);
+  const selectedMethodFilter = useCollectionStore((s) => s.selectedMethodFilter);
 
   // Default to expanded if not explicitly set
   const isExpanded =
@@ -66,8 +69,14 @@ export default function CollectionItem({
   // Root requests (not in any folder)
   const rootRequests = requests.filter((r) => !r.folderId);
 
-  // Search filtering
-  const matchesSearch = doesCollectionMatch(collection, folders, requests, searchQuery);
+  // Search & method filtering
+  const matchesSearch = doesCollectionMatchFilters(
+    collection,
+    folders,
+    requests,
+    searchQuery,
+    selectedMethodFilter
+  );
 
   // Auto-reveal active request if inside this collection
   const activeRequest = requests.find((r) => r.id === activeRequestId);
@@ -100,12 +109,14 @@ export default function CollectionItem({
     }
   }, [isInlineRenaming]);
 
-  if (searchQuery && !matchesSearch) {
+  const hasFilterActive = Boolean(searchQuery || (selectedMethodFilter && selectedMethodFilter !== 'ALL'));
+
+  // If search/method filter active and not matching, hide
+  if (hasFilterActive && !matchesSearch) {
     return null;
   }
 
-  // If search query is active and matches, treat as effectively expanded
-  const effectiveExpanded = searchQuery ? true : isExpanded;
+  const effectiveExpanded = hasFilterActive ? true : isExpanded;
 
   const handleInlineRenameSubmit = async (e) => {
     e?.preventDefault();
@@ -219,6 +230,7 @@ export default function CollectionItem({
             <CollectionContextMenu
               type="collection"
               isViewer={isViewer}
+              onOverview={() => setIsOverviewOpen(true)}
               onRunCollection={() =>
                 navigate(`/workspace/${workspaceId}/runner?collectionId=${collection.id}`)
               }
@@ -237,6 +249,7 @@ export default function CollectionItem({
                 isViewer={isViewer}
                 triggerCoords={contextCoords}
                 onCloseExternal={() => setContextCoords(null)}
+                onOverview={() => setIsOverviewOpen(true)}
                 onRunCollection={() =>
                   navigate(`/workspace/${workspaceId}/runner?collectionId=${collection.id}`)
                 }
@@ -340,6 +353,21 @@ export default function CollectionItem({
           onConfirm={handleDelete}
           onCancel={() => setIsDeleteOpen(false)}
           isLoading={deleteCollectionMutation.isPending}
+        />
+      )}
+
+      {isOverviewOpen && (
+        <CollectionOverviewDialog
+          isOpen={isOverviewOpen}
+          onClose={() => setIsOverviewOpen(false)}
+          collection={collection}
+          workspaceId={workspaceId}
+          folders={folders}
+          requests={requests}
+          isViewer={isViewer}
+          onNewRequest={() => setIsNewRequestOpen(true)}
+          onNewFolder={() => setIsNewFolderOpen(true)}
+          onExport={() => setIsExportOpen(true)}
         />
       )}
     </>
