@@ -41,11 +41,25 @@ function normalizeAuth(auth) {
   };
 }
 
+function normalizeFormData(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) {
+    return [{ key: '', value: '', type: 'text', enabled: true, description: '' }];
+  }
+  return arr.map((item) => ({
+    key: item.key ?? '',
+    value: item.value ?? '',
+    type: item.type === 'file' ? 'file' : 'text',
+    enabled: item.enabled !== false,
+    description: item.description ?? '',
+  }));
+}
+
 function normalizeBody(body) {
   const base = {
     mode: 'none',
     raw: '',
     urlencoded: [{ key: '', value: '', enabled: true, description: '' }],
+    formData: [{ key: '', value: '', type: 'text', enabled: true, description: '' }],
   };
 
   if (!body || typeof body !== 'object') return base;
@@ -54,6 +68,7 @@ function normalizeBody(body) {
     mode: body.mode || 'none',
     raw: typeof body.raw === 'string' ? body.raw : (body.raw ? JSON.stringify(body.raw, null, 2) : ''),
     urlencoded: normalizeArray(body.urlencoded),
+    formData: normalizeFormData(body.formData),
   };
 }
 
@@ -91,6 +106,7 @@ export const useRequestStore = create((set, get) => ({
     mode: 'none',
     raw: '',
     urlencoded: [{ key: '', value: '', enabled: true, description: '' }],
+    formData: [{ key: '', value: '', type: 'text', enabled: true, description: '' }],
   },
   settings: {
     timeout: 30000,
@@ -515,6 +531,14 @@ export const useRequestStore = create((set, get) => ({
     get().notifyDirty();
   },
 
+  clearBodyRaw: () => {
+    set((state) => ({
+      body: { ...state.body, raw: '' },
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
   updateBodyUrlEncoded: (index, field, value) => {
     let list = [...(get().body.urlencoded || [])];
     if (!list[index]) {
@@ -573,6 +597,112 @@ export const useRequestStore = create((set, get) => ({
         isDirty: true,
       };
     });
+    get().notifyDirty();
+  },
+
+  enableAllBodyUrlEncoded: (enabled = true) => {
+    set((state) => ({
+      body: {
+        ...state.body,
+        urlencoded: state.body.urlencoded.map((u) => ({ ...u, enabled: Boolean(enabled) })),
+      },
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
+  clearBodyUrlEncoded: () => {
+    set((state) => ({
+      body: {
+        ...state.body,
+        urlencoded: [{ key: '', value: '', enabled: true, description: '' }],
+      },
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
+  // Form Data (multipart/form-data)
+  updateBodyFormData: (index, field, value) => {
+    let list = [...(get().body.formData || [])];
+    if (!list[index]) {
+      if (index === 0 && list.length === 0) {
+        list = [{ key: '', value: '', type: 'text', enabled: true, description: '' }];
+      } else {
+        return;
+      }
+    }
+    list[index] = { ...list[index], [field]: value };
+    if (index === list.length - 1 && (list[index].key || list[index].value)) {
+      list.push({ key: '', value: '', type: 'text', enabled: true, description: '' });
+    }
+    set((state) => ({
+      body: { ...state.body, formData: list },
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
+  addBodyFormData: () => {
+    set((state) => ({
+      body: {
+        ...state.body,
+        formData: [
+          ...(state.body.formData || []),
+          { key: '', value: '', type: 'text', enabled: true, description: '' },
+        ],
+      },
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
+  duplicateBodyFormData: (index) => {
+    const state = get();
+    const list = [...(state.body.formData || [])];
+    if (!list[index]) return;
+    const clone = { ...list[index] };
+    list.splice(index + 1, 0, clone);
+    set({
+      body: { ...state.body, formData: list },
+      isDirty: true,
+    });
+    get().notifyDirty();
+  },
+
+  removeBodyFormData: (index) => {
+    set((state) => {
+      let next = (state.body.formData || []).filter((_, i) => i !== index);
+      if (next.length === 0) {
+        next = [{ key: '', value: '', type: 'text', enabled: true, description: '' }];
+      }
+      return {
+        body: { ...state.body, formData: next },
+        isDirty: true,
+      };
+    });
+    get().notifyDirty();
+  },
+
+  enableAllBodyFormData: (enabled = true) => {
+    set((state) => ({
+      body: {
+        ...state.body,
+        formData: (state.body.formData || []).map((f) => ({ ...f, enabled: Boolean(enabled) })),
+      },
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
+  clearBodyFormData: () => {
+    set((state) => ({
+      body: {
+        ...state.body,
+        formData: [{ key: '', value: '', type: 'text', enabled: true, description: '' }],
+      },
+      isDirty: true,
+    }));
     get().notifyDirty();
   },
 
@@ -638,6 +768,16 @@ export const useRequestStore = create((set, get) => ({
           value: u.value,
           enabled: u.enabled !== false,
           description: u.description?.trim() || undefined,
+        }));
+    } else if (state.body.mode === 'form-data') {
+      bodyPayload.formData = (state.body.formData || [])
+        .filter((f) => f.key?.trim() !== '' || f.value?.trim() !== '')
+        .map((f) => ({
+          key: f.key.trim(),
+          value: f.value,
+          type: f.type === 'file' ? 'file' : 'text',
+          enabled: f.enabled !== false,
+          description: f.description?.trim() || undefined,
         }));
     }
 

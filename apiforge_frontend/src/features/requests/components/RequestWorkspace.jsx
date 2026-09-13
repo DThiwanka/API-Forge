@@ -98,10 +98,19 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     updateAuthApiKey,
     setBodyMode,
     setBodyRaw,
+    clearBodyRaw,
     updateBodyUrlEncoded,
     addBodyUrlEncoded,
     duplicateBodyUrlEncoded,
     removeBodyUrlEncoded,
+    enableAllBodyUrlEncoded,
+    clearBodyUrlEncoded,
+    updateBodyFormData,
+    addBodyFormData,
+    duplicateBodyFormData,
+    removeBodyFormData,
+    enableAllBodyFormData,
+    clearBodyFormData,
     updateSetting,
     getCleanPayload,
   } = useRequestStore();
@@ -152,6 +161,15 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
         if (item.enabled !== false) {
           rawTokens.push(...extractVariableNames(item.key));
           rawTokens.push(...extractVariableNames(item.value));
+        }
+      }
+    } else if (body?.mode === 'form-data' && Array.isArray(body.formData)) {
+      for (const item of body.formData) {
+        if (item.enabled !== false) {
+          rawTokens.push(...extractVariableNames(item.key));
+          if (item.type !== 'file') {
+            rawTokens.push(...extractVariableNames(item.value));
+          }
         }
       }
     }
@@ -454,10 +472,19 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 headers={headers}
                 onModeChange={setBodyMode}
                 onRawChange={setBodyRaw}
+                onClearRaw={clearBodyRaw}
                 onUpdateUrlEncoded={updateBodyUrlEncoded}
                 onAddUrlEncoded={addBodyUrlEncoded}
                 onDuplicateUrlEncoded={duplicateBodyUrlEncoded}
                 onRemoveUrlEncoded={removeBodyUrlEncoded}
+                onEnableAllUrlEncoded={enableAllBodyUrlEncoded}
+                onClearUrlEncoded={clearBodyUrlEncoded}
+                onUpdateFormData={updateBodyFormData}
+                onAddFormData={addBodyFormData}
+                onDuplicateFormData={duplicateBodyFormData}
+                onRemoveFormData={removeBodyFormData}
+                onEnableAllFormData={enableAllBodyFormData}
+                onClearFormData={clearBodyFormData}
                 onSetHeaderKeyValue={setHeaderKeyValue}
                 variables={allVariables}
                 activeEnvName={activeEnv?.name}

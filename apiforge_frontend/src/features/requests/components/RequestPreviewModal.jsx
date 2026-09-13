@@ -107,6 +107,18 @@ export default function RequestPreviewModal({
       if (formFields.length > 0) {
         parts.push(`  ${formFields.join(' \\\n  ')}`);
       }
+    } else if (body.mode === 'form-data' && Array.isArray(body.formData)) {
+      const formFields = body.formData
+        .filter((f) => f.enabled !== false && (f.key?.trim() || f.value?.trim()))
+        .map((f) => {
+          if (f.type === 'file') {
+            return `-F "${f.key}=@${f.value || 'file'}"`;
+          }
+          return `-F "${f.key}=${f.value}"`;
+        });
+      if (formFields.length > 0) {
+        parts.push(`  ${formFields.join(' \\\n  ')}`);
+      }
     } else if ((body.mode === 'text' || body.mode === 'raw') && body.raw) {
       parts.push(`  -d '${body.raw.replace(/'/g, "\\'")}'`);
     }
@@ -262,6 +274,39 @@ export default function RequestPreviewModal({
                           </td>
                           <td className="px-3 py-1.5 text-slate-400 break-all select-all">
                             {u.value}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : body.mode === 'form-data' ? (
+              <div className="border border-[#232732] rounded-md overflow-hidden bg-[#0a0c10]">
+                <table className="w-full text-left font-mono text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#1e2330] bg-[#12151d] text-[10px] text-slate-400">
+                      <th className="px-3 py-1">KEY</th>
+                      <th className="px-3 py-1">TYPE</th>
+                      <th className="px-3 py-1">VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#1e2330]">
+                    {(body.formData || [])
+                      .filter((f) => f.enabled !== false && (f.key?.trim() || f.value?.trim()))
+                      .map((f, i) => (
+                        <tr key={i}>
+                          <td className="px-3 py-1.5 font-semibold text-slate-300 w-1/4 border-r border-[#1e2330]">
+                            {f.key}
+                          </td>
+                          <td className="px-3 py-1.5 text-sky-400 text-[11px] w-20 border-r border-[#1e2330]">
+                            {f.type || 'text'}
+                          </td>
+                          <td className="px-3 py-1.5 text-slate-400 break-all select-all">
+                            {f.type === 'file' ? (
+                              <span className="text-amber-300">File: {f.value || '(no path)'}</span>
+                            ) : (
+                              f.value
+                            )}
                           </td>
                         </tr>
                       ))}
