@@ -7,8 +7,12 @@ import {
   Code2,
   Minimize2,
   Maximize2,
+  MoreHorizontal,
 } from 'lucide-react';
 import { buildJsonPath } from '../utils/jsonPath';
+import { formatPrimitiveValue } from '../utils/responseActionHelpers';
+import JsonNodeContextMenu from './JsonNodeContextMenu';
+import { useToastStore } from '../../../stores/toastStore';
 import { cn } from '../../../utils/cn';
 
 // Highlight matching search tokens
@@ -37,7 +41,11 @@ function JsonTreeNode({
   searchQuery = '',
   onCopyPath,
   copiedPath,
+  onCreateTest,
+  onCreateExtraction,
 }) {
+  const [contextMenu, setContextMenu] = useState(null);
+
   const currentPath = useMemo(() => {
     if (depth === 0) return '$';
     return buildJsonPath(parentPath, nodeKey, isParentArray);
@@ -61,13 +69,32 @@ function JsonTreeNode({
   };
 
   const handleCopyPath = (e) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     onCopyPath(currentPath);
+  };
+
+  const handleCopyValue = (e) => {
+    if (e) e.stopPropagation();
+    const formatted = formatPrimitiveValue(value);
+    navigator.clipboard.writeText(formatted);
+    useToastStore.getState().toast.success('Value copied to clipboard');
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleOpenMenuBtn = (e) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setContextMenu({ x: rect.left, y: rect.bottom + 4 });
   };
 
   const isCopied = copiedPath === currentPath;
 
-  // Render primitive value with type styling
+  // Render primitive value with type styling, carefully preserving falsy values (0, false, "", null)
   const renderPrimitiveValue = () => {
     if (value === null) {
       return <span className="text-slate-500 italic">null</span>;
@@ -91,6 +118,7 @@ function JsonTreeNode({
   return (
     <div className="font-mono text-xs select-text">
       <div
+        onContextMenu={handleContextMenu}
         className={cn(
           'group flex items-center gap-1.5 py-0.5 px-2 -mx-2 rounded hover:bg-[#181b22] transition-colors relative min-h-[22px]',
           isCopied && 'bg-emerald-950/20'
@@ -102,7 +130,7 @@ function JsonTreeNode({
           <button
             type="button"
             onClick={handleToggle}
-            className="w-4 h-4 flex items-center justify-center text-slate-500 hover:text-slate-300 focus:outline-none shrink-0"
+            className="w-4 h-4 flex items-center justify-center text-slate-500 hover:text-slate-300 focus:outline-none shrink-0 cursor-pointer"
             title={isExpanded ? 'Collapse node' : 'Expand node'}
           >
             {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
@@ -150,7 +178,7 @@ function JsonTreeNode({
           <div className="flex-1 min-w-0 truncate">{renderPrimitiveValue()}</div>
         )}
 
-        {/* Hover Actions: Copy JSON Path */}
+        {/* Hover Actions: Copy JSON Path & Context Menu */}
         <div className="ml-auto opacity-0 group-hover:opacity-100 flex items-center gap-1 pl-2 transition-opacity shrink-0">
           <button
             type="button"
@@ -175,6 +203,16 @@ function JsonTreeNode({
               </>
             )}
           </button>
+
+          {/* More Actions Dropdown (•••) */}
+          <button
+            type="button"
+            onClick={handleOpenMenuBtn}
+            className="p-1 rounded bg-[#1e2330] hover:bg-[#282f40] border border-[#2b313e] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+            title="Node actions: Copy value, Create test, Create extraction"
+          >
+            <MoreHorizontal size={11} />
+          </button>
         </div>
       </div>
 
@@ -194,6 +232,8 @@ function JsonTreeNode({
               searchQuery={searchQuery}
               onCopyPath={onCopyPath}
               copiedPath={copiedPath}
+              onCreateTest={onCreateTest}
+              onCreateExtraction={onCreateExtraction}
             />
           ))}
           <div
@@ -204,6 +244,21 @@ function JsonTreeNode({
           </div>
         </div>
       )}
+
+      {/* Node Context Menu */}
+      {contextMenu && (
+        <JsonNodeContextMenu
+          isOpen={Boolean(contextMenu)}
+          onClose={() => setContextMenu(null)}
+          anchorCoords={contextMenu}
+          jsonPath={currentPath}
+          value={value}
+          onCopyValue={handleCopyValue}
+          onCopyPath={handleCopyPath}
+          onCreateTest={onCreateTest}
+          onCreateExtraction={onCreateExtraction}
+        />
+      )}
     </div>
   );
 }
@@ -211,6 +266,8 @@ function JsonTreeNode({
 export default function JsonTree({
   data,
   searchQuery = '',
+  onCreateTest,
+  onCreateExtraction,
   className,
 }) {
   const [copiedPath, setCopiedPath] = useState(null);
@@ -271,6 +328,7 @@ export default function JsonTree({
   const handleCopyPath = (path) => {
     navigator.clipboard.writeText(path);
     setCopiedPath(path);
+    useToastStore.getState().toast.success('JSON path copied');
     setTimeout(() => setCopiedPath(null), 2000);
   };
 
@@ -291,7 +349,7 @@ export default function JsonTree({
           <button
             type="button"
             onClick={expandAll}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 transition-colors cursor-pointer"
             title="Expand all nodes"
           >
             <Maximize2 size={11} />
@@ -300,7 +358,7 @@ export default function JsonTree({
           <button
             type="button"
             onClick={collapseAll}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 transition-colors cursor-pointer"
             title="Collapse all nodes"
           >
             <Minimize2 size={11} />
@@ -322,9 +380,10 @@ export default function JsonTree({
           searchQuery={searchQuery}
           onCopyPath={handleCopyPath}
           copiedPath={copiedPath}
+          onCreateTest={onCreateTest}
+          onCreateExtraction={onCreateExtraction}
         />
       </div>
     </div>
   );
 }
-

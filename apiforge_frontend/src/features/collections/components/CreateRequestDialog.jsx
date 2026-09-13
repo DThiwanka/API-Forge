@@ -16,10 +16,13 @@ export default function CreateRequestDialog({
   collectionId,
   folderId = null,
   targetName = null,
+  initialUrl = null,
+  initialMethod = 'GET',
+  initialName = null,
 }) {
-  const [name, setName] = useState('New Request');
-  const [method, setMethod] = useState('GET');
-  const [url, setUrl] = useState('https://httpbin.org/get');
+  const [name, setName] = useState(initialName || 'New Request');
+  const [method, setMethod] = useState(initialMethod || 'GET');
+  const [url, setUrl] = useState(initialUrl || 'https://httpbin.org/get');
   const [error, setError] = useState(null);
   const [selectedCollectionId, setSelectedCollectionId] = useState(collectionId || '');
   const navigate = useNavigate();
@@ -76,9 +79,9 @@ export default function CreateRequestDialog({
         });
       }
 
-      setName('New Request');
-      setMethod('GET');
-      setUrl('https://httpbin.org/get');
+      setName(initialName || 'New Request');
+      setMethod(initialMethod || 'GET');
+      setUrl(initialUrl || 'https://httpbin.org/get');
       setError(null);
       onClose();
 
@@ -94,9 +97,9 @@ export default function CreateRequestDialog({
   };
 
   const handleClose = () => {
-    setName('New Request');
-    setMethod('GET');
-    setUrl('https://httpbin.org/get');
+    setName(initialName || 'New Request');
+    setMethod(initialMethod || 'GET');
+    setUrl(initialUrl || 'https://httpbin.org/get');
     setError(null);
     onClose();
   };

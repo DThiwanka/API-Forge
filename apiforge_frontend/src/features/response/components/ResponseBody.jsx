@@ -143,6 +143,8 @@ export default function ResponseBody({
   searchQuery = '',
   currentMatchIndex = 0,
   onMatchCountChange,
+  onCreateTest,
+  onCreateExtraction,
   className,
 }) {
   const [copied, setCopied] = useState(false);
@@ -324,6 +326,8 @@ export default function ResponseBody({
           <JsonTree
             data={parsedJson}
             searchQuery={searchQuery}
+            onCreateTest={onCreateTest}
+            onCreateExtraction={onCreateExtraction}
           />
         ) : mode === 'pretty' && isJson ? (
           /* PRETTY JSON VIEW */

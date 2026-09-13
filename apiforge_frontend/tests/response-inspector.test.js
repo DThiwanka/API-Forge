@@ -6,16 +6,12 @@ import {
   countJsonNodes,
 } from '../src/features/response/utils/jsonPath.js';
 import {
-  formatTime,
-  formatSize,
-  isBinaryContentType,
   detectContentType,
   isLargePayload,
   parseBodyContent,
 } from '../src/features/response/utils/responseFormatters.js';
 import {
   getStatusCategory,
-  getStatusStyles,
 } from '../src/features/response/utils/responseStatusUtils.js';
 import { useResponseStore } from '../src/features/response/store/responseStore.js';
 

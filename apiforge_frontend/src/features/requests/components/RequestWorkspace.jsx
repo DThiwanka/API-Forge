@@ -478,7 +478,11 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
         {/* RIGHT PANE: RESPONSE INSPECTOR */}
         <div className="w-full lg:w-[var(--split-right)] flex flex-col min-w-0 overflow-hidden shrink-0">
-          <ResponseInspector requestId={requestId} />
+          <ResponseInspector
+            workspaceId={workspaceId}
+            collectionId={collectionId}
+            requestId={requestId}
+          />
         </div>
       </div>
     </div>

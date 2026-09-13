@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Play, Loader2, AlertTriangle, ShieldX, CheckCircle2 } from 'lucide-react';
+import {
+  Play,
+  Loader2,
+  AlertTriangle,
+  ShieldX,
+  CheckCircle2,
+  Copy,
+  Plus,
+} from 'lucide-react';
 import ResponseStatus from './ResponseStatus';
 import ResponseMeta from './ResponseMeta';
 import ResponseTabs from './ResponseTabs';
@@ -7,11 +15,25 @@ import ResponseBody from './ResponseBody';
 import ResponseHeaders from './ResponseHeaders';
 import ResponseCookies from './ResponseCookies';
 import ResponseRaw from './ResponseRaw';
+import CreateTestFromResponseDialog from './CreateTestFromResponseDialog';
+import CreateExtractionDialog from './CreateExtractionDialog';
+import CreateRequestDialog from '../../collections/components/CreateRequestDialog';
 import useResponseStore from '../store/responseStore';
 import { parseBodyContent } from '../utils/responseFormatters';
+import {
+  buildStatusAssertion,
+  buildResponseTimeAssertion,
+  buildJsonPathAssertion,
+} from '../utils/responseActionHelpers';
+import { useToastStore } from '../../../stores/toastStore';
 import { cn } from '../../../utils/cn';
 
-export default function ResponseInspector({ requestId, className }) {
+export default function ResponseInspector({
+  workspaceId,
+  collectionId,
+  requestId,
+  className,
+}) {
   const activeRequestId = useResponseStore((s) => s.activeRequestId);
   const currentRequestId = requestId || activeRequestId;
 
@@ -48,6 +70,22 @@ export default function ResponseInspector({ requestId, className }) {
   const [matchCount, setMatchCount] = useState(0);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const searchInputRef = useRef(null);
+
+  // Response debugging dialog states
+  const [testDialogState, setTestDialogState] = useState({
+    isOpen: false,
+    assertion: null,
+    testName: '',
+  });
+
+  const [extractionDialogState, setExtractionDialogState] = useState({
+    isOpen: false,
+    path: '',
+    source: 'json',
+    value: undefined,
+  });
+
+  const [isCreateRequestOpen, setIsCreateRequestOpen] = useState(false);
 
   // Live timer during loading state
   const [elapsedTimer, setElapsedTimer] = useState(0);
@@ -114,6 +152,57 @@ export default function ResponseInspector({ requestId, className }) {
     return Array.isArray(setCookie[1]) ? setCookie[1].length : 1;
   }, [response]);
 
+  // Handlers for debugging shortcuts
+  const handleOpenStatusTest = (stat) => {
+    const assertion = buildStatusAssertion(stat);
+    setTestDialogState({
+      isOpen: true,
+      assertion,
+      testName: `Verify Status ${stat}`,
+    });
+  };
+
+  const handleOpenTimeTest = (time) => {
+    const assertion = buildResponseTimeAssertion(time);
+    setTestDialogState({
+      isOpen: true,
+      assertion,
+      testName: 'Verify Response Time',
+    });
+  };
+
+  const handleOpenAssertionBuilder = (assertionPayload, testName = '') => {
+    setTestDialogState({
+      isOpen: true,
+      assertion: assertionPayload,
+      testName,
+    });
+  };
+
+  const handleOpenCreateTestFromNode = (path, value) => {
+    const assertion = buildJsonPathAssertion(path, value);
+    setTestDialogState({
+      isOpen: true,
+      assertion,
+      testName: `Verify ${path}`,
+    });
+  };
+
+  const handleOpenCreateExtraction = (path, value) => {
+    setExtractionDialogState({
+      isOpen: true,
+      path,
+      source: 'json',
+      value,
+    });
+  };
+
+  const handleCopyUrl = () => {
+    if (!response?.url) return;
+    navigator.clipboard.writeText(response.url);
+    useToastStore.getState().toast.success('Response URL copied');
+  };
+
   return (
     <div
       className={cn(
@@ -125,16 +214,43 @@ export default function ResponseInspector({ requestId, className }) {
       {status === 'success' && response && (
         <div className="flex items-center justify-between px-4 py-2 bg-[#111318] border-b border-[#232732] gap-3 select-none">
           <div className="flex items-center gap-3">
-            <ResponseStatus status={response.status} statusText={response.statusText} />
+            <ResponseStatus
+              status={response.status}
+              statusText={response.statusText}
+              onCreateTest={handleOpenStatusTest}
+            />
             <ResponseMeta
               timeMs={response.timeMs}
               sizeBytes={response.sizeBytes}
               contentType={response.contentType}
+              onCreateTimeTest={handleOpenTimeTest}
             />
           </div>
 
-          <div className="hidden lg:flex items-center gap-1 text-[11px] font-mono text-slate-500 truncate max-w-xs">
-            <span className="truncate">{response.url}</span>
+          <div className="flex items-center gap-2">
+            {response.url && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateRequestOpen(true)}
+                  className="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 font-sans transition-colors cursor-pointer"
+                  title="Open final response URL as a new request"
+                >
+                  <Plus size={11} className="text-sky-400" />
+                  <span>Open as Request</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyUrl}
+                  className="inline-flex items-center gap-1 p-1 sm:px-2 sm:py-1 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-[11px] text-slate-300 font-mono transition-colors cursor-pointer"
+                  title={`Copy URL: ${response.url}`}
+                >
+                  <Copy size={11} className="text-slate-400" />
+                  <span className="hidden md:inline">Copy URL</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -189,7 +305,7 @@ export default function ResponseInspector({ requestId, className }) {
         </div>
       )}
 
-      {/* EXECUTION FAILURE ERROR STATE (pre-response failure: SSRF, network, timeout) */}
+      {/* EXECUTION FAILURE ERROR STATE */}
       {status === 'error' && (
         <div className="flex-1 flex flex-col p-6 overflow-auto">
           <div className="p-4 rounded-lg bg-rose-950/30 border border-rose-800/60 text-rose-200 space-y-3">
@@ -258,11 +374,16 @@ export default function ResponseInspector({ requestId, className }) {
                 searchQuery={searchQuery}
                 currentMatchIndex={currentMatchIndex}
                 onMatchCountChange={setMatchCount}
+                onCreateTest={handleOpenCreateTestFromNode}
+                onCreateExtraction={handleOpenCreateExtraction}
               />
             )}
 
             {activeTab === 'headers' && (
-              <ResponseHeaders headers={response.headers} />
+              <ResponseHeaders
+                headers={response.headers}
+                onCreateTest={(assertion) => handleOpenAssertionBuilder(assertion, `Verify Header ${assertion.path}`)}
+              />
             )}
 
             {activeTab === 'cookies' && (
@@ -274,6 +395,44 @@ export default function ResponseInspector({ requestId, className }) {
             )}
           </div>
         </>
+      )}
+
+      {/* Create Test Dialog */}
+      {testDialogState.isOpen && (
+        <CreateTestFromResponseDialog
+          isOpen={testDialogState.isOpen}
+          onClose={() => setTestDialogState({ isOpen: false, assertion: null, testName: '' })}
+          workspaceId={workspaceId}
+          requestId={currentRequestId}
+          initialAssertion={testDialogState.assertion}
+          initialTestName={testDialogState.testName}
+        />
+      )}
+
+      {/* Create Extraction Dialog */}
+      {extractionDialogState.isOpen && (
+        <CreateExtractionDialog
+          isOpen={extractionDialogState.isOpen}
+          onClose={() =>
+            setExtractionDialogState({ isOpen: false, path: '', source: 'json', value: undefined })
+          }
+          initialPath={extractionDialogState.path}
+          initialSource={extractionDialogState.source}
+          value={extractionDialogState.value}
+        />
+      )}
+
+      {/* Create Request from URL Dialog */}
+      {isCreateRequestOpen && (
+        <CreateRequestDialog
+          isOpen={isCreateRequestOpen}
+          onClose={() => setIsCreateRequestOpen(false)}
+          workspaceId={workspaceId}
+          collectionId={collectionId}
+          initialUrl={response?.url || 'https://httpbin.org/get'}
+          initialMethod="GET"
+          initialName="Request from URL"
+        />
       )}
     </div>
   );

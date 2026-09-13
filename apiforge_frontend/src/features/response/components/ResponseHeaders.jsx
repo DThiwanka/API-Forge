@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Copy, Check, Search } from 'lucide-react';
+import { Copy, Check, Search, FlaskConical } from 'lucide-react';
+import { buildHeaderAssertion } from '../utils/responseActionHelpers';
 import { cn } from '../../../utils/cn';
 
-export default function ResponseHeaders({ headers = {}, className }) {
+export default function ResponseHeaders({ headers = {}, onCreateTest, className }) {
   const [filter, setFilter] = useState('');
   const [copiedKey, setCopiedKey] = useState(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -18,6 +19,12 @@ export default function ResponseHeaders({ headers = {}, className }) {
       );
     });
   }, [headers, filter]);
+
+  const handleCopyName = (key) => {
+    navigator.clipboard.writeText(key);
+    setCopiedKey(`${key}-name`);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
   const handleCopyValue = (key, value) => {
     navigator.clipboard.writeText(String(value));
@@ -89,7 +96,7 @@ export default function ResponseHeaders({ headers = {}, className }) {
             <tr className="border-b border-[#232732] bg-[#14171f] text-[11px] font-semibold text-slate-400">
               <th className="w-1/3 px-3 py-2">HEADER</th>
               <th className="px-3 py-2">VALUE</th>
-              <th className="w-16 px-3 py-2 text-right">ACTIONS</th>
+              <th className="w-28 px-3 py-2 text-right">ACTIONS</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#1e2330]">
@@ -103,6 +110,7 @@ export default function ResponseHeaders({ headers = {}, className }) {
               </tr>
             ) : (
               headerEntries.map(([key, value]) => {
+                const isNameCopied = copiedKey === `${key}-name`;
                 const isValCopied = copiedKey === `${key}-val`;
                 const isFullCopied = copiedKey === `${key}-full`;
 
@@ -118,9 +126,17 @@ export default function ResponseHeaders({ headers = {}, className }) {
                       <div className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
+                          onClick={() => handleCopyName(key)}
+                          title="Copy header name"
+                          className="px-1.5 py-0.5 rounded bg-[#232732] hover:bg-[#2e3444] text-[10px] text-slate-300 transition-colors cursor-pointer"
+                        >
+                          {isNameCopied ? <Check size={10} className="text-emerald-400" /> : 'Name'}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleCopyValue(key, value)}
                           title="Copy value only"
-                          className="px-1.5 py-0.5 rounded bg-[#232732] hover:bg-[#2e3444] text-[10px] text-slate-300 transition-colors"
+                          className="px-1.5 py-0.5 rounded bg-[#232732] hover:bg-[#2e3444] text-[10px] text-slate-300 transition-colors cursor-pointer"
                         >
                           {isValCopied ? <Check size={10} className="text-emerald-400" /> : 'Val'}
                         </button>
@@ -128,7 +144,7 @@ export default function ResponseHeaders({ headers = {}, className }) {
                           type="button"
                           onClick={() => handleCopyEntry(key, value)}
                           title="Copy 'Name: Value'"
-                          className="p-1 rounded bg-[#232732] hover:bg-[#2e3444] text-slate-400 hover:text-slate-200 transition-colors"
+                          className="p-1 rounded bg-[#232732] hover:bg-[#2e3444] text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                         >
                           {isFullCopied ? (
                             <Check size={11} className="text-emerald-400" />
@@ -136,6 +152,16 @@ export default function ResponseHeaders({ headers = {}, className }) {
                             <Copy size={11} />
                           )}
                         </button>
+                        {onCreateTest && (
+                          <button
+                            type="button"
+                            onClick={() => onCreateTest(buildHeaderAssertion(key, value))}
+                            title="Create test assertion for this header"
+                            className="p-1 rounded bg-sky-950/60 hover:bg-sky-900/80 border border-sky-800/60 text-sky-400 hover:text-sky-200 transition-colors cursor-pointer ml-0.5"
+                          >
+                            <FlaskConical size={11} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
