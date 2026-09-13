@@ -15,7 +15,7 @@ export function useRequestExecution(workspaceId, collectionId, requestId) {
   return useMutation({
     mutationFn: async (runtimeVariables = {}) => {
       setIsExecuting(true);
-      setLoading();
+      setLoading(requestId);
 
       try {
         // If there are unsaved edits, save them before executing
@@ -36,7 +36,7 @@ export function useRequestExecution(workspaceId, collectionId, requestId) {
     },
     onSuccess: (data) => {
       if (data?.response) {
-        setResponse(data.response);
+        setResponse(requestId, data.response);
       }
     },
     onError: (err) => {
@@ -47,10 +47,9 @@ export function useRequestExecution(workspaceId, collectionId, requestId) {
         details: responseData?.error || null,
         response: responseData?.data?.response || null,
       };
-      setError(errorObj);
+      setError(requestId, errorObj);
     },
   });
 }
 
 export default useRequestExecution;
-

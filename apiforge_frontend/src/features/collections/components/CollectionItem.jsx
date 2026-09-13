@@ -18,6 +18,8 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import ImportDialog from '../../import-export/components/ImportDialog';
 import ExportDialog from '../../import-export/components/ExportDialog';
 import useCollectionStore from '../store/collectionStore';
+import useCanvasStore from '../../canvas/store/canvasStore';
+import { toast } from '../../../stores/toastStore';
 import { useFoldersQuery, useUpdateCollectionMutation, useDeleteCollectionMutation } from '../hooks/useCollections';
 import { listRequests } from '../../requests/services/requestApi';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +28,7 @@ export default function CollectionItem({
   collection,
   workspaceId,
   activeRequestId,
+  isViewer = false,
 }) {
   const navigate = useNavigate();
   const [isNewFolderOpen, setIsNewFolderOpen] = useState(false);
@@ -34,6 +37,7 @@ export default function CollectionItem({
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [contextCoords, setContextCoords] = useState(null);
 
   const expandedCollectionIds = useCollectionStore((s) => s.expandedCollectionIds);
   const toggleCollection = useCollectionStore((s) => s.toggleCollection);
@@ -66,11 +70,30 @@ export default function CollectionItem({
     setIsDeleteOpen(false);
   };
 
+  const handleOpenInCanvas = () => {
+    if (requests.length === 0) {
+      toast.info(`Collection "${collection.name}" has no requests to open in Canvas`);
+      return;
+    }
+    useCanvasStore.getState().addCollectionNodes(requests, collection.name);
+    toast.success(`Added ${requests.length} requests from "${collection.name}" to Canvas`);
+    navigate(`/workspace/${workspaceId}/canvas`);
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextCoords({ x: e.clientX, y: e.clientY });
+  };
+
   return (
     <>
       <div className="text-xs select-none">
         {/* Collection Header Row */}
-        <div className="group flex items-center justify-between py-1.5 px-2 rounded hover:bg-[#181b22] text-slate-300 transition-colors">
+        <div
+          onContextMenu={handleContextMenu}
+          className="group flex items-center justify-between py-1.5 px-2 rounded hover:bg-[#181b22] text-slate-300 transition-colors"
+        >
           <button
             type="button"
             onClick={() => toggleCollection(collection.id)}
@@ -96,20 +119,24 @@ export default function CollectionItem({
           </button>
 
           <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              onClick={() => setIsNewRequestOpen(true)}
-              title="Add request"
-              className="p-1 text-slate-500 hover:text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity rounded"
-            >
-              <Plus size={12} />
-            </button>
+            {!isViewer && (
+              <button
+                type="button"
+                onClick={() => setIsNewRequestOpen(true)}
+                title="Add request"
+                className="p-1 text-slate-500 hover:text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity rounded"
+              >
+                <Plus size={12} />
+              </button>
+            )}
 
             <CollectionContextMenu
               type="collection"
+              isViewer={isViewer}
               onRunCollection={() =>
                 navigate(`/workspace/${workspaceId}/runner?collectionId=${collection.id}`)
               }
+              onOpenInCanvas={handleOpenInCanvas}
               onNewRequest={() => setIsNewRequestOpen(true)}
               onImportCurl={() => setIsImportOpen(true)}
               onExport={() => setIsExportOpen(true)}
@@ -117,6 +144,25 @@ export default function CollectionItem({
               onRename={() => setIsRenameOpen(true)}
               onDelete={() => setIsDeleteOpen(true)}
             />
+
+            {contextCoords && (
+              <CollectionContextMenu
+                type="collection"
+                isViewer={isViewer}
+                triggerCoords={contextCoords}
+                onCloseExternal={() => setContextCoords(null)}
+                onRunCollection={() =>
+                  navigate(`/workspace/${workspaceId}/runner?collectionId=${collection.id}`)
+                }
+                onOpenInCanvas={handleOpenInCanvas}
+                onNewRequest={() => setIsNewRequestOpen(true)}
+                onImportCurl={() => setIsImportOpen(true)}
+                onExport={() => setIsExportOpen(true)}
+                onNewFolder={() => setIsNewFolderOpen(true)}
+                onRename={() => setIsRenameOpen(true)}
+                onDelete={() => setIsDeleteOpen(true)}
+              />
+            )}
           </div>
         </div>
 
@@ -137,7 +183,9 @@ export default function CollectionItem({
                 allRequests={requests}
                 workspaceId={workspaceId}
                 collectionId={collection.id}
+                collectionName={collection.name}
                 activeRequestId={activeRequestId}
+                isViewer={isViewer}
                 depth={1}
               />
             ))}
@@ -148,7 +196,9 @@ export default function CollectionItem({
                 request={req}
                 workspaceId={workspaceId}
                 collectionId={collection.id}
+                collectionName={collection.name}
                 activeRequestId={activeRequestId}
+                isViewer={isViewer}
                 depth={1}
               />
             ))}

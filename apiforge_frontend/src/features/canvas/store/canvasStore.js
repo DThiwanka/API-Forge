@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { applyNodeChanges, applyEdgeChanges, addEdge } from '@xyflow/react';
-import { requestToNode } from '../utils/nodeHelpers';
+import { requestToNode } from '../utils/nodeHelpers.js';
 
 export const useCanvasStore = create((set, get) => ({
   nodes: [],

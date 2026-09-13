@@ -28,6 +28,32 @@ export const useCommandCenterStore = create((set) => ({
     }),
 
   closeModal: () => set({ activeModal: null, modalContext: {} }),
+  recentCommandIdsByWorkspace: {},
+
+  recordCommandExecution: (workspaceId, commandId) => {
+    if (!workspaceId || !commandId) return;
+    set((state) => {
+      const currentList = state.recentCommandIdsByWorkspace[workspaceId] || [];
+      const filtered = currentList.filter((id) => id !== commandId);
+      const nextList = [commandId, ...filtered].slice(0, 7); // keep up to 7 recent commands
+      return {
+        recentCommandIdsByWorkspace: {
+          ...state.recentCommandIdsByWorkspace,
+          [workspaceId]: nextList,
+        },
+      };
+    });
+  },
+
+  clearRecentCommands: (workspaceId) => {
+    if (!workspaceId) return;
+    set((state) => ({
+      recentCommandIdsByWorkspace: {
+        ...state.recentCommandIdsByWorkspace,
+        [workspaceId]: [],
+      },
+    }));
+  },
 }));
 
 export default useCommandCenterStore;

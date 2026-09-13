@@ -19,6 +19,7 @@ import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
 import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
 import { useVariableSuggestions, extractVariableNames } from '../hooks/useVariableSuggestions';
 import useRequestStore from '../store/requestStore';
+import useResponseStore from '../../response/store/responseStore';
 import { Loader2, AlertCircle, Globe, AlertTriangle } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -50,6 +51,13 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     getVariable,
     isVariableKnown,
   } = useVariableSuggestions(workspaceId);
+
+  // Sync active requestId with response store for tab isolation
+  useEffect(() => {
+    if (requestId) {
+      useResponseStore.getState().setActiveRequestId(requestId);
+    }
+  }, [requestId]);
 
   // Store state
   const {
@@ -470,7 +478,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
         {/* RIGHT PANE: RESPONSE INSPECTOR */}
         <div className="w-full lg:w-[var(--split-right)] flex flex-col min-w-0 overflow-hidden shrink-0">
-          <ResponseInspector />
+          <ResponseInspector requestId={requestId} />
         </div>
       </div>
     </div>

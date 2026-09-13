@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Loader2, AlertTriangle, ShieldX, CheckCircle2 } from 'lucide-react';
 import ResponseStatus from './ResponseStatus';
 import ResponseMeta from './ResponseMeta';
@@ -8,35 +8,111 @@ import ResponseHeaders from './ResponseHeaders';
 import ResponseCookies from './ResponseCookies';
 import ResponseRaw from './ResponseRaw';
 import useResponseStore from '../store/responseStore';
+import { parseBodyContent } from '../utils/responseFormatters';
 import { cn } from '../../../utils/cn';
 
-export default function ResponseInspector({ className }) {
-  const {
-    status,
-    response,
-    error,
-    activeTab,
-    bodyMode,
-    searchQuery,
-    setActiveTab,
-    setBodyMode,
-    setSearchQuery,
-  } = useResponseStore();
+export default function ResponseInspector({ requestId, className }) {
+  const activeRequestId = useResponseStore((s) => s.activeRequestId);
+  const currentRequestId = requestId || activeRequestId;
 
+  // Subscribe to response state
+  const responseState = useResponseStore(
+    useCallback((s) => s.getResponseState(currentRequestId), [currentRequestId])
+  );
+
+  const {
+    status = 'idle',
+    response = null,
+    error = null,
+    activeTab = 'body',
+    bodyMode = 'pretty',
+    searchQuery = '',
+  } = responseState;
+
+  const setActiveTab = useCallback(
+    (tab) => useResponseStore.getState().setActiveTab(tab, currentRequestId),
+    [currentRequestId]
+  );
+
+  const setBodyMode = useCallback(
+    (mode) => useResponseStore.getState().setBodyMode(mode, currentRequestId),
+    [currentRequestId]
+  );
+
+  const setSearchQuery = useCallback(
+    (query) => useResponseStore.getState().setSearchQuery(query, currentRequestId),
+    [currentRequestId]
+  );
+
+  // Search match navigation
   const [matchCount, setMatchCount] = useState(0);
-  const [elapsedTimer, setElapsedTimer] = useState(0);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const searchInputRef = useRef(null);
 
   // Live timer during loading state
+  const [elapsedTimer, setElapsedTimer] = useState(0);
   useEffect(() => {
     if (status !== 'loading') return;
     const startTime = Date.now();
     const interval = setInterval(() => {
       setElapsedTimer(Date.now() - startTime);
     }, 50);
-    return () => {
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, [status]);
+
+  const handleSearchChange = useCallback(
+    (query) => {
+      setSearchQuery(query);
+      setCurrentMatchIndex(0);
+    },
+    [setSearchQuery]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setCurrentMatchIndex(0);
+  }, [setSearchQuery]);
+
+  const handleNextMatch = () => {
+    if (matchCount <= 0) return;
+    setCurrentMatchIndex((prev) => (prev + 1) % matchCount);
+  };
+
+  const handlePrevMatch = () => {
+    if (matchCount <= 0) return;
+    setCurrentMatchIndex((prev) => (prev - 1 + matchCount) % matchCount);
+  };
+
+  // Keyboard shortcut: Ctrl/Cmd + F to focus search input in response inspector
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+        if (activeTab === 'body' && status === 'success') {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, status]);
+
+  // Determine if body is JSON
+  const isJson = useMemo(() => {
+    if (!response?.body) return false;
+    return parseBodyContent(response.body).isJson;
+  }, [response]);
+
+  // Count cookies from set-cookie headers
+  const cookiesCount = useMemo(() => {
+    if (!response?.headers) return 0;
+    const setCookie = Object.entries(response.headers).find(
+      ([k]) => k.toLowerCase() === 'set-cookie'
+    );
+    if (!setCookie) return 0;
+    return Array.isArray(setCookie[1]) ? setCookie[1].length : 1;
+  }, [response]);
 
   return (
     <div
@@ -45,9 +121,9 @@ export default function ResponseInspector({ className }) {
         className
       )}
     >
-      {/* Top Status & Meta Header (only visible when response exists) */}
+      {/* Top Status & Meta Header (visible when response exists) */}
       {status === 'success' && response && (
-        <div className="flex items-center justify-between px-4 py-2 bg-[#111318] border-b border-[#232732] gap-3">
+        <div className="flex items-center justify-between px-4 py-2 bg-[#111318] border-b border-[#232732] gap-3 select-none">
           <div className="flex items-center gap-3">
             <ResponseStatus status={response.status} statusText={response.statusText} />
             <ResponseMeta
@@ -113,7 +189,7 @@ export default function ResponseInspector({ className }) {
         </div>
       )}
 
-      {/* ERROR STATE */}
+      {/* EXECUTION FAILURE ERROR STATE (pre-response failure: SSRF, network, timeout) */}
       {status === 'error' && (
         <div className="flex-1 flex flex-col p-6 overflow-auto">
           <div className="p-4 rounded-lg bg-rose-950/30 border border-rose-800/60 text-rose-200 space-y-3">
@@ -139,30 +215,37 @@ export default function ResponseInspector({ className }) {
             )}
 
             <div className="pt-2 border-t border-rose-900/40 text-[11px] text-rose-300/80">
-              <span className="font-semibold text-rose-200">Suggestions:</span>
+              <span className="font-semibold text-rose-200">Troubleshooting Suggestions:</span>
               <ul className="list-disc list-inside mt-1 space-y-0.5">
                 <li>Check that all <code className="text-rose-200">{"{{variables}}"}</code> in the URL and headers are defined in your active environment.</li>
-                <li>Ensure the target server is reachable and accepting connections.</li>
+                <li>Ensure the target server is reachable and accepting network connections.</li>
                 <li>Verify that the URL protocol is <code className="text-rose-200">http://</code> or <code className="text-rose-200">https://</code>.</li>
+                <li>Ensure the destination host is not on a private/restricted subnet blocked by SSRF policies.</li>
               </ul>
             </div>
           </div>
         </div>
       )}
 
-      {/* SUCCESS STATE WITH TABS & CONTENT */}
+      {/* SUCCESS STATE WITH TABS & CONTENT (valid HTTP response, 2xx, 3xx, 4xx, 5xx) */}
       {status === 'success' && response && (
         <>
           <ResponseTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
             headersCount={Object.keys(response.headers || {}).length}
+            cookiesCount={cookiesCount}
             bodyMode={bodyMode}
             onBodyModeChange={setBodyMode}
+            isJson={isJson}
             searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onClearSearch={() => setSearchQuery('')}
+            onSearchChange={handleSearchChange}
+            onClearSearch={handleClearSearch}
+            onNextMatch={handleNextMatch}
+            onPrevMatch={handlePrevMatch}
             matchCount={matchCount}
+            currentMatchIndex={currentMatchIndex}
+            searchRef={searchInputRef}
           />
 
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -170,8 +253,10 @@ export default function ResponseInspector({ className }) {
               <ResponseBody
                 body={response.body}
                 contentType={response.contentType}
+                sizeBytes={response.sizeBytes}
                 mode={bodyMode}
                 searchQuery={searchQuery}
+                currentMatchIndex={currentMatchIndex}
                 onMatchCountChange={setMatchCount}
               />
             )}
@@ -193,4 +278,3 @@ export default function ResponseInspector({ className }) {
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Folder, Layers } from 'lucide-react';
 
 const METHOD_COLORS = {
   GET: 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60',
@@ -17,7 +17,12 @@ export default function CommandItem({
   onMouseEnter,
 }) {
   const Icon = command.icon;
-  const methodColor = command.method ? METHOD_COLORS[command.method] || 'bg-slate-800 text-slate-300 border-slate-700' : null;
+  const methodColor = command.method
+    ? METHOD_COLORS[command.method] || 'bg-slate-800 text-slate-300 border-slate-700'
+    : null;
+
+  // Build breadcrumb string if available (e.g. "Collection / Folder")
+  const breadcrumbs = [command.collectionName, command.folderName].filter(Boolean).join(' / ');
 
   return (
     <div
@@ -40,6 +45,22 @@ export default function CommandItem({
           >
             {command.method}
           </span>
+        ) : command.group === 'Folders' ? (
+          <div
+            className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+              isSelected ? 'bg-sky-900/60 text-sky-300' : 'bg-[#181b22] text-amber-400/80 group-hover:text-amber-300'
+            }`}
+          >
+            <Folder size={13} />
+          </div>
+        ) : command.group === 'Collections' ? (
+          <div
+            className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+              isSelected ? 'bg-sky-900/60 text-sky-300' : 'bg-[#181b22] text-sky-400/80 group-hover:text-sky-300'
+            }`}
+          >
+            <Layers size={13} />
+          </div>
         ) : Icon ? (
           <div
             className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
@@ -51,6 +72,7 @@ export default function CommandItem({
         ) : null}
 
         {/* Title & Description */}
+        {/* Title, Path & Breadcrumb Metadata */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span
@@ -66,10 +88,31 @@ export default function CommandItem({
               {command.description}
             </p>
           )}
+
+          {/* Subtitle / Path / Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate leading-tight mt-0.5">
+            {command.path && (
+              <span className="font-mono text-[10px] text-slate-400 truncate shrink-0 max-w-[220px]">
+                {command.path}
+              </span>
+            )}
+            {command.path && breadcrumbs && (
+              <span className="text-slate-600 shrink-0">•</span>
+            )}
+            {breadcrumbs && (
+              <span className="text-slate-500 truncate">
+                {breadcrumbs}
+              </span>
+            )}
+            {!command.path && !breadcrumbs && command.description && (
+              <span className="truncate">{command.description}</span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Trailing Shortcut Badge or Enter Icon */}
+      {/* Trailing Shortcut Badge or Select Indicator */}
       <div className="flex items-center gap-1.5 shrink-0">
         {command.shortcut && (
           <kbd

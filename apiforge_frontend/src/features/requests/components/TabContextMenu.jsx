@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, ArrowRightToLine, Layers } from 'lucide-react';
+import { X, ArrowRightToLine, Layers, XCircle, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function TabContextMenu({
@@ -13,6 +13,9 @@ export default function TabContextMenu({
   onCloseTab,
   onCloseOtherTabs,
   onCloseTabsToRight,
+  onCloseAllTabs,
+  onCopyUrl,
+  onOpenInCanvas,
 }) {
   const menuRef = useRef(null);
 
@@ -43,13 +46,13 @@ export default function TabContextMenu({
 
   // Prevent context menu from rendering off-screen
   const adjustedX = Math.min(x, window.innerWidth - 180);
-  const adjustedY = Math.min(y, window.innerHeight - 130);
+  const adjustedY = Math.min(y, window.innerHeight - 200);
 
   return (
     <div
       ref={menuRef}
       style={{ left: `${adjustedX}px`, top: `${adjustedY}px` }}
-      className="fixed z-50 w-44 rounded-md bg-[#12151f] border border-[#272f42] shadow-2xl p-1 text-xs select-none animate-in fade-in duration-75"
+      className="fixed z-50 w-48 rounded-md bg-[#12151f] border border-[#272f42] shadow-2xl p-1 text-xs select-none animate-in fade-in duration-75"
     >
       <button
         type="button"
@@ -97,6 +100,52 @@ export default function TabContextMenu({
         <ArrowRightToLine size={12} className="text-slate-400" />
         <span>Close to Right</span>
       </button>
+
+      {onCloseAllTabs && (
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMenu();
+            onCloseAllTabs();
+          }}
+          className="w-full px-2.5 py-1.5 rounded flex items-center gap-2 text-rose-400 hover:bg-rose-950/30 hover:text-rose-300 transition-colors cursor-pointer"
+        >
+          <XCircle size={12} />
+          <span>Close All</span>
+        </button>
+      )}
+
+      {(onCopyUrl || onOpenInCanvas) && (
+        <div className="h-px bg-[#232732] my-1" />
+      )}
+
+      {onCopyUrl && (
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMenu();
+            onCopyUrl(tab);
+          }}
+          className="w-full px-2.5 py-1.5 rounded flex items-center gap-2 text-slate-200 hover:bg-[#1c2232] hover:text-white transition-colors cursor-pointer"
+        >
+          <LinkIcon size={12} className="text-slate-400" />
+          <span>Copy URL</span>
+        </button>
+      )}
+
+      {onOpenInCanvas && (
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMenu();
+            onOpenInCanvas(tab);
+          }}
+          className="w-full px-2.5 py-1.5 rounded flex items-center gap-2 text-slate-200 hover:bg-[#1c2232] hover:text-white transition-colors cursor-pointer"
+        >
+          <Sparkles size={12} className="text-sky-400" />
+          <span>Open in Canvas</span>
+        </button>
+      )}
     </div>
   );
 }

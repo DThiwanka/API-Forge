@@ -27,7 +27,7 @@ export const useRequestTabStore = create((set, get) => ({
     return tabs.find((t) => t.requestId === activeId) || null;
   },
 
-  openTab: ({ workspaceId, collectionId, requestId, title = 'Untitled Request', method = 'GET', isDirty = false }) => {
+  openTab: ({ workspaceId, collectionId, requestId, title = 'Untitled Request', method = 'GET', url = '', isDirty = false }) => {
     if (!workspaceId || !requestId) return;
 
     set((state) => {
@@ -38,13 +38,14 @@ export const useRequestTabStore = create((set, get) => ({
 
       let nextTabs;
       if (existingIndex >= 0) {
-        // Tab already open: keep existing tab and optionally update metadata if new title/method given
+        // Tab already open: keep existing tab and optionally update metadata if new title/method/url given
         nextTabs = currentTabs.map((t, idx) => {
           if (idx === existingIndex) {
             return {
               ...t,
               title: title !== 'Untitled Request' && title !== 'Loading...' ? title : t.title,
               method: method || t.method,
+              url: url || t.url || '',
               collectionId: collectionId || t.collectionId,
             };
           }
@@ -58,6 +59,7 @@ export const useRequestTabStore = create((set, get) => ({
           workspaceId,
           title: title || 'Untitled Request',
           method: (method || 'GET').toUpperCase(),
+          url: url || '',
           isDirty: Boolean(isDirty),
         };
         nextTabs = [...currentTabs, newTab];
@@ -264,7 +266,7 @@ export const useRequestTabStore = create((set, get) => ({
     });
   },
 
-  updateTabMeta: (workspaceId, requestId, { title, method }) => {
+  updateTabMeta: (workspaceId, requestId, { title, method, url }) => {
     if (!workspaceId || !requestId) return;
 
     set((state) => {
@@ -275,6 +277,7 @@ export const useRequestTabStore = create((set, get) => ({
             ...t,
             title: title || t.title,
             method: method ? method.toUpperCase() : t.method,
+            url: url !== undefined ? url : t.url,
           };
         }
         return t;
@@ -287,6 +290,10 @@ export const useRequestTabStore = create((set, get) => ({
         },
       };
     });
+  },
+
+  closeAllTabs: (workspaceId) => {
+    get().clearWorkspaceTabs(workspaceId);
   },
 
   clearWorkspaceTabs: (workspaceId) => {

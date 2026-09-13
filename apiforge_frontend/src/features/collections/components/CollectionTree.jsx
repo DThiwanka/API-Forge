@@ -6,6 +6,7 @@ import CreateCollectionDialog from './CreateCollectionDialog';
 import LoadingScreen from '../../../components/common/LoadingScreen';
 import ErrorState from '../../../components/common/ErrorState';
 import { useCollectionsQuery } from '../hooks/useCollections';
+import { useWorkspaceQuery } from '../../workspace/hooks/useWorkspace';
 import useCollectionStore from '../store/collectionStore';
 import { cn } from '../../../utils/cn';
 
@@ -17,6 +18,9 @@ export default function CollectionTree({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const searchQuery = useCollectionStore((s) => s.searchQuery);
   const setSearchQuery = useCollectionStore((s) => s.setSearchQuery);
+
+  const { data: workspace } = useWorkspaceQuery(workspaceId);
+  const isViewer = workspace?.role === 'VIEWER';
 
   const {
     data: collections = [],
@@ -156,6 +160,7 @@ export default function CollectionTree({
               collection={col}
               workspaceId={workspaceId}
               activeRequestId={activeRequestId}
+              isViewer={isViewer}
             />
           ))}
       </div>

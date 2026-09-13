@@ -1,8 +1,12 @@
+import { rankCommands, GROUP_SEARCH_ORDER } from './commandRanking.js';
+
 /**
  * Group order priority for Command Center display
  */
 export const GROUP_ORDER = [
   'Recent',
+  'Recent Commands',
+  'Recent Requests',
   'Actions',
   'Navigation',
   'Requests',
@@ -11,44 +15,18 @@ export const GROUP_ORDER = [
   'Workspace',
 ];
 
+export { rankCommands, GROUP_SEARCH_ORDER };
+
 /**
- * Deterministic multi-term search matching for commands, requests, and collections.
- * Every term in the query must match at least one searchable field of the item.
+ * Deterministic multi-term search and ranking for commands, requests, and collections.
+ * Uses rankCommands to filter by matching terms and sort by relevance score.
  *
  * @param {Array} commands - List of command items
  * @param {string} query - Free-text search string
- * @returns {Array} - Filtered commands
+ * @returns {Array} - Ranked and filtered commands
  */
 export function searchCommands(commands, query) {
-  if (!Array.isArray(commands)) return [];
-  if (!query || typeof query !== 'string' || !query.trim()) {
-    return commands;
-  }
-
-  const terms = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(Boolean);
-
-  return commands.filter((cmd) => {
-    // Build combined search index text for this item
-    const searchParts = [
-      cmd.title || '',
-      cmd.description || '',
-      cmd.group || '',
-      cmd.method || '',
-      cmd.path || '',
-      cmd.collectionName || '',
-      cmd.folderName || '',
-      ...(Array.isArray(cmd.keywords) ? cmd.keywords : []),
-    ];
-
-    const targetString = searchParts.join(' ').toLowerCase();
-
-    // Every search term must be present in the item
-    return terms.every((term) => targetString.includes(term));
-  });
+  return rankCommands(commands, query);
 }
 
 /**

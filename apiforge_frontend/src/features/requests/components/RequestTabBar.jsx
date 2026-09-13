@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, X, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import TabContextMenu from './TabContextMenu';
 import { cn } from '../../../utils/cn';
 
@@ -20,13 +20,38 @@ export default function RequestTabBar({
   onCloseTab,
   onCloseOtherTabs,
   onCloseTabsToRight,
+  onCloseAllTabs,
+  onCopyUrl,
+  onOpenInCanvas,
   onNewRequest,
   className,
 }) {
   const [contextMenu, setContextMenu] = useState(null);
+  const [isOverflowOpen, setIsOverflowOpen] = useState(false);
   const scrollContainerRef = useRef(null);
+  const overflowRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    if (!isOverflowOpen) return;
+    const handleClickOutside = (e) => {
+      if (overflowRef.current && !overflowRef.current.contains(e.target)) {
+        setIsOverflowOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsOverflowOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOverflowOpen]);
 
   // Check scroll bounds
   const updateScrollBounds = () => {
@@ -202,6 +227,93 @@ export default function RequestTabBar({
         </button>
       )}
 
+      {/* Tab Overflow Menu Button */}
+      {tabs.length > 0 && (
+        <div className="relative flex items-stretch" ref={overflowRef}>
+          <button
+            type="button"
+            onClick={() => setIsOverflowOpen((prev) => !prev)}
+            className={cn(
+              'px-2 h-full flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-[#161a24] border-l border-[#212634] transition-colors cursor-pointer shrink-0',
+              isOverflowOpen && 'bg-[#161a24] text-white'
+            )}
+            title="Open tabs list"
+            aria-label="Open tabs list"
+          >
+            <ChevronDown size={13} className={cn('transition-transform duration-150', isOverflowOpen && 'rotate-180')} />
+          </button>
+
+          {isOverflowOpen && (
+            <div
+              className="absolute right-0 top-full mt-1 w-64 max-h-80 overflow-y-auto bg-[#14171f] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 text-xs select-none animate-in fade-in zoom-in-95 duration-100"
+            >
+              <div className="px-3 py-1.5 border-b border-[#232732] flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span>OPEN TABS ({tabs.length})</span>
+                {onCloseAllTabs && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOverflowOpen(false);
+                      onCloseAllTabs();
+                    }}
+                    className="text-rose-400 hover:text-rose-300 transition-colors"
+                  >
+                    Close All
+                  </button>
+                )}
+              </div>
+              <div className="py-1">
+                {tabs.map((tab) => {
+                  const isActive = tab.requestId === activeTabId;
+                  const methodColor = METHOD_COLORS[tab.method] || 'text-slate-400';
+                  return (
+                    <div
+                      key={tab.requestId}
+                      onClick={() => {
+                        onSelectTab(tab.requestId);
+                        setIsOverflowOpen(false);
+                      }}
+                      className={cn(
+                        'group flex items-center justify-between px-3 py-1.5 hover:bg-[#1f242e] cursor-pointer transition-colors',
+                        isActive && 'bg-[#181d28] text-sky-400 font-medium'
+                      )}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className={cn('font-mono font-bold text-[10px] shrink-0', methodColor)}>
+                          {tab.method || 'GET'}
+                        </span>
+                        <span className="truncate text-xs text-slate-300 group-hover:text-white">
+                          {tab.title || 'Untitled Request'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {tab.isDirty && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full bg-amber-400"
+                            title="Unsaved changes"
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCloseTab(tab.requestId);
+                          }}
+                          className="p-0.5 rounded text-slate-500 hover:text-white hover:bg-[#28303f] transition-colors"
+                          title="Close tab"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* New Request Button */}
       {onNewRequest && (
         <button
@@ -227,6 +339,9 @@ export default function RequestTabBar({
         onCloseTab={onCloseTab}
         onCloseOtherTabs={onCloseOtherTabs}
         onCloseTabsToRight={onCloseTabsToRight}
+        onCloseAllTabs={onCloseAllTabs}
+        onCopyUrl={onCopyUrl}
+        onOpenInCanvas={onOpenInCanvas}
       />
     </div>
   );

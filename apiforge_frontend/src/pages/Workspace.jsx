@@ -10,6 +10,8 @@ import { useWorkspacesQuery, useCollectionsQuery } from '../features/workspace/h
 import useWorkspaceStore from '../features/workspace/store/workspaceStore';
 import useRequestTabStore from '../features/requests/store/requestTabStore';
 import useRequestStore from '../features/requests/store/requestStore';
+import useCanvasStore from '../features/canvas/store/canvasStore';
+import { toast } from '../stores/toastStore';
 import { Layers, Terminal, Loader2, ArrowRight, MousePointerClick, Plus } from 'lucide-react';
 
 export default function Workspace() {
@@ -174,6 +176,67 @@ export default function Workspace() {
     [tabs, currentWorkspaceId, closeTabsToRight]
   );
 
+  // Close all tabs
+  const handleCloseAllTabs = useCallback(() => {
+    if (tabs.length === 0) return;
+    const reqStore = useRequestStore.getState();
+    const hasDirty = tabs.some((t) => t.isDirty || (t.requestId === reqStore.id && reqStore.isDirty));
+
+    if (hasDirty) {
+      const dirtyTab = tabs.find((t) => t.isDirty || (t.requestId === reqStore.id && reqStore.isDirty));
+      setConfirmCloseTab({
+        ...dirtyTab,
+        title: 'all open tabs with unsaved changes',
+        onConfirmAll: () => {
+          tabs.forEach((t) => reqStore.clearDraft(t.requestId));
+          useRequestTabStore.getState().clearWorkspaceTabs(currentWorkspaceId);
+          navigate(`/workspace/${currentWorkspaceId}`);
+        },
+      });
+      return;
+    }
+
+    tabs.forEach((t) => reqStore.clearDraft(t.requestId));
+    useRequestTabStore.getState().clearWorkspaceTabs(currentWorkspaceId);
+    navigate(`/workspace/${currentWorkspaceId}`);
+  }, [tabs, currentWorkspaceId, navigate]);
+
+  // Tab Copy URL
+  const handleTabCopyUrl = useCallback((tab) => {
+    if (!tab) return;
+    const reqStore = useRequestStore.getState();
+    const urlToCopy = (reqStore.id === tab.requestId ? reqStore.url : tab.url) || '';
+    if (!urlToCopy) {
+      toast.info('No URL configured on this request');
+      return;
+    }
+    navigator.clipboard.writeText(urlToCopy)
+      .then(() => toast.success('Request URL copied to clipboard'))
+      .catch(() => toast.error('Failed to copy URL to clipboard'));
+  }, []);
+
+  // Tab Open in Canvas
+  const handleTabOpenInCanvas = useCallback((tab) => {
+    if (!tab) return;
+    const reqStore = useRequestStore.getState();
+    const reqData = reqStore.id === tab.requestId ? {
+      id: tab.requestId,
+      name: reqStore.name || tab.title,
+      method: reqStore.method || tab.method,
+      url: reqStore.url || tab.url,
+      collectionId: tab.collectionId,
+    } : {
+      id: tab.requestId,
+      name: tab.title,
+      method: tab.method,
+      url: tab.url,
+      collectionId: tab.collectionId,
+    };
+    useCanvasStore.getState().addRequestNode(reqData);
+    toast.success(`Added "${tab.title}" to Canvas`);
+    navigate(`/workspace/${currentWorkspaceId}/canvas`);
+  }, [currentWorkspaceId, navigate]);
+
   // Keyboard shortcuts: Ctrl+W to close active tab, Ctrl+Shift+[/] to cycle tabs
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -248,6 +311,9 @@ export default function Workspace() {
               onCloseTab={handleRequestCloseTab}
               onCloseOtherTabs={handleCloseOtherTabs}
               onCloseTabsToRight={handleCloseTabsToRight}
+              onCloseAllTabs={handleCloseAllTabs}
+              onCopyUrl={handleTabCopyUrl}
+              onOpenInCanvas={handleTabOpenInCanvas}
               onNewRequest={() => setIsNewRequestOpen(true)}
             />
           )}

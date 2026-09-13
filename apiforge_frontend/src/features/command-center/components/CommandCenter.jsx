@@ -137,8 +137,12 @@ export default function CommandCenter({ workspaceId }) {
                     <Terminal size={14} />
                   </div>
                   <p className="font-medium text-slate-300">No matching commands or requests</p>
+                  <p className="font-medium text-slate-300">
+                    {query ? `No commands or resources matching "${query}"` : 'No commands or resources found'}
+                  </p>
                   <p className="text-[11px] text-slate-500 mt-1">
                     Try searching for an HTTP method, request name, or action.
+                    Try searching for a request, collection, folder, or action.
                   </p>
                 </div>
               ) : (

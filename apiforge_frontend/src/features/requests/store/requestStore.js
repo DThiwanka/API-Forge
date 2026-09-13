@@ -164,6 +164,7 @@ export const useRequestStore = create((set, get) => ({
         useRequestTabStore.getState().updateTabMeta(targetWId, request.id, {
           title: draft.name,
           method: draft.method,
+          url: draft.url,
         });
       }
       return;
@@ -197,6 +198,7 @@ export const useRequestStore = create((set, get) => ({
       useRequestTabStore.getState().updateTabMeta(targetWId, request.id, {
         title: request.name,
         method: request.method,
+        url: request.url,
       });
     }
   },
@@ -240,6 +242,10 @@ export const useRequestStore = create((set, get) => ({
   setUrl: (url) => {
     set({ url, isDirty: true });
     get().notifyDirty();
+    const state = get();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url });
+    }
   },
 
   setActiveTab: (activeTab) => set({ activeTab }),

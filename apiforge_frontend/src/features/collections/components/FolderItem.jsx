@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Folder,
   FolderOpen,
@@ -23,14 +24,18 @@ export default function FolderItem({
   allRequests = [],
   workspaceId,
   collectionId,
+  collectionName = 'Collection',
   activeRequestId,
+  isViewer = false,
   depth = 1,
 }) {
+  const navigate = useNavigate();
   const [isNewSubfolderOpen, setIsNewSubfolderOpen] = useState(false);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [contextCoords, setContextCoords] = useState(null);
 
   const expandedFolderIds = useCollectionStore((s) => s.expandedFolderIds);
   const toggleFolder = useCollectionStore((s) => s.toggleFolder);
@@ -57,11 +62,22 @@ export default function FolderItem({
     setIsDeleteOpen(false);
   };
 
+  const handleRunFolder = () => {
+    navigate(`/workspace/${workspaceId}/runner?collectionId=${collectionId}&folderId=${folder.id}`);
+  };
+
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextCoords({ x: e.clientX, y: e.clientY });
+  };
+
   return (
     <>
       <div className="text-xs select-none">
         {/* Folder Header Row */}
         <div
+          onContextMenu={handleContextMenu}
           className="group flex items-center justify-between py-1 px-2 rounded hover:bg-[#181b22] text-slate-300 transition-colors"
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
         >
@@ -85,12 +101,29 @@ export default function FolderItem({
 
           <CollectionContextMenu
             type="folder"
+            isViewer={isViewer}
+            onRunFolder={handleRunFolder}
             onNewFolder={() => setIsNewSubfolderOpen(true)}
             onNewRequest={() => setIsNewRequestOpen(true)}
             onRename={() => setIsRenameOpen(true)}
             onMove={() => setIsMoveOpen(true)}
             onDelete={() => setIsDeleteOpen(true)}
           />
+
+          {contextCoords && (
+            <CollectionContextMenu
+              type="folder"
+              isViewer={isViewer}
+              triggerCoords={contextCoords}
+              onCloseExternal={() => setContextCoords(null)}
+              onRunFolder={handleRunFolder}
+              onNewFolder={() => setIsNewSubfolderOpen(true)}
+              onNewRequest={() => setIsNewRequestOpen(true)}
+              onRename={() => setIsRenameOpen(true)}
+              onMove={() => setIsMoveOpen(true)}
+              onDelete={() => setIsDeleteOpen(true)}
+            />
+          )}
         </div>
 
         {/* Nested Folders & Requests */}
@@ -103,7 +136,9 @@ export default function FolderItem({
                 allRequests={allRequests}
                 workspaceId={workspaceId}
                 collectionId={collectionId}
+                collectionName={collectionName}
                 activeRequestId={activeRequestId}
+                isViewer={isViewer}
                 depth={depth + 1}
               />
             ))}
@@ -114,7 +149,9 @@ export default function FolderItem({
                 request={req}
                 workspaceId={workspaceId}
                 collectionId={collectionId}
+                collectionName={collectionName}
                 activeRequestId={activeRequestId}
+                isViewer={isViewer}
                 depth={depth + 1}
               />
             ))}
