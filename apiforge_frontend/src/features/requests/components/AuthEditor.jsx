@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Eye, EyeOff, Shield } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Eye, EyeOff, Shield, Lock, CheckCircle2 } from 'lucide-react';
 import VariableInput from './VariableInput';
 import { cn } from '../../../utils/cn';
 
@@ -23,6 +23,42 @@ export default function AuthEditor({
   const [showSecret, setShowSecret] = useState(false);
 
   const authType = auth.type || 'none';
+
+  // Compute safe preview that never exposes literal secrets
+  const authPreview = useMemo(() => {
+    switch (authType) {
+      case 'bearer': {
+        const token = auth.bearer?.token?.trim() || '';
+        if (!token) return { target: 'Header', text: 'Authorization: Bearer <empty>' };
+        if (token.startsWith('{{') && token.endsWith('}}')) {
+          return { target: 'Header', text: `Authorization: Bearer ${token}` };
+        }
+        return { target: 'Header', text: 'Authorization: Bearer ••••••••' };
+      }
+      case 'basic': {
+        const user = auth.basic?.username?.trim() || 'user';
+        const pass = auth.basic?.password?.trim() || '';
+        const passDisplay = pass.startsWith('{{') && pass.endsWith('}}') ? pass : '••••••••';
+        return {
+          target: 'Header',
+          text: `Authorization: Basic [base64(${user}:${passDisplay})]`,
+        };
+      }
+      case 'api-key': {
+        const key = auth.apiKey?.key?.trim() || 'api_key';
+        const val = auth.apiKey?.value?.trim() || '';
+        const addTo = auth.apiKey?.addTo || 'header';
+        const valDisplay = val.startsWith('{{') && val.endsWith('}}') ? val : '••••••••';
+
+        if (addTo === 'query') {
+          return { target: 'Query Parameter', text: `?${key}=${valDisplay}` };
+        }
+        return { target: 'Header', text: `${key}: ${valDisplay}` };
+      }
+      default:
+        return null;
+    }
+  }, [authType, auth]);
 
   return (
     <div className={cn('p-4 space-y-4 max-w-2xl', className)}>
@@ -56,7 +92,7 @@ export default function AuthEditor({
       </div>
 
       {authType === 'none' && (
-        <div className="py-8 text-center text-slate-500">
+        <div className="py-8 text-center text-slate-500 border border-dashed border-[#232732] rounded-md bg-[#111318]/50">
           <Shield size={28} className="mx-auto mb-2 opacity-30 text-slate-400" />
           <p className="text-xs">No authorization credentials will be sent with this request.</p>
         </div>
@@ -155,7 +191,7 @@ export default function AuthEditor({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Key
+                Key Name
               </label>
               <div className="bg-[#181b22] border border-[#2b313e] rounded px-3 py-1.5 focus-within:border-sky-500">
                 <VariableInput
@@ -212,6 +248,29 @@ export default function AuthEditor({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Safe Auth Summary Preview Box */}
+      {authPreview && (
+        <div className="bg-[#121620] border border-[#243048] rounded-md p-3 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sky-400 text-xs font-medium">
+              <Lock size={13} />
+              <span>Safe Authorization Preview ({authPreview.target})</span>
+            </div>
+            <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
+              <CheckCircle2 size={12} /> Confidential
+            </span>
+          </div>
+
+          <div className="bg-[#0b0e14] border border-[#1b2333] rounded px-2.5 py-1.5 font-mono text-xs text-sky-200">
+            {authPreview.text}
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-normal">
+            APIForge automatically attaches this credential at request execution. Sensitive tokens and secrets are never exposed in plaintext logs or serialized previews.
+          </p>
         </div>
       )}
     </div>

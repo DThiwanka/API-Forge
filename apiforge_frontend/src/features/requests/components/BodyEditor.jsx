@@ -1,9 +1,10 @@
 import { useMemo, useState, useRef } from 'react';
-import { Plus, Trash2, Wand2, CheckCircle2, AlertCircle, Variable } from 'lucide-react';
+import { Plus, Trash2, Copy, Wand2, CheckCircle2, AlertCircle, Variable, AlertTriangle, ArrowRight } from 'lucide-react';
 import VariableInput from './VariableInput';
 import VariablePicker from '../../environments/components/VariablePicker';
 import VariableSuggestionsDropdown from './VariableSuggestionsDropdown';
 import { useInlineVariableAutocomplete } from '../hooks/useInlineVariableAutocomplete';
+import { findDuplicateKeys } from '../utils/urlUtils';
 import { cn } from '../../../utils/cn';
 
 const BODY_MODES = [
@@ -16,11 +17,14 @@ const BODY_MODES = [
 
 export default function BodyEditor({
   body = { mode: 'none', raw: '', urlencoded: [] },
+  headers = [],
   onModeChange,
   onRawChange,
   onUpdateUrlEncoded,
   onAddUrlEncoded,
+  onDuplicateUrlEncoded,
   onRemoveUrlEncoded,
+  onSetHeaderKeyValue,
   variables = [],
   activeEnvName,
   className,
@@ -45,6 +49,71 @@ export default function BodyEditor({
     onChange: onRawChange,
     variables,
   });
+
+  // Check Content-Type header alignment
+  const contentTypeStatus = useMemo(() => {
+    const ctHeader = (headers || []).find(
+      (h) => (h.key || '').trim().toLowerCase() === 'content-type' && h.enabled !== false
+    );
+    const ctValue = (ctHeader?.value || '').trim().toLowerCase();
+
+    if (mode === 'json') {
+      if (!ctHeader) {
+        return {
+          mismatch: true,
+          expected: 'application/json',
+          message: 'Content-Type header is missing. JSON requests typically require application/json.',
+        };
+      }
+      if (!ctValue.includes('json')) {
+        return {
+          mismatch: true,
+          expected: 'application/json',
+          message: `Content-Type is set to "${ctHeader.value}", but body mode is JSON.`,
+        };
+      }
+    } else if (mode === 'x-www-form-urlencoded') {
+      if (!ctHeader) {
+        return {
+          mismatch: true,
+          expected: 'application/x-www-form-urlencoded',
+          message: 'Content-Type header is missing. Form requests require application/x-www-form-urlencoded.',
+        };
+      }
+      if (!ctValue.includes('urlencoded')) {
+        return {
+          mismatch: true,
+          expected: 'application/x-www-form-urlencoded',
+          message: `Content-Type is set to "${ctHeader.value}", but body mode is Form URL-encoded.`,
+        };
+      }
+    }
+
+    return { mismatch: false };
+  }, [mode, headers]);
+
+  // Duplicate keys in URL-encoded form
+  const duplicateFormKeys = useMemo(() => {
+    return findDuplicateKeys(body.urlencoded, false);
+  }, [body.urlencoded]);
+
+  // Handle switching mode with optional auto-alignment
+  const handleModeSelect = (newMode) => {
+    onModeChange?.(newMode);
+
+    // If switching to json or urlencoded, and no Content-Type header exists at all, auto-set it
+    const hasContentType = (headers || []).some(
+      (h) => (h.key || '').trim().toLowerCase() === 'content-type' && (h.value || '').trim()
+    );
+
+    if (!hasContentType && onSetHeaderKeyValue) {
+      if (newMode === 'json') {
+        onSetHeaderKeyValue('Content-Type', 'application/json');
+      } else if (newMode === 'x-www-form-urlencoded') {
+        onSetHeaderKeyValue('Content-Type', 'application/x-www-form-urlencoded');
+      }
+    }
+  };
 
   // Validate JSON if in JSON mode (supporting {{template}} variables)
   const jsonStatus = useMemo(() => {
@@ -108,7 +177,7 @@ export default function BodyEditor({
             <button
               key={m.id}
               type="button"
-              onClick={() => onModeChange(m.id)}
+              onClick={() => handleModeSelect(m.id)}
               className={cn(
                 'px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer',
                 mode === m.id
@@ -177,6 +246,26 @@ export default function BodyEditor({
         )}
       </div>
 
+      {/* Content-Type Warning / Suggestion Banner */}
+      {contentTypeStatus.mismatch && (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-amber-950/40 border border-amber-800/50 rounded-md text-xs text-amber-300">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+            <span>{contentTypeStatus.message}</span>
+          </div>
+          {onSetHeaderKeyValue && (
+            <button
+              type="button"
+              onClick={() => onSetHeaderKeyValue('Content-Type', contentTypeStatus.expected)}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-900/60 hover:bg-amber-800/80 border border-amber-700/60 text-[11px] font-mono text-amber-200 hover:text-white transition-colors cursor-pointer shrink-0"
+            >
+              <span>Set Header</span>
+              <ArrowRight size={11} />
+            </button>
+          )}
+        </div>
+      )}
+
       {jsonFormatError && (
         <div className="text-[11px] text-rose-400 bg-rose-950/40 border border-rose-800/50 px-2.5 py-1 rounded">
           {jsonFormatError}
@@ -242,66 +331,92 @@ export default function BodyEditor({
                     <th className="w-1/3 px-3 py-2">KEY</th>
                     <th className="w-1/3 px-3 py-2">VALUE</th>
                     <th className="px-3 py-2">DESCRIPTION</th>
-                    <th className="w-10 px-3 py-2 text-center"></th>
+                    <th className="w-16 px-3 py-2 text-center">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1e2330]">
-                  {(body.urlencoded || []).map((item, index) => (
-                    <tr
-                      key={index}
-                      className={cn(
-                        'group hover:bg-[#181b22]/70 transition-colors',
-                        !item.enabled && 'opacity-50'
-                      )}
-                    >
-                      <td className="px-3 py-1.5 text-center">
-                        <input
-                          type="checkbox"
-                          checked={item.enabled !== false}
-                          onChange={(e) => onUpdateUrlEncoded(index, 'enabled', e.target.checked)}
-                          className="rounded border-[#2b313e] bg-[#1c212c] text-sky-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <input
-                          type="text"
-                          value={item.key || ''}
-                          onChange={(e) => onUpdateUrlEncoded(index, 'key', e.target.value)}
-                          placeholder="Key"
-                          className="w-full bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none"
-                        />
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <VariableInput
-                          value={item.value || ''}
-                          onChange={(val) => onUpdateUrlEncoded(index, 'value', val)}
-                          placeholder="Value (e.g. {{token}})"
-                          variables={variables}
-                          activeEnvName={activeEnvName}
-                          pickerButtonTitle="Insert variable into form value..."
-                        />
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <input
-                          type="text"
-                          value={item.description || ''}
-                          onChange={(e) => onUpdateUrlEncoded(index, 'description', e.target.value)}
-                          placeholder="Description"
-                          className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 focus:outline-none"
-                        />
-                      </td>
-                      <td className="px-3 py-1.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => onRemoveUrlEncoded(index)}
-                          title="Remove field"
-                          className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity p-1 cursor-pointer"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {(body.urlencoded || []).map((item, index) => {
+                    const isDup = item.enabled !== false && item.key && duplicateFormKeys.has(item.key);
+                    return (
+                      <tr
+                        key={index}
+                        className={cn(
+                          'group hover:bg-[#181b22]/70 transition-colors',
+                          !item.enabled && 'opacity-50'
+                        )}
+                      >
+                        <td className="px-3 py-1.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={item.enabled !== false}
+                            onChange={(e) => onUpdateUrlEncoded(index, 'enabled', e.target.checked)}
+                            className="rounded border-[#2b313e] bg-[#1c212c] text-sky-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                          />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <div className="relative flex items-center">
+                            <input
+                              type="text"
+                              value={item.key || ''}
+                              onChange={(e) => onUpdateUrlEncoded(index, 'key', e.target.value)}
+                              placeholder="Key"
+                              className={cn(
+                                'w-full bg-transparent font-mono text-xs text-slate-200 placeholder-slate-600 focus:outline-none pr-5',
+                                isDup && 'text-amber-300'
+                              )}
+                            />
+                            {isDup && (
+                              <span
+                                className="absolute right-0 text-amber-400 select-none"
+                                title={`Duplicate form key "${item.key}"`}
+                              >
+                                <AlertTriangle size={12} />
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <VariableInput
+                            value={item.value || ''}
+                            onChange={(val) => onUpdateUrlEncoded(index, 'value', val)}
+                            placeholder="Value (e.g. {{token}})"
+                            variables={variables}
+                            activeEnvName={activeEnvName}
+                            pickerButtonTitle="Insert variable into form value..."
+                          />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <input
+                            type="text"
+                            value={item.description || ''}
+                            onChange={(e) => onUpdateUrlEncoded(index, 'description', e.target.value)}
+                            placeholder="Description"
+                            className="w-full bg-transparent text-xs text-slate-300 placeholder-slate-600 focus:outline-none"
+                          />
+                        </td>
+                        <td className="px-3 py-1.5 text-center">
+                          <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => onDuplicateUrlEncoded?.(index)}
+                              title="Duplicate row"
+                              className="text-slate-500 hover:text-sky-300 p-1 rounded hover:bg-[#202531] transition-colors cursor-pointer"
+                            >
+                              <Copy size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRemoveUrlEncoded(index)}
+                              title="Remove field"
+                              className="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-[#202531] transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

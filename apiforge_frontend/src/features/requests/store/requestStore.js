@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import useRequestTabStore from './requestTabStore.js';
+import { mergeUrlAndQueryParams, syncUrlToQueryParams } from '../utils/urlUtils.js';
 
 function normalizeArray(arr) {
   if (!Array.isArray(arr) || arr.length === 0) {
@@ -175,6 +176,15 @@ export const useRequestStore = create((set, get) => ({
     if (request.settings && !request.settings.extract && request.extract) {
       settingsInput.extract = request.extract;
     }
+    let initialQueryParams = normalizeArray(request.queryParams);
+    const hasParams = initialQueryParams.some((p) => p.key?.trim() || p.value?.trim());
+    if (!hasParams && request.url && request.url.includes('?')) {
+      const fromUrl = syncUrlToQueryParams(request.url);
+      if (fromUrl.some((p) => p.key?.trim() || p.value?.trim())) {
+        initialQueryParams = fromUrl;
+      }
+    }
+
     set({
       id: request.id,
       workspaceId: targetWId,
@@ -183,7 +193,7 @@ export const useRequestStore = create((set, get) => ({
       name: request.name || 'Untitled Request',
       method: (request.method || 'GET').toUpperCase(),
       url: request.url || '',
-      queryParams: normalizeArray(request.queryParams),
+      queryParams: initialQueryParams,
       headers: normalizeArray(request.headers),
       auth: normalizeAuth(request.auth),
       body: normalizeBody(request.body),
@@ -239,10 +249,14 @@ export const useRequestStore = create((set, get) => ({
     }
   },
 
-  setUrl: (url) => {
-    set({ url, isDirty: true });
-    get().notifyDirty();
+  setUrl: (url, syncQueryParams = true) => {
     const state = get();
+    const updates = { url, isDirty: true };
+    if (syncQueryParams) {
+      updates.queryParams = syncUrlToQueryParams(url, state.queryParams);
+    }
+    set(updates);
+    get().notifyDirty();
     if (state.workspaceId && state.id) {
       useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url });
     }
@@ -256,20 +270,30 @@ export const useRequestStore = create((set, get) => ({
 
   // Query Params
   setQueryParams: (queryParams) => {
-    set({ queryParams, isDirty: true });
+    const state = get();
+    const nextUrl = mergeUrlAndQueryParams(state.url, queryParams);
+    set({ queryParams, url: nextUrl, isDirty: true });
     get().notifyDirty();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url: nextUrl });
+    }
   },
 
   updateQueryParam: (index, field, value) => {
-    const list = [...get().queryParams];
+    const state = get();
+    const list = [...state.queryParams];
     if (!list[index]) return;
     list[index] = { ...list[index], [field]: value };
     // Auto-append row if typing on the last empty row
     if (index === list.length - 1 && (list[index].key || list[index].value)) {
       list.push({ key: '', value: '', enabled: true, description: '' });
     }
-    set({ queryParams: list, isDirty: true });
+    const nextUrl = mergeUrlAndQueryParams(state.url, list);
+    set({ queryParams: list, url: nextUrl, isDirty: true });
     get().notifyDirty();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url: nextUrl });
+    }
   },
 
   addQueryParam: () => {
@@ -280,15 +304,54 @@ export const useRequestStore = create((set, get) => ({
     get().notifyDirty();
   },
 
-  removeQueryParam: (index) => {
-    set((state) => {
-      let next = state.queryParams.filter((_, i) => i !== index);
-      if (next.length === 0) {
-        next = [{ key: '', value: '', enabled: true, description: '' }];
-      }
-      return { queryParams: next, isDirty: true };
-    });
+  duplicateQueryParam: (index) => {
+    const state = get();
+    const list = [...state.queryParams];
+    if (!list[index]) return;
+    const clone = { ...list[index] };
+    list.splice(index + 1, 0, clone);
+    const nextUrl = mergeUrlAndQueryParams(state.url, list);
+    set({ queryParams: list, url: nextUrl, isDirty: true });
     get().notifyDirty();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url: nextUrl });
+    }
+  },
+
+  removeQueryParam: (index) => {
+    const state = get();
+    let next = state.queryParams.filter((_, i) => i !== index);
+    if (next.length === 0) {
+      next = [{ key: '', value: '', enabled: true, description: '' }];
+    }
+    const nextUrl = mergeUrlAndQueryParams(state.url, next);
+    set({ queryParams: next, url: nextUrl, isDirty: true });
+    get().notifyDirty();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url: nextUrl });
+    }
+  },
+
+  enableAllQueryParams: (enabled = true) => {
+    const state = get();
+    const list = state.queryParams.map((p) => ({ ...p, enabled: Boolean(enabled) }));
+    const nextUrl = mergeUrlAndQueryParams(state.url, list);
+    set({ queryParams: list, url: nextUrl, isDirty: true });
+    get().notifyDirty();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url: nextUrl });
+    }
+  },
+
+  clearAllQueryParams: () => {
+    const state = get();
+    const list = [{ key: '', value: '', enabled: true, description: '' }];
+    const nextUrl = mergeUrlAndQueryParams(state.url, list);
+    set({ queryParams: list, url: nextUrl, isDirty: true });
+    get().notifyDirty();
+    if (state.workspaceId && state.id) {
+      useRequestTabStore.getState().updateTabMeta(state.workspaceId, state.id, { url: nextUrl });
+    }
   },
 
   // Headers
@@ -317,6 +380,16 @@ export const useRequestStore = create((set, get) => ({
     get().notifyDirty();
   },
 
+  duplicateHeader: (index) => {
+    const state = get();
+    const list = [...state.headers];
+    if (!list[index]) return;
+    const clone = { ...list[index] };
+    list.splice(index + 1, 0, clone);
+    set({ headers: list, isDirty: true });
+    get().notifyDirty();
+  },
+
   removeHeader: (index) => {
     set((state) => {
       let next = state.headers.filter((_, i) => i !== index);
@@ -325,6 +398,51 @@ export const useRequestStore = create((set, get) => ({
       }
       return { headers: next, isDirty: true };
     });
+    get().notifyDirty();
+  },
+
+  enableAllHeaders: (enabled = true) => {
+    set((state) => ({
+      headers: state.headers.map((h) => ({ ...h, enabled: Boolean(enabled) })),
+      isDirty: true,
+    }));
+    get().notifyDirty();
+  },
+
+  clearAllHeaders: () => {
+    set({
+      headers: [{ key: '', value: '', enabled: true, description: '' }],
+      isDirty: true,
+    });
+    get().notifyDirty();
+  },
+
+  setHeaderKeyValue: (key, value) => {
+    const state = get();
+    const list = [...state.headers];
+    const targetKey = key.trim().toLowerCase();
+    const existingIndex = list.findIndex(
+      (h) => (h.key || '').trim().toLowerCase() === targetKey
+    );
+
+    if (existingIndex !== -1) {
+      list[existingIndex] = {
+        ...list[existingIndex],
+        value,
+        enabled: true,
+      };
+    } else {
+      // If last row is empty, replace it, otherwise append
+      const last = list[list.length - 1];
+      if (last && !last.key?.trim() && !last.value?.trim()) {
+        list[list.length - 1] = { key, value, enabled: true, description: '' };
+        list.push({ key: '', value: '', enabled: true, description: '' });
+      } else {
+        list.push({ key, value, enabled: true, description: '' });
+      }
+    }
+
+    set({ headers: list, isDirty: true });
     get().notifyDirty();
   },
 
@@ -398,8 +516,14 @@ export const useRequestStore = create((set, get) => ({
   },
 
   updateBodyUrlEncoded: (index, field, value) => {
-    const list = [...get().body.urlencoded];
-    if (!list[index]) return;
+    let list = [...(get().body.urlencoded || [])];
+    if (!list[index]) {
+      if (index === 0 && list.length === 0) {
+        list = [{ key: '', value: '', enabled: true, description: '' }];
+      } else {
+        return;
+      }
+    }
     list[index] = { ...list[index], [field]: value };
     if (index === list.length - 1 && (list[index].key || list[index].value)) {
       list.push({ key: '', value: '', enabled: true, description: '' });
@@ -422,6 +546,19 @@ export const useRequestStore = create((set, get) => ({
       },
       isDirty: true,
     }));
+    get().notifyDirty();
+  },
+
+  duplicateBodyUrlEncoded: (index) => {
+    const state = get();
+    const list = [...state.body.urlencoded];
+    if (!list[index]) return;
+    const clone = { ...list[index] };
+    list.splice(index + 1, 0, clone);
+    set({
+      body: { ...state.body, urlencoded: list },
+      isDirty: true,
+    });
     get().notifyDirty();
   },
 

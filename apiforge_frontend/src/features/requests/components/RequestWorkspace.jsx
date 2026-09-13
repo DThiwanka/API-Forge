@@ -13,6 +13,7 @@ import RequestSettings from './RequestSettings';
 import TestPanel from '../../testing/components/TestPanel';
 import ResponseInspector from '../../response/components/ResponseInspector';
 import VariableToken from './VariableToken';
+import RequestPreviewModal from './RequestPreviewModal';
 import { useRequestQuery, useUpdateRequestMutation } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
 import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
@@ -20,7 +21,7 @@ import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
 import { useVariableSuggestions, extractVariableNames } from '../hooks/useVariableSuggestions';
 import useRequestStore from '../store/requestStore';
 import useResponseStore from '../../response/store/responseStore';
-import { Loader2, AlertCircle, Globe, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertCircle, Globe, AlertTriangle, Eye } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function RequestWorkspace({ workspaceId: propWId, collectionId: propCId, requestId: propRId }) {
@@ -41,6 +42,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   // Resizable split state (Desktop)
   const [splitPercent, setSplitPercent] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const splitContainerRef = useRef(null);
 
   // Variable suggestions and detection across workspace
@@ -80,9 +82,16 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     updateQueryParam,
     addQueryParam,
     removeQueryParam,
+    duplicateQueryParam,
+    enableAllQueryParams,
+    clearAllQueryParams,
     updateHeader,
     addHeader,
     removeHeader,
+    duplicateHeader,
+    enableAllHeaders,
+    clearAllHeaders,
+    setHeaderKeyValue,
     setAuthType,
     updateAuthBearer,
     updateAuthBasic,
@@ -91,6 +100,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     setBodyRaw,
     updateBodyUrlEncoded,
     addBodyUrlEncoded,
+    duplicateBodyUrlEncoded,
     removeBodyUrlEncoded,
     updateSetting,
     getCleanPayload,
@@ -333,7 +343,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 </span>
               </div>
 
-              {/* Variables Used Status */}
+              {/* Variables Used Status and Preview Button */}
               <div className="flex items-center gap-2 flex-wrap">
                 {undefinedVariables.length > 0 && (
                   <span
@@ -369,6 +379,16 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                     })}
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#181b22] hover:bg-[#222733] border border-[#2b313e] hover:border-sky-500/50 text-[11px] font-medium font-sans text-slate-300 hover:text-white transition-colors cursor-pointer"
+                  title="Preview composed HTTP request before execution"
+                >
+                  <Eye size={12} className="text-sky-400" />
+                  <span>Preview</span>
+                </button>
               </div>
             </div>
           </div>
@@ -393,6 +413,9 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onUpdateParam={updateQueryParam}
                 onAddParam={addQueryParam}
                 onRemoveParam={removeQueryParam}
+                onDuplicateParam={duplicateQueryParam}
+                onEnableAll={enableAllQueryParams}
+                onClearAll={clearAllQueryParams}
                 variables={allVariables}
                 activeEnvName={activeEnv?.name}
               />
@@ -404,6 +427,10 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
                 onUpdateHeader={updateHeader}
                 onAddHeader={addHeader}
                 onRemoveHeader={removeHeader}
+                onDuplicateHeader={duplicateHeader}
+                onEnableAll={enableAllHeaders}
+                onClearAll={clearAllHeaders}
+                onQuickAddHeader={setHeaderKeyValue}
                 variables={allVariables}
                 activeEnvName={activeEnv?.name}
               />
@@ -424,11 +451,14 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
             {activeTab === 'body' && (
               <BodyEditor
                 body={body}
+                headers={headers}
                 onModeChange={setBodyMode}
                 onRawChange={setBodyRaw}
                 onUpdateUrlEncoded={updateBodyUrlEncoded}
                 onAddUrlEncoded={addBodyUrlEncoded}
+                onDuplicateUrlEncoded={duplicateBodyUrlEncoded}
                 onRemoveUrlEncoded={removeBodyUrlEncoded}
+                onSetHeaderKeyValue={setHeaderKeyValue}
                 variables={allVariables}
                 activeEnvName={activeEnv?.name}
               />
@@ -485,6 +515,23 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
           />
         </div>
       </div>
+
+      {/* Composed Request Preview Modal */}
+      <RequestPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        name={name}
+        method={method}
+        url={url}
+        queryParams={queryParams}
+        headers={headers}
+        auth={auth}
+        body={body}
+        allReferencedVariables={allReferencedVariables}
+        knownVariableKeys={knownVariableKeys}
+        activeEnvName={activeEnv?.name}
+        getVariable={getVariable}
+      />
     </div>
   );
 }
