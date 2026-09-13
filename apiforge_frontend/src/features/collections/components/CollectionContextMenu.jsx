@@ -14,11 +14,13 @@ import {
   Share2,
   Sparkles,
   Link as LinkIcon,
+  Info,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function CollectionContextMenu({
   type = 'collection', // 'collection' | 'folder' | 'request'
+  onOverview,
   onRunCollection,
   onRunFolder,
   onNewFolder,
@@ -117,6 +119,16 @@ export default function CollectionContextMenu({
         >
           {type === 'collection' && (
             <>
+              {onOverview && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onOverview)}
+                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#232732] flex items-center gap-2"
+                >
+                  <Info size={13} className="text-sky-400" />
+                  <span>Overview</span>
+                </button>
+              )}
               {onRunCollection && (
                 <button
                   type="button"

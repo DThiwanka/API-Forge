@@ -4,6 +4,73 @@ export const useCollectionStore = create((set) => ({
   expandedCollectionIds: {},
   expandedFolderIds: {},
   searchQuery: '',
+  selectedRequests: {},
+  selectedMethodFilter: 'ALL',
+
+  toggleRequestSelected: (request, collectionId) =>
+    set((state) => {
+      const next = { ...state.selectedRequests };
+      if (next[request.id]) {
+        delete next[request.id];
+      } else {
+        next[request.id] = {
+          id: request.id,
+          collectionId: collectionId || request.collectionId,
+          folderId: request.folderId || null,
+          name: request.name || 'Untitled',
+          method: request.method || 'GET',
+          url: request.url || '',
+        };
+      }
+      return { selectedRequests: next };
+    }),
+
+  selectMultipleRequests: (requestsList = []) =>
+    set((state) => {
+      const next = { ...state.selectedRequests };
+      for (const item of requestsList) {
+        if (item && item.id) {
+          next[item.id] = {
+            id: item.id,
+            collectionId: item.collectionId,
+            folderId: item.folderId || null,
+            name: item.name || 'Untitled',
+            method: item.method || 'GET',
+            url: item.url || '',
+          };
+        }
+      }
+      return { selectedRequests: next };
+    }),
+
+  selectAllVisibleRequests: (requestsList = []) =>
+    set(() => {
+      const next = {};
+      for (const item of requestsList) {
+        if (item && item.id) {
+          next[item.id] = {
+            id: item.id,
+            collectionId: item.collectionId,
+            folderId: item.folderId || null,
+            name: item.name || 'Untitled',
+            method: item.method || 'GET',
+            url: item.url || '',
+          };
+        }
+      }
+      return { selectedRequests: next };
+    }),
+
+  clearSelection: () => set({ selectedRequests: {} }),
+
+  setSelectedMethodFilter: (method) => set({ selectedMethodFilter: method || 'ALL' }),
+
+  resetWorkspaceState: () =>
+    set({
+      selectedRequests: {},
+      selectedMethodFilter: 'ALL',
+      searchQuery: '',
+    }),
 
   toggleCollection: (id) =>
     set((state) => ({

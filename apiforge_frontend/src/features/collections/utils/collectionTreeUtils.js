@@ -116,3 +116,109 @@ export function getAllFolderIds(folders = []) {
   return ids;
 }
 
+/**
+ * Check if a request matches both query and HTTP method filter
+ */
+export function doesRequestMatchFilters(request, query = '', methodFilter = 'ALL') {
+  if (!request) return false;
+  if (methodFilter && methodFilter !== 'ALL') {
+    if ((request.method || '').toUpperCase() !== methodFilter.toUpperCase()) {
+      return false;
+    }
+  }
+  return doesRequestMatch(request, query);
+}
+
+/**
+ * Check if a folder or its descendants match search query and method filter
+ */
+export function doesFolderMatchFilters(folder, allRequests = [], query = '', methodFilter = 'ALL') {
+  if (!folder) return false;
+  const hasMethodFilter = methodFilter && methodFilter !== 'ALL';
+  const hasQuery = Boolean(query && query.trim());
+
+  if (!hasQuery && !hasMethodFilter) return true;
+
+  // 1. Direct requests match
+  const directRequests = allRequests.filter((r) => r.folderId === folder.id);
+  if (directRequests.some((r) => doesRequestMatchFilters(r, query, methodFilter))) {
+    return true;
+  }
+
+  // 2. Nested child folders match
+  if (Array.isArray(folder.children)) {
+    for (const child of folder.children) {
+      if (doesFolderMatchFilters(child, allRequests, query, methodFilter)) {
+        return true;
+      }
+    }
+  }
+
+  // 3. Name match if query provided
+  if (hasQuery && folder.name && folder.name.toLowerCase().includes(query.trim().toLowerCase())) {
+    if (!hasMethodFilter) return true;
+    const hasMatchingMethodDescendant = directRequests.some(
+      (r) => (r.method || '').toUpperCase() === methodFilter.toUpperCase()
+    );
+    if (hasMatchingMethodDescendant) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a collection matches search query and method filter
+ */
+export function doesCollectionMatchFilters(
+  collection,
+  folders = [],
+  requests = [],
+  query = '',
+  methodFilter = 'ALL'
+) {
+  if (!collection) return false;
+  const hasMethodFilter = methodFilter && methodFilter !== 'ALL';
+  const hasQuery = Boolean(query && query.trim());
+
+  if (!hasQuery && !hasMethodFilter) return true;
+
+  // Check folders
+  if (folders.some((f) => doesFolderMatchFilters(f, requests, query, methodFilter))) {
+    return true;
+  }
+
+  // Check requests
+  if (requests.some((r) => doesRequestMatchFilters(r, query, methodFilter))) {
+    return true;
+  }
+
+  // Check collection name / description
+  if (hasQuery) {
+    const q = query.trim().toLowerCase();
+    const nameMatch = Boolean(collection.name && collection.name.toLowerCase().includes(q));
+    const descMatch = Boolean(collection.description && collection.description.toLowerCase().includes(q));
+    if (nameMatch || descMatch) {
+      if (!hasMethodFilter) return true;
+      if (requests.some((r) => (r.method || '').toUpperCase() === methodFilter.toUpperCase())) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Recursively count total requests contained in a folder and all its descendants
+ */
+export function countTotalFolderRequests(folder, allRequests = []) {
+  if (!folder) return 0;
+  let count = allRequests.filter((r) => r.folderId === folder.id).length;
+  if (Array.isArray(folder.children)) {
+    for (const child of folder.children) {
+      count += countTotalFolderRequests(child, allRequests);
+    }
+  }
+  return count;
+}
+
