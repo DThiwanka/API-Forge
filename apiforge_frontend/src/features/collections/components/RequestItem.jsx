@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CollectionContextMenu from './CollectionContextMenu';
 import RenameDialog from './RenameDialog';
@@ -14,6 +14,7 @@ import {
 import useRequestTabStore from '../../requests/store/requestTabStore';
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { toast } from '../../../stores/toastStore';
+import { doesRequestMatch } from '../utils/collectionTreeUtils';
 import { cn } from '../../../utils/cn';
 
 const METHOD_COLORS = {
@@ -34,14 +35,19 @@ export default function RequestItem({
   activeRequestId,
   isViewer = false,
   depth = 1,
+  searchQuery = '',
 }) {
   const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const [isInlineRenaming, setIsInlineRenaming] = useState(false);
+  const [tempName, setTempName] = useState(request.name || '');
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isExportCurlOpen, setIsExportCurlOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [contextCoords, setContextCoords] = useState(null);
 
+  const itemRef = useRef(null);
+  const inputRef = useRef(null);
   const navigate = useNavigate();
   const openTab = useRequestTabStore((s) => s.openTab);
   const addRequestNode = useCanvasStore((s) => s.addRequestNode);
@@ -49,13 +55,52 @@ export default function RequestItem({
   const isActive = activeRequestId === request.id;
   const methodColor = METHOD_COLORS[request.method] || 'text-slate-400';
 
+  // Auto-scroll active request into view
+  useEffect(() => {
+    if (isActive && itemRef.current) {
+      itemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isActive]);
+
+  // Focus and select text when entering inline rename mode
+  useEffect(() => {
+    if (isInlineRenaming && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isInlineRenaming]);
+
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, request.id);
   const deleteMutation = useDeleteRequestMutation(workspaceId, collectionId);
   const duplicateMutation = useDuplicateRequestMutation(workspaceId, collectionId);
 
+  const handleStartRename = () => {
+    setTempName(request.name || '');
+    setIsInlineRenaming(true);
+  };
+
   const handleRename = async (newName) => {
     await updateMutation.mutateAsync({ name: newName });
     toast.success(`Renamed to "${newName}"`);
+  };
+
+  const handleInlineRenameSubmit = async (e) => {
+    e?.preventDefault();
+    const trimmed = tempName.trim();
+    if (!trimmed) {
+      toast.error('Request name cannot be empty');
+      setIsInlineRenaming(false);
+      return;
+    }
+    if (trimmed !== request.name) {
+      try {
+        await updateMutation.mutateAsync({ name: trimmed });
+        toast.success(`Renamed to "${trimmed}"`);
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Failed to rename request');
+      }
+    }
+    setIsInlineRenaming(false);
   };
 
   const handleMove = async (newFolderId) => {
@@ -129,27 +174,60 @@ export default function RequestItem({
     setContextCoords({ x: e.clientX, y: e.clientY });
   };
 
+  // Search visibility filter
+  if (searchQuery && !doesRequestMatch(request, searchQuery)) {
+    return null;
+  }
+
   return (
     <>
       <div
+        ref={itemRef}
+        data-tree-item="request"
+        data-request-id={request.id}
         onContextMenu={handleContextMenu}
         className={cn(
           'group flex items-center justify-between py-1 px-2 rounded transition-colors text-xs select-none cursor-pointer',
           isActive
-            ? 'bg-sky-500/10 text-sky-300 font-medium border-l-2 border-sky-500 -ml-[2px]'
+            ? 'bg-sky-500/15 text-sky-200 font-semibold border-l-2 border-sky-400 -ml-[2px] shadow-xs'
             : 'text-slate-300 hover:bg-[#181b22] hover:text-white'
         )}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
       >
-        <Link
-          to={`/workspace/${workspaceId}/collections/${collectionId}/requests/${request.id}`}
-          className="flex items-center gap-2 flex-1 min-w-0 truncate py-0.5"
-        >
-          <span className={cn('font-mono font-bold text-[10px] w-8 flex-shrink-0', methodColor)}>
-            {request.method}
-          </span>
-          <span className="truncate text-xs">{request.name}</span>
-        </Link>
+        {isInlineRenaming ? (
+          <form onSubmit={handleInlineRenameSubmit} className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
+            <span className={cn('font-mono font-bold text-[10px] w-8 flex-shrink-0', methodColor)}>
+              {request.method}
+            </span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              onBlur={handleInlineRenameSubmit}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.stopPropagation();
+                  setIsInlineRenaming(false);
+                }
+              }}
+              className="bg-[#141720] text-slate-100 text-xs px-1.5 py-0.5 rounded border border-sky-500 w-full focus:outline-none shadow-inner"
+              placeholder="Request Name"
+              aria-label="Request Name"
+            />
+          </form>
+        ) : (
+          <Link
+            to={`/workspace/${workspaceId}/collections/${collectionId}/requests/${request.id}`}
+            className="flex items-center gap-2 flex-1 min-w-0 truncate py-0.5"
+            title={`${request.method} ${request.name}${request.url ? ` (${request.url})` : ''}`}
+          >
+            <span className={cn('font-mono font-bold text-[10px] w-8 flex-shrink-0', methodColor)}>
+              {request.method}
+            </span>
+            <span className="truncate text-xs">{request.name}</span>
+          </Link>
+        )}
 
         {/* Action button menu trigger */}
         <CollectionContextMenu
@@ -163,7 +241,7 @@ export default function RequestItem({
           onOpenInCanvas={handleOpenInCanvas}
           onExportCurl={() => setIsExportCurlOpen(true)}
           onDuplicate={() => setIsDuplicateOpen(true)}
-          onRename={() => setIsRenameOpen(true)}
+          onRename={handleStartRename}
           onMove={() => setIsMoveOpen(true)}
           onDelete={() => setIsDeleteOpen(true)}
         />
@@ -184,7 +262,7 @@ export default function RequestItem({
           onOpenInCanvas={handleOpenInCanvas}
           onExportCurl={() => setIsExportCurlOpen(true)}
           onDuplicate={() => setIsDuplicateOpen(true)}
-          onRename={() => setIsRenameOpen(true)}
+          onRename={handleStartRename}
           onMove={() => setIsMoveOpen(true)}
           onDelete={() => setIsDeleteOpen(true)}
         />
@@ -198,39 +276,50 @@ export default function RequestItem({
         onSave={handleRename}
       />
 
-      <DuplicateRequestDialog
-        isOpen={isDuplicateOpen}
-        onClose={() => setIsDuplicateOpen(false)}
-        request={request}
-        onDuplicate={handleDuplicate}
-      />
+      {isMoveOpen && (
+        <MoveItemDialog
+          isOpen={isMoveOpen}
+          onClose={() => setIsMoveOpen(false)}
+          itemType="request"
+          item={request}
+          workspaceId={workspaceId}
+          collectionId={collectionId}
+          onMove={handleMove}
+        />
+      )}
 
-      <MoveItemDialog
-        isOpen={isMoveOpen}
-        onClose={() => setIsMoveOpen(false)}
-        itemType="request"
-        item={request}
-        workspaceId={workspaceId}
-        collectionId={collectionId}
-        onMove={handleMove}
-      />
+      {isDuplicateOpen && (
+        <DuplicateRequestDialog
+          isOpen={isDuplicateOpen}
+          onClose={() => setIsDuplicateOpen(false)}
+          request={request}
+          onDuplicate={handleDuplicate}
+        />
+      )}
 
-      <ExportDialog
-        isOpen={isExportCurlOpen}
-        onClose={() => setIsExportCurlOpen(false)}
-        workspaceId={workspaceId}
-        requestId={request.id}
-        requestName={request.name}
-        initialTab="curl"
-      />
+      {isExportCurlOpen && (
+        <ExportDialog
+          isOpen={isExportCurlOpen}
+          onClose={() => setIsExportCurlOpen(false)}
+          workspaceId={workspaceId}
+          requestId={request.id}
+          requestName={request.name}
+          initialTab="curl"
+        />
+      )}
 
-      <ConfirmDialog
-        isOpen={isDeleteOpen}
-        onClose={() => setIsDeleteOpen(false)}
-        onConfirm={handleDelete}
-        title="Delete Request"
-        message={`Are you sure you want to delete "${request.name}"? This action cannot be undone.`}
-      />
+      {isDeleteOpen && (
+        <ConfirmDialog
+          isOpen={isDeleteOpen}
+          title={`Delete "${request.name}"?`}
+          message="Are you sure you want to delete this request? This action cannot be undone."
+          confirmLabel="Delete Request"
+          isDestructive
+          onConfirm={handleDelete}
+          onCancel={() => setIsDeleteOpen(false)}
+          isLoading={deleteMutation.isPending}
+        />
+      )}
     </>
   );
 }

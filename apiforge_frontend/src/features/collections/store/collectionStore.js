@@ -55,7 +55,40 @@ export const useCollectionStore = create((set) => ({
       },
     })),
 
+  expandAll: (collectionIds = [], folderIds = []) =>
+    set((state) => {
+      const nextCols = { ...state.expandedCollectionIds };
+      for (const id of collectionIds) {
+        nextCols[id] = true;
+      }
+      const nextFolders = { ...state.expandedFolderIds };
+      for (const id of folderIds) {
+        nextFolders[id] = true;
+      }
+      return { expandedCollectionIds: nextCols, expandedFolderIds: nextFolders };
+    }),
+
+  collapseAll: (collectionIds = []) =>
+    set(() => {
+      const nextCols = {};
+      for (const id of collectionIds) {
+        nextCols[id] = false;
+      }
+      return { expandedCollectionIds: nextCols, expandedFolderIds: {} };
+    }),
+
+  revealAncestors: (collectionId, ancestorFolderIds = []) =>
+    set((state) => {
+      const nextCols = { ...state.expandedCollectionIds, [collectionId]: true };
+      const nextFolders = { ...state.expandedFolderIds };
+      for (const fId of ancestorFolderIds) {
+        nextFolders[fId] = true;
+      }
+      return { expandedCollectionIds: nextCols, expandedFolderIds: nextFolders };
+    }),
+
   setSearchQuery: (searchQuery) => set({ searchQuery }),
+  clearSearch: () => set({ searchQuery: '' }),
 }));
 
 export default useCollectionStore;

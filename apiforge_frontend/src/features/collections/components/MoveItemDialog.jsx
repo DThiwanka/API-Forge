@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Dialog from '../../../components/ui/Dialog';
 import Button from '../../../components/ui/Button';
 import { useFoldersQuery } from '../hooks/useCollections';
+import { getCollection } from '../services/collectionApi';
 
 // Helper to flatten folder tree with indentation for dropdown
 function flattenFolderTree(folders = [], currentFolderId = null, depth = 0) {
@@ -27,12 +29,19 @@ export default function MoveItemDialog({
   item,
   workspaceId,
   collectionId,
+  collectionName,
   onMove,
 }) {
   const currentTargetId = itemType === 'request' ? (item?.folderId || '') : (item?.parentId || '');
   const [selectedFolderId, setSelectedFolderId] = useState(currentTargetId);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const { data: collection } = useQuery({
+    queryKey: ['collection', workspaceId, collectionId],
+    queryFn: () => getCollection(workspaceId, collectionId),
+    enabled: Boolean(workspaceId && collectionId && !collectionName),
+  });
 
   const { data: folders = [] } = useFoldersQuery(workspaceId, collectionId);
   const flatFolders = flattenFolderTree(
@@ -50,10 +59,13 @@ export default function MoveItemDialog({
       onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to move item');
+      setError(err?.response?.data?.message || 'Failed to move item');
     } finally {
       setLoading(false);
     }
   };
+
+  const displayedCollectionName = collectionName || collection?.name || 'Collection';
 
   return (
     <Dialog
@@ -71,11 +83,22 @@ export default function MoveItemDialog({
         <div>
           <label className="block text-xs font-medium text-slate-300 mb-1">
             Destination
+            Collection
+          </label>
+          <div className="w-full bg-[#14171f] border border-[#232732] rounded px-3 py-2 text-xs text-slate-300 select-none">
+            {displayedCollectionName}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-300 mb-1">
+            Destination Folder
           </label>
           <select
             value={selectedFolderId}
             onChange={(e) => setSelectedFolderId(e.target.value)}
             className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+            className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 cursor-pointer"
           >
             <option value="">Collection Root (Top Level)</option>
             {flatFolders.map((f) => (
