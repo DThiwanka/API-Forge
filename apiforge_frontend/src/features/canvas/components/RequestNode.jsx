@@ -1,19 +1,21 @@
 import { memo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Handle, Position } from '@xyflow/react';
 import { ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getMethodStyle } from '../utils/nodeHelpers';
 import useCanvasStore from '../store/canvasStore';
 import useRequestTabStore from '../../requests/store/requestTabStore';
+import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
 
 function RequestNodeComponent({ id, data, selected }) {
-  const navigate = useNavigate();
   const { workspaceId } = useParams();
+  const { openRequest } = useResourceNavigation(workspaceId);
   const searchQuery = useCanvasStore((s) => s.searchQuery);
   const openContextMenu = useCanvasStore((s) => s.openContextMenu);
 
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
+  const activeTabId = useRequestTabStore((s) => s.activeTabByWorkspace[workspaceId]);
 
   const {
     requestId,
@@ -30,6 +32,7 @@ function RequestNodeComponent({ id, data, selected }) {
 
   const matchingTab = tabs.find((t) => t.requestId === requestId);
   const isOpenInTab = Boolean(matchingTab);
+  const isActiveTab = activeTabId === requestId;
   const isDirty = Boolean(matchingTab?.isDirty);
 
   const methodStyle = getMethodStyle(method);
@@ -47,9 +50,12 @@ function RequestNodeComponent({ id, data, selected }) {
   const handleOpenRequest = (e) => {
     e.stopPropagation();
     if (workspaceId && collectionId && requestId) {
-      navigate(
-        `/workspace/${workspaceId}/collections/${collectionId}/requests/${requestId}`
-      );
+      openRequest(requestId, {
+        collectionId,
+        title: name,
+        method,
+        url,
+      });
     }
   };
 
@@ -71,6 +77,8 @@ function RequestNodeComponent({ id, data, selected }) {
         'group relative w-64 rounded-xl bg-[#12141c] border transition-all duration-150 select-none shadow-lg',
         selected
           ? 'border-sky-500 shadow-sky-500/15 ring-2 ring-sky-500/60'
+          : isActiveTab
+          ? 'border-sky-400/80 shadow-sky-400/20 ring-1 ring-sky-400/50'
           : 'border-[#262c3b] hover:border-slate-500 shadow-black/40',
         isMatchedBySearch && 'ring-2 ring-amber-400/90 border-amber-400'
       )}
@@ -110,10 +118,15 @@ function RequestNodeComponent({ id, data, selected }) {
           {/* Open in tab badge */}
           {isOpenInTab && (
             <span
-              className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-sky-950/60 text-sky-400 border border-sky-800/40"
-              title="Currently open in request tab"
+              className={cn(
+                'text-[9px] font-mono font-semibold px-1 py-0.2 rounded border transition-colors',
+                isActiveTab
+                  ? 'bg-sky-500/25 text-sky-300 border-sky-400/60 shadow-[0_0_6px_rgba(56,189,248,0.4)]'
+                  : 'bg-sky-950/60 text-sky-400 border-sky-800/40'
+              )}
+              title={isActiveTab ? 'Active Request in Workspace' : 'Currently open in request tab'}
             >
-              TAB
+              {isActiveTab ? 'ACTIVE' : 'TAB'}
             </span>
           )}
 

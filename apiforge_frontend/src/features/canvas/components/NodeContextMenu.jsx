@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ExternalLink, Maximize2, Link as LinkIcon, Download, Trash2 } from 'lucide-react';
+import { ExternalLink, Maximize2, Link as LinkIcon, Download, Trash2, FolderGit2 } from 'lucide-react';
 import useCanvasStore from '../store/canvasStore';
 import useRequestTabStore from '../../requests/store/requestTabStore';
+import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import ExportDialog from '../../import-export/components/ExportDialog';
 import { toast } from '../../../stores/toastStore';
 
@@ -14,6 +15,7 @@ export default function NodeContextMenu({ onSaveLayout }) {
   const removeNodeFromCanvas = useCanvasStore((s) => s.removeNodeFromCanvas);
   const setFocusNodeId = useCanvasStore((s) => s.setFocusNodeId);
   const openTab = useRequestTabStore((s) => s.openTab);
+  const { revealInCollection } = useResourceNavigation(workspaceId);
 
   const [isExportCurlOpen, setIsExportCurlOpen] = useState(false);
   const [cachedNodeData, setCachedNodeData] = useState(null);
@@ -72,6 +74,17 @@ export default function NodeContextMenu({ onSaveLayout }) {
       navigate(
         `/workspace/${workspaceId}/collections/${collectionId}/requests/${requestId}`
       );
+    }
+  };
+
+  const handleRevealInCollection = () => {
+    closeContextMenu();
+    if (collectionId && requestId) {
+      revealInCollection(requestId, {
+        collectionId,
+        folderIds: data?.folderId ? [data.folderId] : [],
+      });
+      toast.info(`Revealed "${name || 'Request'}" in Collection Tree`);
     }
   };
 
@@ -136,6 +149,15 @@ export default function NodeContextMenu({ onSaveLayout }) {
           >
             <ExternalLink size={13} className="text-emerald-400" />
             <span>Open in Tab</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleRevealInCollection}
+            className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <FolderGit2 size={13} className="text-amber-400" />
+            <span>Reveal in Collection</span>
           </button>
 
           <button

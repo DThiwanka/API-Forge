@@ -11,8 +11,7 @@ import {
   useDeleteRequestMutation,
   useDuplicateRequestMutation,
 } from '../../requests/hooks/useRequest';
-import useRequestTabStore from '../../requests/store/requestTabStore';
-import useCanvasStore from '../../canvas/store/canvasStore';
+import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { toast } from '../../../stores/toastStore';
 import { doesRequestMatch } from '../utils/collectionTreeUtils';
 import { cn } from '../../../utils/cn';
@@ -49,8 +48,6 @@ export default function RequestItem({
   const itemRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
-  const openTab = useRequestTabStore((s) => s.openTab);
-  const addRequestNode = useCanvasStore((s) => s.addRequestNode);
 
   const isActive = activeRequestId === request.id;
   const methodColor = METHOD_COLORS[request.method] || 'text-slate-400';
@@ -108,6 +105,8 @@ export default function RequestItem({
     toast.success('Request moved successfully');
   };
 
+  const { openRequest, openInCanvas } = useResourceNavigation(workspaceId);
+
   const handleDuplicate = async (customName) => {
     const duplicated = await duplicateMutation.mutateAsync();
     if (duplicated?.id) {
@@ -116,16 +115,13 @@ export default function RequestItem({
         duplicated.name = customName;
       }
 
-      openTab({
-        workspaceId,
+      openRequest(duplicated.id, {
         collectionId,
-        requestId: duplicated.id,
         title: duplicated.name || `${request.name} (Copy)`,
         method: duplicated.method || request.method || 'GET',
       });
 
       toast.success(`Duplicated "${request.name}"`);
-      navigate(`/workspace/${workspaceId}/collections/${collectionId}/requests/${duplicated.id}`);
     }
   };
 
@@ -152,20 +148,22 @@ export default function RequestItem({
   };
 
   const handleOpenInNewTab = () => {
-    openTab({
-      workspaceId,
+    openRequest(request.id, {
       collectionId,
-      requestId: request.id,
+      folderId: request.folderId,
       title: request.name,
       method: request.method,
+      url: request.url,
     });
-    navigate(`/workspace/${workspaceId}/collections/${collectionId}/requests/${request.id}`);
   };
 
   const handleOpenInCanvas = () => {
-    addRequestNode(request, collectionName);
-    toast.success(`Added "${request.name}" to Canvas`);
-    navigate(`/workspace/${workspaceId}/canvas`);
+    openInCanvas(request.id, {
+      collectionId,
+      request,
+      collectionName,
+      folderName: request.folderName,
+    });
   };
 
   const handleContextMenu = (e) => {

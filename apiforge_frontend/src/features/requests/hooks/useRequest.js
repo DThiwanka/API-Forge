@@ -7,6 +7,8 @@ import {
   duplicateRequest,
 } from '../services/requestApi';
 import useRequestStore from '../store/requestStore';
+import useRequestTabStore from '../store/requestTabStore';
+import useCanvasStore from '../../canvas/store/canvasStore';
 
 export function useRequestQuery(workspaceId, collectionId, requestId) {
   const loadRequest = useRequestStore((s) => s.loadRequest);
@@ -44,6 +46,23 @@ export function useUpdateRequestMutation(workspaceId, collectionId, requestId) {
       queryClient.invalidateQueries({
         queryKey: ['requests', workspaceId, collectionId],
       });
+
+      // Synchronize open Tab metadata if tab exists
+      if (workspaceId && requestId && updated) {
+        useRequestTabStore.getState().updateTabMeta(workspaceId, requestId, {
+          title: updated.name,
+          method: updated.method,
+          url: updated.url,
+        });
+
+        // Synchronize Canvas Node if node exists on Canvas
+        useCanvasStore.getState().updateNodeData(requestId, {
+          name: updated.name,
+          method: updated.method,
+          url: updated.url,
+          folderId: updated.folderId,
+        });
+      }
     },
   });
 }
@@ -66,10 +85,17 @@ export function useDeleteRequestMutation(workspaceId, collectionId) {
 
   return useMutation({
     mutationFn: (requestId) => deleteRequest(workspaceId, collectionId, requestId),
-    onSuccess: () => {
+    onSuccess: (_, deletedRequestId) => {
       queryClient.invalidateQueries({
         queryKey: ['requests', workspaceId, collectionId],
       });
+
+      // Synchronize Tab Store: close the deleted tab
+      if (workspaceId && deletedRequestId) {
+        useRequestTabStore.getState().closeTab(workspaceId, deletedRequestId);
+        // Synchronize Canvas Store: remove the node
+        useCanvasStore.getState().removeNodeFromCanvas(deletedRequestId);
+      }
     },
   });
 }

@@ -189,6 +189,27 @@ export const useCanvasStore = create((set, get) => ({
     });
   },
 
+  updateNodeData: (nodeId, partialData) => {
+    set((state) => ({
+      nodes: state.nodes.map((node) => {
+        if (node.id === nodeId) {
+          const updatedData = { ...node.data, ...partialData };
+          // If name changed, also update breadcrumb if needed
+          if (partialData.collectionName || partialData.folderName) {
+            const cName = partialData.collectionName || node.data.collectionName || 'Collection';
+            const fName = partialData.folderName !== undefined ? partialData.folderName : node.data.folderName;
+            updatedData.breadcrumb = fName ? `${cName} / ${fName}` : cName;
+          }
+          return {
+            ...node,
+            data: updatedData,
+          };
+        }
+        return node;
+      }),
+    }));
+  },
+
   removeNodeFromCanvas: (nodeId) => {
     const { nodes, edges } = get();
     set({

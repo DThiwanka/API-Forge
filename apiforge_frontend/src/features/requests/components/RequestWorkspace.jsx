@@ -406,6 +406,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
         workspaceId={workspaceId}
         collectionId={collectionId}
         collectionName={collectionName}
+        folderId={useRequestStore.getState().folderId}
         requestId={requestId}
         url={url}
         method={method}
