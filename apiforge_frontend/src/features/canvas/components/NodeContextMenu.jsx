@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ExternalLink, Share2, Link as LinkIcon, Download, Copy, Trash2 } from 'lucide-react';
+import { ExternalLink, Maximize2, Link as LinkIcon, Download, Trash2 } from 'lucide-react';
 import useCanvasStore from '../store/canvasStore';
 import useRequestTabStore from '../../requests/store/requestTabStore';
 import ExportDialog from '../../import-export/components/ExportDialog';
@@ -12,8 +12,7 @@ export default function NodeContextMenu({ onSaveLayout }) {
   const contextMenu = useCanvasStore((s) => s.contextMenu);
   const closeContextMenu = useCanvasStore((s) => s.closeContextMenu);
   const removeNodeFromCanvas = useCanvasStore((s) => s.removeNodeFromCanvas);
-  const nodes = useCanvasStore((s) => s.nodes);
-  const setNodes = useCanvasStore((s) => s.setNodes);
+  const setFocusNodeId = useCanvasStore((s) => s.setFocusNodeId);
   const openTab = useRequestTabStore((s) => s.openTab);
 
   const [isExportCurlOpen, setIsExportCurlOpen] = useState(false);
@@ -76,6 +75,13 @@ export default function NodeContextMenu({ onSaveLayout }) {
     }
   };
 
+  const handleFocusNode = () => {
+    closeContextMenu();
+    if (id) {
+      setFocusNodeId(id);
+    }
+  };
+
   const handleCopyUrl = async () => {
     closeContextMenu();
     if (!url) {
@@ -94,27 +100,6 @@ export default function NodeContextMenu({ onSaveLayout }) {
     setCachedNodeData({ id, ...data });
     closeContextMenu();
     setIsExportCurlOpen(true);
-  };
-
-  const handleDuplicateOnCanvas = () => {
-    closeContextMenu();
-    const sourceNode = nodes.find((n) => n.id === id);
-    if (!sourceNode) return;
-
-    // Create a visual duplicate on canvas
-    const duplicateId = `${id}-dup-${Date.now()}`;
-    const duplicateNode = {
-      ...sourceNode,
-      id: duplicateId,
-      position: {
-        x: sourceNode.position.x + 40,
-        y: sourceNode.position.y + 40,
-      },
-      selected: true,
-    };
-
-    setNodes([...nodes.map((n) => ({ ...n, selected: false })), duplicateNode]);
-    if (onSaveLayout) onSaveLayout();
   };
 
   const handleRemove = () => {
@@ -141,7 +126,7 @@ export default function NodeContextMenu({ onSaveLayout }) {
             className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
           >
             <ExternalLink size={13} className="text-sky-400" />
-            <span>Open in Workspace</span>
+            <span>Open Request</span>
           </button>
 
           <button
@@ -149,16 +134,27 @@ export default function NodeContextMenu({ onSaveLayout }) {
             onClick={handleOpenInNewTab}
             className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <Share2 size={13} className="text-slate-400" />
-            <span>Open in New Tab</span>
+            <ExternalLink size={13} className="text-emerald-400" />
+            <span>Open in Tab</span>
           </button>
+
+          <button
+            type="button"
+            onClick={handleFocusNode}
+            className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
+          >
+            <Maximize2 size={13} className="text-purple-400" />
+            <span>Focus on Canvas</span>
+          </button>
+
+          <div className="my-1 border-t border-[#232732]" />
 
           <button
             type="button"
             onClick={handleCopyUrl}
             className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <LinkIcon size={13} className="text-slate-400" />
+            <LinkIcon size={13} className="text-amber-400" />
             <span>Copy URL</span>
           </button>
 
@@ -167,48 +163,38 @@ export default function NodeContextMenu({ onSaveLayout }) {
             onClick={handleExportCurl}
             className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <Download size={13} className="text-sky-400" />
+            <Download size={13} className="text-indigo-400" />
             <span>Export cURL</span>
           </button>
 
-          <div className="h-px bg-[#232732] my-1" />
-
-          <button
-            type="button"
-            onClick={handleDuplicateOnCanvas}
-            className="w-full px-3 py-1.5 text-left text-slate-200 hover:bg-[#1f242e] hover:text-white flex items-center gap-2 transition-colors cursor-pointer"
-          >
-            <Copy size={13} className="text-slate-400" />
-            <span>Duplicate on Canvas</span>
-          </button>
+          <div className="my-1 border-t border-[#232732]" />
 
           <button
             type="button"
             onClick={handleRemove}
-            className="w-full px-3 py-1.5 text-left text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 flex items-start gap-2 transition-colors cursor-pointer"
+            className="w-full px-3 py-1.5 text-left text-rose-400 hover:bg-rose-950/40 hover:text-rose-300 flex items-center gap-2 transition-colors cursor-pointer"
           >
-            <Trash2 size={13} className="mt-0.5" />
-            <div>
-              <div>Remove from Canvas</div>
-              <div className="text-[10px] text-slate-500">Leaves request in collection</div>
-            </div>
+            <Trash2 size={13} />
+            <span>Remove from Canvas</span>
           </button>
         </div>
       )}
 
-      <ExportDialog
-        isOpen={isExportCurlOpen}
-        onClose={() => {
-          setIsExportCurlOpen(false);
-          setCachedNodeData(null);
-        }}
-        workspaceId={workspaceId}
-        requestId={requestId}
-        requestName={name}
-        defaultCollectionId={collectionId}
-        initialTab="curl"
-      />
+      {/* Export Dialog Modal */}
+      {isExportCurlOpen && cachedNodeData && (
+        <ExportDialog
+          isOpen={isExportCurlOpen}
+          onClose={() => setIsExportCurlOpen(false)}
+          targetType="request"
+          targetData={{
+            id: cachedNodeData.requestId,
+            collectionId: cachedNodeData.collectionId,
+            name: cachedNodeData.name,
+            method: cachedNodeData.method,
+            url: cachedNodeData.url,
+          }}
+        />
+      )}
     </>
   );
 }
-

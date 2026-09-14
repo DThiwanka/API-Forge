@@ -49,7 +49,17 @@ export function getCanvasStorageKey(workspaceId) {
 /**
  * Convert backend request to a React Flow node
  */
-export function requestToNode(request, position = { x: 100, y: 100 }, collectionName = 'Collection') {
+export function requestToNode(
+  request,
+  position = { x: 100, y: 100 },
+  collectionName = 'Collection',
+  folderName = null
+) {
+  const effectiveFolderName = folderName || request.folderName || null;
+  const breadcrumb = effectiveFolderName
+    ? `${collectionName} / ${effectiveFolderName}`
+    : collectionName;
+
   return {
     id: request.id,
     type: 'requestNode',
@@ -61,6 +71,9 @@ export function requestToNode(request, position = { x: 100, y: 100 }, collection
       requestId: request.id,
       collectionId: request.collectionId,
       collectionName: collectionName || 'Collection',
+      folderId: request.folderId || null,
+      folderName: effectiveFolderName,
+      breadcrumb,
       name: request.name || 'Untitled Request',
       method: (request.method || 'GET').toUpperCase(),
       url: request.url || '',
@@ -68,6 +81,52 @@ export function requestToNode(request, position = { x: 100, y: 100 }, collection
       lastDurationMs: request.lastDurationMs || null,
     },
   };
+}
+
+/**
+ * Arrange an arbitrary set of existing canvas nodes into a clean grid
+ * grouped by collection
+ */
+export function arrangeNodesLayout(nodes = [], collections = []) {
+  if (!Array.isArray(nodes) || nodes.length === 0) return [];
+
+  const collectionMap = new Map();
+  collections.forEach((c) => collectionMap.set(c.id, c.name));
+
+  // Group nodes by collectionId
+  const grouped = new Map();
+  nodes.forEach((node) => {
+    const colId = node.data?.collectionId || 'default';
+    const list = grouped.get(colId) || [];
+    list.push(node);
+    grouped.set(colId, list);
+  });
+
+  const colsPerRow = 3;
+  const spacingX = 320;
+  const spacingY = 160;
+  let currentY = 80;
+
+  const arrangedNodes = [];
+
+  for (const [, colNodes] of grouped.entries()) {
+    colNodes.forEach((node, idx) => {
+      const col = idx % colsPerRow;
+      const row = Math.floor(idx / colsPerRow);
+      const x = 80 + col * spacingX;
+      const y = currentY + row * spacingY;
+
+      arrangedNodes.push({
+        ...node,
+        position: { x, y },
+      });
+    });
+
+    const totalRows = Math.ceil(colNodes.length / colsPerRow) || 1;
+    currentY += totalRows * spacingY + 80;
+  }
+
+  return arrangedNodes;
 }
 
 /**
@@ -100,7 +159,7 @@ export function computeDeterministicLayout(requests = [], collections = []) {
       const x = 80 + col * spacingX;
       const y = currentY + row * spacingY;
 
-      nodes.push(requestToNode(req, { x, y }, colName));
+      nodes.push(requestToNode(req, { x, y }, colName, req.folderName));
     });
 
     const totalRows = Math.ceil(reqs.length / colsPerRow) || 1;

@@ -1,15 +1,18 @@
 import { create } from 'zustand';
 import { applyNodeChanges, applyEdgeChanges, addEdge } from '@xyflow/react';
-import { requestToNode } from '../utils/nodeHelpers.js';
+import { requestToNode, arrangeNodesLayout } from '../utils/nodeHelpers.js';
 
 export const useCanvasStore = create((set, get) => ({
   nodes: [],
   edges: [],
   viewport: { x: 0, y: 0, zoom: 1 },
   selectedNodeId: null,
+  focusNodeId: null,
   searchQuery: '',
   isRequestPickerOpen: false,
   contextMenu: { isOpen: false, x: 0, y: 0, node: null },
+  paneContextMenu: { isOpen: false, x: 0, y: 0 },
+  clipboardNodeRefs: [],
 
   onNodesChange: (changes) => {
     set({
@@ -46,6 +49,7 @@ export const useCanvasStore = create((set, get) => ({
   setEdges: (edges) => set({ edges }),
   setViewport: (viewport) => set({ viewport }),
   setSelectedNodeId: (selectedNodeId) => set({ selectedNodeId }),
+  setFocusNodeId: (focusNodeId) => set({ focusNodeId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
 
   openRequestPicker: () => set({ isRequestPickerOpen: true }),
@@ -54,6 +58,7 @@ export const useCanvasStore = create((set, get) => ({
   openContextMenu: ({ x, y, node }) =>
     set({
       contextMenu: { isOpen: true, x, y, node },
+      paneContextMenu: { isOpen: false, x: 0, y: 0 },
     }),
 
   closeContextMenu: () =>
@@ -61,14 +66,89 @@ export const useCanvasStore = create((set, get) => ({
       contextMenu: { isOpen: false, x: 0, y: 0, node: null },
     }),
 
-  addRequestNode: (request, collectionName = 'Collection') => {
-    const existing = get().nodes.find((n) => n.id === request.id);
-    if (existing) {
-      set({ selectedNodeId: existing.id });
-      return existing;
+  openPaneContextMenu: ({ x, y }) =>
+    set({
+      paneContextMenu: { isOpen: true, x, y },
+      contextMenu: { isOpen: false, x: 0, y: 0, node: null },
+    }),
+
+  closePaneContextMenu: () =>
+    set({
+      paneContextMenu: { isOpen: false, x: 0, y: 0 },
+    }),
+
+  selectAllNodes: () => {
+    const { nodes } = get();
+    set({
+      nodes: nodes.map((n) => ({ ...n, selected: true })),
+      selectedNodeId: nodes.length > 0 ? nodes[0].id : null,
+    });
+  },
+
+  clearSelection: () => {
+    const { nodes } = get();
+    set({
+      nodes: nodes.map((n) => ({ ...n, selected: false })),
+      selectedNodeId: null,
+      contextMenu: { isOpen: false, x: 0, y: 0, node: null },
+      paneContextMenu: { isOpen: false, x: 0, y: 0 },
+    });
+  },
+
+  deleteSelectedNodes: () => {
+    const { nodes, edges, selectedNodeId } = get();
+    const toDeleteIds = new Set(
+      nodes.filter((n) => n.selected).map((n) => n.id)
+    );
+    if (selectedNodeId) {
+      toDeleteIds.add(selectedNodeId);
     }
 
-    // Smart placement: find an open position
+    if (toDeleteIds.size === 0) return;
+
+    set({
+      nodes: nodes.filter((n) => !toDeleteIds.has(n.id)),
+      edges: edges.filter(
+        (e) => !toDeleteIds.has(e.source) && !toDeleteIds.has(e.target)
+      ),
+      selectedNodeId: null,
+      contextMenu: { isOpen: false, x: 0, y: 0, node: null },
+      paneContextMenu: { isOpen: false, x: 0, y: 0 },
+    });
+  },
+
+  arrangeNodes: (collections = []) => {
+    const { nodes } = get();
+    if (nodes.length === 0) return;
+    const arranged = arrangeNodesLayout(nodes, collections);
+    set({ nodes: arranged });
+  },
+
+  copySelectedNodeRefs: () => {
+    const { nodes, selectedNodeId } = get();
+    const selected = nodes.filter((n) => n.selected);
+    const ids = selected.length > 0
+      ? selected.map((n) => n.id)
+      : selectedNodeId ? [selectedNodeId] : [];
+    set({ clipboardNodeRefs: ids });
+  },
+
+  addRequestNode: (request, collectionName = 'Collection', folderName = null) => {
+    const existing = get().nodes.find((n) => n.id === request.id);
+    if (existing) {
+      // Duplicate protection: select and focus existing node
+      set({
+        selectedNodeId: existing.id,
+        focusNodeId: existing.id,
+        nodes: get().nodes.map((n) => ({
+          ...n,
+          selected: n.id === existing.id,
+        })),
+      });
+      return { ...existing, isDuplicate: true };
+    }
+
+    // Smart placement: find an open position near existing nodes
     const currentNodes = get().nodes;
     const count = currentNodes.length;
     const colsPerRow = 3;
@@ -77,10 +157,11 @@ export const useCanvasStore = create((set, get) => ({
     const x = 120 + col * 320;
     const y = 100 + row * 160;
 
-    const newNode = requestToNode(request, { x, y }, collectionName);
+    const newNode = requestToNode(request, { x, y }, collectionName, folderName);
     set({
-      nodes: [...currentNodes, newNode],
+      nodes: [...currentNodes.map((n) => ({ ...n, selected: false })), { ...newNode, selected: true }],
       selectedNodeId: newNode.id,
+      focusNodeId: newNode.id,
     });
     return newNode;
   },
@@ -100,7 +181,7 @@ export const useCanvasStore = create((set, get) => ({
       const x = 120 + col * 320;
       const y = 100 + row * 160;
       count += 1;
-      return requestToNode(req, { x, y }, collectionName);
+      return requestToNode(req, { x, y }, collectionName, req.folderName);
     });
 
     set({
@@ -115,6 +196,7 @@ export const useCanvasStore = create((set, get) => ({
       edges: edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
       selectedNodeId: get().selectedNodeId === nodeId ? null : get().selectedNodeId,
       contextMenu: { isOpen: false, x: 0, y: 0, node: null },
+      paneContextMenu: { isOpen: false, x: 0, y: 0 },
     });
   },
 
@@ -129,12 +211,14 @@ export const useCanvasStore = create((set, get) => ({
       nodes: [],
       edges: [],
       selectedNodeId: null,
+      focusNodeId: null,
       searchQuery: '',
       isRequestPickerOpen: false,
       contextMenu: { isOpen: false, x: 0, y: 0, node: null },
+      paneContextMenu: { isOpen: false, x: 0, y: 0 },
+      clipboardNodeRefs: [],
     });
   },
 }));
 
 export default useCanvasStore;
-

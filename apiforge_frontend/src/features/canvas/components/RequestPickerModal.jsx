@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Search, X, Layers, Plus, Check } from 'lucide-react';
 import { getMethodStyle } from '../utils/nodeHelpers';
 import useCanvasStore from '../store/canvasStore';
+import { toast } from '../../../stores/toastStore';
 import { cn } from '../../../utils/cn';
 
 export default function RequestPickerModal({
@@ -163,6 +164,13 @@ function RequestPickerContent({
                         <div
                           key={req.id}
                           onClick={() => {
+                            if (isOnCanvas) {
+                              useCanvasStore.getState().setFocusNodeId(req.id);
+                              useCanvasStore.getState().setSelectedNodeId(req.id);
+                              toast.info(`"${req.name}" is already on the Canvas`);
+                              onClose();
+                              return;
+                            }
                             onSelectRequest(req);
                             onClose();
                           }}

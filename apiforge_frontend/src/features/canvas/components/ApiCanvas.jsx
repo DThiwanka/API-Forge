@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -13,6 +13,8 @@ import CanvasToolbar from './CanvasToolbar';
 import CanvasControls from './CanvasControls';
 import CanvasMiniMap from './CanvasMiniMap';
 import NodeContextMenu from './NodeContextMenu';
+import CanvasPaneContextMenu from './CanvasPaneContextMenu';
+import CanvasSelectionToolbar from './CanvasSelectionToolbar';
 import RequestPickerModal from './RequestPickerModal';
 import useCanvasStore from '../store/canvasStore';
 import useCanvasShortcuts from '../hooks/useCanvasShortcuts';
@@ -25,7 +27,7 @@ const NODE_TYPES = {
 };
 
 function ApiCanvasInternal({ workspaceId }) {
-  const { fitView } = useReactFlow();
+  const { fitView, setCenter } = useReactFlow();
 
   const {
     collections,
@@ -45,26 +47,53 @@ function ApiCanvasInternal({ workspaceId }) {
   const onEdgesChange = useCanvasStore((s) => s.onEdgesChange);
   const onConnect = useCanvasStore((s) => s.onConnect);
   const setSelectedNodeId = useCanvasStore((s) => s.setSelectedNodeId);
+  const focusNodeId = useCanvasStore((s) => s.focusNodeId);
+  const setFocusNodeId = useCanvasStore((s) => s.setFocusNodeId);
   const closeContextMenu = useCanvasStore((s) => s.closeContextMenu);
+  const openPaneContextMenu = useCanvasStore((s) => s.openPaneContextMenu);
+  const closePaneContextMenu = useCanvasStore((s) => s.closePaneContextMenu);
   const isRequestPickerOpen = useCanvasStore((s) => s.isRequestPickerOpen);
   const openRequestPicker = useCanvasStore((s) => s.openRequestPicker);
   const closeRequestPicker = useCanvasStore((s) => s.closeRequestPicker);
 
-  // Keyboard shortcuts (Delete, F, Escape)
-  useCanvasShortcuts({ fitView });
+  // Keyboard shortcuts (Delete, F, Escape, Ctrl+A)
+  useCanvasShortcuts({ fitView, setCenter });
+
+  // Handle focusNodeId navigation
+  useEffect(() => {
+    if (focusNodeId) {
+      const targetNode = nodes.find((n) => n.id === focusNodeId);
+      if (targetNode) {
+        setCenter(targetNode.position.x + 120, targetNode.position.y + 60, {
+          zoom: 1.2,
+          duration: 400,
+        });
+      }
+      setFocusNodeId(null);
+    }
+  }, [focusNodeId, nodes, setCenter, setFocusNodeId]);
 
   const handleNodeClick = useCallback(
     (e, node) => {
       setSelectedNodeId(node.id);
       closeContextMenu();
+      closePaneContextMenu();
     },
-    [setSelectedNodeId, closeContextMenu]
+    [setSelectedNodeId, closeContextMenu, closePaneContextMenu]
   );
 
   const handlePaneClick = useCallback(() => {
-    setSelectedNodeId(null);
     closeContextMenu();
-  }, [setSelectedNodeId, closeContextMenu]);
+    closePaneContextMenu();
+  }, [closeContextMenu, closePaneContextMenu]);
+
+  const handlePaneContextMenu = useCallback(
+    (e) => {
+      e.preventDefault();
+      openPaneContextMenu({ x: e.clientX, y: e.clientY });
+    },
+    [openPaneContextMenu]
+  );
 
   const handleNodeDragStop = useCallback(() => {
     saveLayout();
@@ -109,7 +138,7 @@ function ApiCanvasInternal({ workspaceId }) {
         <button
           type="button"
           onClick={() => refetchRequests()}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium cursor-pointer"
         >
           <RefreshCw size={12} />
           <span>Retry</span>
@@ -122,6 +151,7 @@ function ApiCanvasInternal({ workspaceId }) {
     <div className="relative w-full h-full bg-[#090a0f] select-none overflow-hidden">
       {/* Canvas Toolbar */}
       <CanvasToolbar
+        workspaceId={workspaceId}
         collections={collections}
         onOpenPicker={openRequestPicker}
         onFitView={handleFitView}
@@ -139,17 +169,21 @@ function ApiCanvasInternal({ workspaceId }) {
         onNodeClick={handleNodeClick}
         onNodeDragStop={handleNodeDragStop}
         onPaneClick={handlePaneClick}
+        onPaneContextMenu={handlePaneContextMenu}
         nodeTypes={NODE_TYPES}
         defaultEdgeOptions={defaultEdgeOptions}
         fitView={nodes.length > 0}
         minZoom={0.2}
         maxZoom={2}
+        selectionMode="partial"
+        selectNodesOnDrag={false}
+        elementsSelectable={true}
         proOptions={{ hideAttribution: true }}
         className="bg-[#090a0f]"
       >
         <Background
           variant="dots"
-          gap={18}
+          gap={20}
           size={1}
           color="#1e2330"
           className="bg-[#090a0f]"
@@ -161,8 +195,8 @@ function ApiCanvasInternal({ workspaceId }) {
       {/* Empty Canvas Overlay */}
       {nodes.length === 0 && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-          <div className="pointer-events-auto max-w-md w-full p-6 rounded-xl bg-[#111318]/95 border border-[#232732] shadow-2xl text-center backdrop-blur-xs">
-            <div className="w-12 h-12 rounded-lg bg-[#181b22] border border-[#2b313e] flex items-center justify-center text-sky-400 mx-auto mb-3 shadow-md">
+          <div className="pointer-events-auto max-w-md w-full p-6 rounded-2xl bg-[#111318]/95 border border-[#232732] shadow-2xl text-center backdrop-blur-md">
+            <div className="w-12 h-12 rounded-xl bg-[#181b22] border border-[#2b313e] flex items-center justify-center text-sky-400 mx-auto mb-3 shadow-md">
               <Network size={22} />
             </div>
 
@@ -190,7 +224,7 @@ function ApiCanvasInternal({ workspaceId }) {
                   <button
                     type="button"
                     onClick={openRequestPicker}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs transition-colors shadow-sm cursor-pointer"
                   >
                     <Plus size={13} />
                     <span>Add Request</span>
@@ -200,7 +234,7 @@ function ApiCanvasInternal({ workspaceId }) {
                     <button
                       type="button"
                       onClick={resetToDefaultLayout}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-200 font-medium text-xs transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-200 font-medium text-xs transition-colors cursor-pointer"
                     >
                       <Layers size={13} className="text-sky-400" />
                       <span>Auto-Place All ({allRequests.length})</span>
@@ -213,8 +247,22 @@ function ApiCanvasInternal({ workspaceId }) {
         </div>
       )}
 
+      {/* Floating Multi-Selection Action Toolbar */}
+      <CanvasSelectionToolbar
+        workspaceId={workspaceId}
+        collections={collections}
+        onSaveLayout={saveLayout}
+      />
+
       {/* Right-Click Node Context Menu */}
       <NodeContextMenu onSaveLayout={saveLayout} />
+
+      {/* Right-Click Empty Pane Context Menu */}
+      <CanvasPaneContextMenu
+        onFitView={handleFitView}
+        onSaveLayout={saveLayout}
+        collections={collections}
+      />
 
       {/* Request Picker Modal */}
       <RequestPickerModal
@@ -236,4 +284,3 @@ export default function ApiCanvas({ workspaceId }) {
     </ReactFlowProvider>
   );
 }
-

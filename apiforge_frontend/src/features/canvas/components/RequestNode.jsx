@@ -4,6 +4,7 @@ import { Handle, Position } from '@xyflow/react';
 import { ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getMethodStyle } from '../utils/nodeHelpers';
 import useCanvasStore from '../store/canvasStore';
+import useRequestTabStore from '../../requests/store/requestTabStore';
 import { cn } from '../../../utils/cn';
 
 function RequestNodeComponent({ id, data, selected }) {
@@ -12,10 +13,14 @@ function RequestNodeComponent({ id, data, selected }) {
   const searchQuery = useCanvasStore((s) => s.searchQuery);
   const openContextMenu = useCanvasStore((s) => s.openContextMenu);
 
+  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
+
   const {
     requestId,
     collectionId,
-    collectionName,
+    collectionName = 'Collection',
+    folderName,
+    breadcrumb,
     name,
     method = 'GET',
     url,
@@ -23,13 +28,21 @@ function RequestNodeComponent({ id, data, selected }) {
     lastDurationMs,
   } = data || {};
 
+  const matchingTab = tabs.find((t) => t.requestId === requestId);
+  const isOpenInTab = Boolean(matchingTab);
+  const isDirty = Boolean(matchingTab?.isDirty);
+
   const methodStyle = getMethodStyle(method);
 
+  const effectiveBreadcrumb = breadcrumb || (folderName ? `${collectionName} / ${folderName}` : collectionName);
+
+  const query = (searchQuery || '').trim().toLowerCase();
   const isMatchedBySearch =
-    searchQuery &&
-    ((name && name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (url && url.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (method && method.toLowerCase().includes(searchQuery.toLowerCase())));
+    query.length > 0 &&
+    ((name && name.toLowerCase().includes(query)) ||
+      (url && url.toLowerCase().includes(query)) ||
+      (method && method.toLowerCase().includes(query)) ||
+      (effectiveBreadcrumb && effectiveBreadcrumb.toLowerCase().includes(query)));
 
   const handleOpenRequest = (e) => {
     e.stopPropagation();
@@ -55,11 +68,11 @@ function RequestNodeComponent({ id, data, selected }) {
       onDoubleClick={handleOpenRequest}
       onContextMenu={handleContextMenu}
       className={cn(
-        'group relative w-64 rounded-lg bg-[#14171f] border transition-all duration-150 select-none shadow-lg',
+        'group relative w-64 rounded-xl bg-[#12141c] border transition-all duration-150 select-none shadow-lg',
         selected
-          ? 'border-sky-500 shadow-sky-500/10 ring-1 ring-sky-500'
-          : 'border-[#282e3b] hover:border-slate-500 shadow-black/40',
-        isMatchedBySearch && 'ring-2 ring-amber-400/80 border-amber-400'
+          ? 'border-sky-500 shadow-sky-500/15 ring-2 ring-sky-500/60'
+          : 'border-[#262c3b] hover:border-slate-500 shadow-black/40',
+        isMatchedBySearch && 'ring-2 ring-amber-400/90 border-amber-400'
       )}
     >
       {/* Target Handle (Left) */}
@@ -69,30 +82,50 @@ function RequestNodeComponent({ id, data, selected }) {
         className="!w-2.5 !h-2.5 !bg-[#1c212c] !border !border-slate-500 hover:!bg-sky-400 hover:!border-sky-300 transition-colors"
       />
 
-      {/* Node Header: Method & Collection */}
-      <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between border-b border-[#232732]/70 bg-[#111318]/60 rounded-t-lg">
-        <div className="flex items-center gap-1.5">
+      {/* Node Header: Method, Breadcrumbs, Open / Dirty Indicator */}
+      <div className="px-3 pt-2.5 pb-1.5 flex items-center justify-between border-b border-[#212634] bg-[#151824] rounded-t-xl">
+        <div className="flex items-center gap-1.5 min-w-0">
           <span
             className={cn(
-              'px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase border',
+              'px-1.5 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider uppercase border shrink-0',
               methodStyle.badge
             )}
           >
             {method}
           </span>
-          <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
-            {collectionName}
+          <span className="text-[10px] text-slate-400 truncate max-w-[130px]" title={effectiveBreadcrumb}>
+            {effectiveBreadcrumb}
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={handleOpenRequest}
-          className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-white hover:bg-[#232732] rounded transition-all"
-          title="Open in Request Workspace"
-        >
-          <ExternalLink size={12} />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Dirty indicator */}
+          {isDirty && (
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+              title="Unsaved changes in workspace"
+            />
+          )}
+
+          {/* Open in tab badge */}
+          {isOpenInTab && (
+            <span
+              className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-sky-950/60 text-sky-400 border border-sky-800/40"
+              title="Currently open in request tab"
+            >
+              TAB
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={handleOpenRequest}
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-white hover:bg-[#232732] rounded transition-all"
+            title="Open in Request Workspace"
+          >
+            <ExternalLink size={12} />
+          </button>
+        </div>
       </div>
 
       {/* Node Body: Name & URL */}
@@ -101,16 +134,16 @@ function RequestNodeComponent({ id, data, selected }) {
           {name || 'Untitled Request'}
         </div>
         <div
-          className="text-[11px] font-mono text-slate-400 truncate bg-[#0d0f14] px-1.5 py-0.5 rounded border border-[#1f242e]"
+          className="text-[11px] font-mono text-slate-400 truncate bg-[#0d0f14] px-1.5 py-0.5 rounded border border-[#1d222d]"
           title={url || 'No URL specified'}
         >
           {url || <span className="italic text-slate-600">No URL configured</span>}
         </div>
       </div>
 
-      {/* Node Footer: Optional Status / Timing */}
+      {/* Node Footer: Status & Timing if present */}
       {(lastStatus || lastDurationMs) && (
-        <div className="px-3 py-1 bg-[#0f1117] border-t border-[#232732]/60 rounded-b-lg flex items-center justify-between text-[10px] font-mono">
+        <div className="px-3 py-1 bg-[#0f1118] border-t border-[#202533] rounded-b-xl flex items-center justify-between text-[10px] font-mono">
           {lastStatus && (
             <div className="flex items-center gap-1">
               {lastStatus >= 200 && lastStatus < 300 ? (
@@ -151,4 +184,3 @@ function RequestNodeComponent({ id, data, selected }) {
 
 export const RequestNode = memo(RequestNodeComponent);
 export default RequestNode;
-

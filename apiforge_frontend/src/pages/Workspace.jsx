@@ -6,13 +6,14 @@ import RequestWorkspace from '../features/requests/components/RequestWorkspace';
 import RequestTabBar from '../features/requests/components/RequestTabBar';
 import UnsavedTabDialog from '../features/requests/components/UnsavedTabDialog';
 import CreateRequestDialog from '../features/collections/components/CreateRequestDialog';
-import { useWorkspacesQuery, useCollectionsQuery } from '../features/workspace/hooks/useWorkspace';
+import { useWorkspacesQuery } from '../features/workspace/hooks/useWorkspace';
 import useWorkspaceStore from '../features/workspace/store/workspaceStore';
 import useRequestTabStore from '../features/requests/store/requestTabStore';
 import useRequestStore from '../features/requests/store/requestStore';
 import useCanvasStore from '../features/canvas/store/canvasStore';
 import { toast } from '../stores/toastStore';
-import { Layers, Terminal, Loader2, ArrowRight, MousePointerClick, Plus } from 'lucide-react';
+import { Loader2, Terminal, ArrowRight } from 'lucide-react';
+import WorkspaceHome from './workspace/WorkspaceHome';
 
 export default function Workspace() {
   const { workspaceId: routeWorkspaceId, collectionId, requestId } = useParams();
@@ -31,8 +32,6 @@ export default function Workspace() {
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
 
   const currentWorkspaceId = routeWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
-
-  const { data: collections = [] } = useCollectionsQuery(currentWorkspaceId);
 
   // Tab Store
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[currentWorkspaceId] || []);
@@ -330,48 +329,10 @@ export default function Workspace() {
               requestId={requestId}
             />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none bg-[radial-gradient(#1a1d26_1px,transparent_1px)] [background-size:16px_16px]">
-              <div className="w-12 h-12 rounded-lg bg-[#111318] border border-[#232732] flex items-center justify-center text-sky-400 mb-4 shadow-xl">
-                {collections.length > 0 ? (
-                  <MousePointerClick size={22} />
-                ) : (
-                  <Layers size={22} />
-                )}
-              </div>
-
-              {collections.length > 0 ? (
-                <>
-                  <h2 className="text-base font-semibold text-slate-100 mb-1">
-                    Select a Request
-                  </h2>
-                  <p className="text-xs text-slate-400 max-w-md mb-4 leading-relaxed">
-                    Choose a request from the collection tree on the left to inspect, configure, and execute it, or open multiple requests in tabs.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsNewRequestOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition-colors mb-6 cursor-pointer"
-                  >
-                    <Plus size={13} />
-                    <span>New Request</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-base font-semibold text-slate-100 mb-1">
-                    No Collections Yet
-                  </h2>
-                  <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
-                    Create your first collection in the sidebar to begin organizing folders and API requests.
-                  </p>
-                </>
-              )}
-
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-[#111318] border border-[#232732] text-[11px] text-slate-400 font-mono">
-                <Terminal size={12} className="text-sky-400" />
-                <span>APIForge Shell Active • Multi-Request Tab System Online</span>
-              </div>
-            </div>
+            <WorkspaceHome
+              workspaceId={currentWorkspaceId}
+              onNewRequest={() => setIsNewRequestOpen(true)}
+            />
           )}
         </div>
       </div>
