@@ -14,7 +14,8 @@ import {
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { toast } from '../../../stores/toastStore';
-import { doesRequestMatch } from '../utils/collectionTreeUtils';
+import { doesRequestMatchFilters } from '../utils/collectionTreeUtils';
+import useCollectionStore from '../store/collectionStore';
 import { cn } from '../../../utils/cn';
 
 const METHOD_COLORS = {
@@ -50,6 +51,11 @@ export default function RequestItem({
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const addRequestNode = useCanvasStore((s) => s.addRequestNode);
+
+  const isSelected = Boolean(useCollectionStore((s) => s.selectedRequests[request.id]));
+  const toggleRequestSelected = useCollectionStore((s) => s.toggleRequestSelected);
+  const selectedMethodFilter = useCollectionStore((s) => s.selectedMethodFilter);
+  const hasAnySelection = Object.keys(useCollectionStore((s) => s.selectedRequests)).length > 0;
 
   const isActive = activeRequestId === request.id;
   const methodColor = METHOD_COLORS[request.method] || 'text-slate-400';
@@ -179,8 +185,16 @@ export default function RequestItem({
     setContextCoords({ x: e.clientX, y: e.clientY });
   };
 
-  // Search visibility filter
-  if (searchQuery && !doesRequestMatch(request, searchQuery)) {
+  const handleRowClick = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleRequestSelected(request, collectionId);
+    }
+  };
+
+  // Filter check against query and method filter
+  if (!doesRequestMatchFilters(request, searchQuery, selectedMethodFilter)) {
     return null;
   }
 
@@ -190,15 +204,34 @@ export default function RequestItem({
         ref={itemRef}
         data-tree-item="request"
         data-request-id={request.id}
+        onClick={handleRowClick}
         onContextMenu={handleContextMenu}
         className={cn(
           'group flex items-center justify-between py-1 px-2 rounded transition-colors text-xs select-none cursor-pointer',
-          isActive
+          isSelected
+            ? 'bg-sky-500/20 text-sky-100 ring-1 ring-sky-500/40 font-medium'
+            : isActive
             ? 'bg-sky-500/15 text-sky-200 font-semibold border-l-2 border-sky-400 -ml-[2px] shadow-xs'
             : 'text-slate-300 hover:bg-[#181b22] hover:text-white'
         )}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
       >
+        {/* Selection Checkbox (visible on hover, or always when selected or selection mode active) */}
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => {
+            e.stopPropagation();
+            toggleRequestSelected(request, collectionId);
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            'w-3.5 h-3.5 rounded border border-slate-600 bg-[#181b22] text-sky-500 focus:ring-0 cursor-pointer mr-1.5 shrink-0 transition-opacity',
+            isSelected || hasAnySelection ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}
+          aria-label={`Select request ${request.name}`}
+        />
+
         {isInlineRenaming ? (
           <form onSubmit={handleInlineRenameSubmit} className="flex items-center gap-1.5 flex-1 min-w-0 mr-1">
             <span className={cn('font-mono font-bold text-[10px] w-8 flex-shrink-0', methodColor)}>
@@ -224,6 +257,13 @@ export default function RequestItem({
         ) : (
           <Link
             to={`/workspace/${workspaceId}/collections/${collectionId}/requests/${request.id}`}
+            onClick={(e) => {
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleRequestSelected(request, collectionId);
+              }
+            }}
             className="flex items-center gap-2 flex-1 min-w-0 truncate py-0.5"
             title={`${request.method} ${request.name}${request.url ? ` (${request.url})` : ''}`}
           >

@@ -18,7 +18,7 @@ import {
   useDeleteFolderMutation,
 } from '../hooks/useCollections';
 import { toast } from '../../../stores/toastStore';
-import { doesFolderMatch } from '../utils/collectionTreeUtils';
+import { doesFolderMatchFilters, countTotalFolderRequests } from '../utils/collectionTreeUtils';
 
 export default function FolderItem({
   folder,
@@ -45,15 +45,17 @@ export default function FolderItem({
   const expandedFolderIds = useCollectionStore((s) => s.expandedFolderIds);
   const toggleFolder = useCollectionStore((s) => s.toggleFolder);
   const expandFolder = useCollectionStore((s) => s.expandFolder);
+  const selectedMethodFilter = useCollectionStore((s) => s.selectedMethodFilter);
 
   const isExpanded = Boolean(expandedFolderIds[folder.id]);
 
-  // Folder's direct requests
+  // Folder's direct requests and recursive count
   const folderRequests = allRequests.filter((r) => r.folderId === folder.id);
+  const totalRequestsCount = countTotalFolderRequests(folder, allRequests);
   const childFolders = folder.children || [];
 
-  // Search filtering
-  const matchesSearch = doesFolderMatch(folder, allRequests, searchQuery);
+  // Search & method filtering
+  const matchesSearch = doesFolderMatchFilters(folder, allRequests, searchQuery, selectedMethodFilter);
 
   // Auto-expand if active request is inside
   const hasActiveRequest = folderRequests.some((r) => r.id === activeRequestId);
@@ -84,12 +86,14 @@ export default function FolderItem({
   const updateFolderMutation = useUpdateFolderMutation(workspaceId, collectionId);
   const deleteFolderMutation = useDeleteFolderMutation(workspaceId, collectionId);
 
-  if (searchQuery && !matchesSearch) {
+  const hasFilterActive = Boolean(searchQuery || (selectedMethodFilter && selectedMethodFilter !== 'ALL'));
+
+  if (hasFilterActive && !matchesSearch) {
     return null;
   }
 
-  // If search query is active and matches inside, treat as effectively expanded
-  const effectiveExpanded = searchQuery ? true : isExpanded;
+  // If filter is active and matches inside, treat as effectively expanded
+  const effectiveExpanded = hasFilterActive ? true : isExpanded;
 
   const handleInlineRenameSubmit = async (e) => {
     e?.preventDefault();
@@ -180,9 +184,9 @@ export default function FolderItem({
               )}
               <span className="truncate text-slate-200">{folder.name}</span>
 
-              {folderRequests.length > 0 && (
+              {totalRequestsCount > 0 && (
                 <span className="text-[10px] text-slate-500 font-mono font-normal ml-1">
-                  ({folderRequests.length})
+                  ({totalRequestsCount})
                 </span>
               )}
             </button>
