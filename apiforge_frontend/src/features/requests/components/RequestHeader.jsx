@@ -14,8 +14,7 @@ import {
 } from 'lucide-react';
 import RequestSaveButton from './RequestSaveButton';
 import ExportDialog from '../../import-export/components/ExportDialog';
-import { useToastStore } from '../../../stores/toastStore';
-import { useCanvasStore } from '../../canvas/store/canvasStore';
+import { toast, useToastStore } from '../../../stores/toastStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
 
@@ -110,11 +109,6 @@ export default function RequestHeader({
   const handleOpenInCanvas = () => {
     setIsMenuOpen(false);
     if (!requestId) return;
-    useCanvasStore.getState().addRequestNode({
-      id: requestId,
-      name: name || 'Untitled Request',
-      method: method || 'GET',
-      url: url || '',
     openInCanvas(requestId, {
       collectionId,
       request: {
@@ -128,7 +122,7 @@ export default function RequestHeader({
       collectionName,
       folderName,
     });
-    useToastStore.getState().toast.success(`Added "${name || 'Request'}" to Canvas`);
+    toast.success(`Added "${name || 'Request'}" to Canvas`);
     navigate(`/workspace/${workspaceId}/canvas`);
   };
 
@@ -194,7 +188,6 @@ export default function RequestHeader({
             {folderName && (
               <>
                 <span className="text-slate-600">/</span>
-                <span className="truncate hover:text-slate-300" title={folderName}>
                 <button
                   type="button"
                   onClick={handleRevealBreadcrumb}
@@ -202,7 +195,6 @@ export default function RequestHeader({
                   title={`Click to reveal in collection tree: ${folderName}`}
                 >
                   {folderName}
-                </span>
                 </button>
               </>
             )}
@@ -269,16 +261,6 @@ export default function RequestHeader({
 
       <div className="flex items-center gap-2 shrink-0">
         {requestId && (
-          <button
-            type="button"
-            onClick={() => setIsExportOpen(true)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-sm"
-            title="Export request as cURL command"
-            aria-label="Export request"
-          >
-            <Terminal size={12} className="text-sky-400" />
-            <span className="hidden sm:inline">Export</span>
-          </button>
           <>
             <button
               type="button"

@@ -1,6 +1,5 @@
 import { Layers, Trash2, X, ExternalLink, LayoutGrid } from 'lucide-react';
 import useCanvasStore from '../store/canvasStore';
-import useRequestTabStore from '../../requests/store/requestTabStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { toast } from '../../../stores/toastStore';
 
@@ -9,7 +8,6 @@ export default function CanvasSelectionToolbar({ workspaceId, collections = [], 
   const deleteSelectedNodes = useCanvasStore((s) => s.deleteSelectedNodes);
   const clearSelection = useCanvasStore((s) => s.clearSelection);
   const arrangeNodes = useCanvasStore((s) => s.arrangeNodes);
-  const openTab = useRequestTabStore((s) => s.openTab);
   const { batchOpenRequests } = useResourceNavigation(workspaceId);
 
   const selectedNodes = nodes.filter((n) => n.selected);
@@ -19,21 +17,6 @@ export default function CanvasSelectionToolbar({ workspaceId, collections = [], 
 
   const handleOpenAllInTabs = () => {
     if (!workspaceId) return;
-    let opened = 0;
-    selectedNodes.forEach((node) => {
-      const data = node.data;
-      if (data?.requestId && data?.collectionId) {
-        openTab({
-          workspaceId,
-          collectionId: data.collectionId,
-          requestId: data.requestId,
-          title: data.name,
-          method: data.method,
-          url: data.url,
-        });
-        opened++;
-      }
-    });
     const reqsToOpen = selectedNodes
       .filter((node) => node.data?.requestId && node.data?.collectionId)
       .map((node) => ({
@@ -44,8 +27,8 @@ export default function CanvasSelectionToolbar({ workspaceId, collections = [], 
         url: node.data.url,
       }));
 
-    const opened = batchOpenRequests(reqsToOpen);
-    toast.success(`Opened ${opened} ${opened === 1 ? 'tab' : 'tabs'} in Request Workspace`);
+    const openedCount = batchOpenRequests(reqsToOpen);
+    toast.success(`Opened ${openedCount} ${openedCount === 1 ? 'tab' : 'tabs'} in Request Workspace`);
   };
 
   const handleArrange = () => {

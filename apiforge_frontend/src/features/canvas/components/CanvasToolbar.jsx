@@ -9,6 +9,9 @@ import {
   Layers,
   X,
   ChevronUp,
+  Sparkles,
+  Check,
+  Info,
 } from 'lucide-react';
 import useCanvasStore from '../store/canvasStore';
 import { useEnvironmentsQuery } from '../../environments/hooks/useEnvironments';
@@ -26,25 +29,38 @@ export default function CanvasToolbar({
   const setSearchQuery = useCanvasStore((s) => s.setSearchQuery);
   const setFocusNodeId = useCanvasStore((s) => s.setFocusNodeId);
 
+  // Step 48: Relationships Controls
+  const relationshipFilter = useCanvasStore((s) => s.relationshipFilter);
+  const setRelationshipFilter = useCanvasStore((s) => s.setRelationshipFilter);
+  const inferredTypeFilters = useCanvasStore((s) => s.inferredTypeFilters);
+  const toggleInferredTypeFilter = useCanvasStore((s) => s.toggleInferredTypeFilter);
+  const isLegendOpen = useCanvasStore((s) => s.isLegendOpen);
+  const toggleLegend = useCanvasStore((s) => s.toggleLegend);
+
   const [isColMenuOpen, setIsColMenuOpen] = useState(false);
+  const [isRelMenuOpen, setIsRelMenuOpen] = useState(false);
   const [matchIndex, setMatchIndex] = useState(0);
   const colMenuRef = useRef(null);
+  const relMenuRef = useRef(null);
 
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
   const activeEnv = environments.find((e) => e.isActive);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (colMenuRef.current && !colMenuRef.current.contains(e.target)) {
         setIsColMenuOpen(false);
       }
+      if (relMenuRef.current && !relMenuRef.current.contains(e.target)) {
+        setIsRelMenuOpen(false);
+      }
     }
-    if (isColMenuOpen) {
+    if (isColMenuOpen || isRelMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isColMenuOpen]);
+  }, [isColMenuOpen, isRelMenuOpen]);
 
   // Compute matched nodes
   const matchedNodes = useMemo(() => {
@@ -233,6 +249,145 @@ export default function CanvasToolbar({
             </button>
           </div>
         )}
+
+        <div className="h-4 w-px bg-[#232732] mx-0.5" />
+
+        {/* Relationships Filter Dropdown */}
+        <div className="relative" ref={relMenuRef}>
+          <button
+            type="button"
+            onClick={() => setIsRelMenuOpen(!isRelMenuOpen)}
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors cursor-pointer ${
+              relationshipFilter !== 'none'
+                ? 'bg-[#181b22] text-sky-300 border border-[#2b313e] hover:border-sky-500/50'
+                : 'text-slate-400 hover:text-white hover:bg-[#181b22]'
+            }`}
+            title="Filter and configure API relationships"
+          >
+            <Sparkles size={12} className={relationshipFilter !== 'none' ? 'text-sky-400' : 'text-slate-400'} />
+            <span className="font-medium text-[11px]">Relationships</span>
+            <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-[#0d0f14] border border-[#232732] text-slate-400">
+              {relationshipFilter === 'all'
+                ? 'All'
+                : relationshipFilter === 'explicit'
+                ? 'Explicit'
+                : relationshipFilter === 'inferred'
+                ? 'Inferred'
+                : 'Off'}
+            </span>
+            <ChevronDown size={11} className="text-slate-400" />
+          </button>
+
+          {isRelMenuOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-64 rounded-xl bg-[#111318] border border-[#232732] shadow-2xl p-2.5 z-50 text-xs space-y-2 select-none">
+              <div className="px-1 text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                View Mode
+              </div>
+
+              <div className="space-y-0.5">
+                {[
+                  { id: 'all', label: 'All Relationships', desc: 'Show explicit & inferred links' },
+                  { id: 'explicit', label: 'Explicit Connections', desc: 'Manually connected nodes only' },
+                  { id: 'inferred', label: 'Inferred Dependencies', desc: 'Auto-discovered relationships only' },
+                  { id: 'none', label: 'Hidden', desc: 'Hide all relationship lines' },
+                ].map((mode) => {
+                  const isSelected = relationshipFilter === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setRelationshipFilter(mode.id)}
+                      className={`w-full flex items-start gap-2 px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-sky-950/60 border border-sky-700/50 text-sky-200'
+                          : 'text-slate-300 hover:bg-[#181b22] border border-transparent'
+                      }`}
+                    >
+                      <div className="pt-0.5 shrink-0">
+                        {isSelected ? (
+                          <Check size={12} className="text-sky-400" />
+                        ) : (
+                          <span className="w-3 h-3 block" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-[11px] font-medium leading-none mb-0.5">
+                          {mode.label}
+                        </div>
+                        <div className="text-[10px] text-slate-400 leading-tight">
+                          {mode.desc}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sub-Filters for Inferred Types */}
+              {relationshipFilter !== 'explicit' && relationshipFilter !== 'none' && (
+                <>
+                  <div className="h-px bg-[#212634] my-1" />
+                  <div className="px-1 text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    Inferred Link Types
+                  </div>
+
+                  <div className="space-y-1 px-1">
+                    <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={inferredTypeFilters.resource}
+                        onChange={() => toggleInferredTypeFilter('resource')}
+                        className="rounded border-[#2b313e] bg-[#181b22] text-sky-500 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Shared Resource Paths</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={inferredTypeFilters.variable}
+                        onChange={() => toggleInferredTypeFilter('variable')}
+                        className="rounded border-[#2b313e] bg-[#181b22] text-sky-500 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Variable Dependencies</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer hover:text-white">
+                      <input
+                        type="checkbox"
+                        checked={inferredTypeFilters.auth}
+                        onChange={() => toggleInferredTypeFilter('auth')}
+                        className="rounded border-[#2b313e] bg-[#181b22] text-sky-500 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Auth Token Dependencies</span>
+                    </label>
+                  </div>
+                </>
+              )}
+
+              <div className="h-px bg-[#212634] my-1" />
+
+              {/* Legend Toggle */}
+              <button
+                type="button"
+                onClick={() => toggleLegend()}
+                className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
+                  isLegendOpen
+                    ? 'bg-indigo-950/60 border border-indigo-700/50 text-indigo-200'
+                    : 'text-slate-300 hover:bg-[#181b22] border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <Info size={12} className="text-slate-400" />
+                  <span>Show Visual Legend</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400">
+                  {isLegendOpen ? 'Visible' : 'Hidden'}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="h-4 w-px bg-[#232732] mx-0.5" />
 

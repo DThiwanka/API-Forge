@@ -16,14 +16,22 @@ import NodeContextMenu from './NodeContextMenu';
 import CanvasPaneContextMenu from './CanvasPaneContextMenu';
 import CanvasSelectionToolbar from './CanvasSelectionToolbar';
 import RequestPickerModal from './RequestPickerModal';
+import RelationshipEdge from './RelationshipEdge';
+import CanvasLegend from './CanvasLegend';
+import RelationshipDetailsModal from './RelationshipDetailsModal';
 import useCanvasStore from '../store/canvasStore';
 import useCanvasShortcuts from '../hooks/useCanvasShortcuts';
 import { useCanvas } from '../hooks/useCanvas';
+import { inferRelationships, filterEdges } from '../utils/relationshipAnalyzer';
 import { Network, Plus, Layers, Loader2, RefreshCw } from 'lucide-react';
 
 const NODE_TYPES = {
   requestNode: RequestNode,
   collectionNode: CollectionNode,
+};
+
+const EDGE_TYPES = {
+  relationship: RelationshipEdge,
 };
 
 function ApiCanvasInternal({ workspaceId }) {
@@ -56,6 +64,47 @@ function ApiCanvasInternal({ workspaceId }) {
   const openRequestPicker = useCanvasStore((s) => s.openRequestPicker);
   const closeRequestPicker = useCanvasStore((s) => s.closeRequestPicker);
 
+  // Step 48: API Relationship & Dependency Visualization
+  const relationshipFilter = useCanvasStore((s) => s.relationshipFilter);
+  const inferredTypeFilters = useCanvasStore((s) => s.inferredTypeFilters);
+  const isLegendOpen = useCanvasStore((s) => s.isLegendOpen);
+  const toggleLegend = useCanvasStore((s) => s.toggleLegend);
+  const setSelectedRelationship = useCanvasStore((s) => s.setSelectedRelationship);
+
+  // Infer relationships dynamically from existing canvas nodes
+  const inferredEdges = useMemo(() => {
+    if (relationshipFilter === 'none' || relationshipFilter === 'explicit') {
+      return [];
+    }
+    return inferRelationships(nodes);
+  }, [nodes, relationshipFilter]);
+
+  // Combine explicit edges with inferred edges
+  const combinedEdges = useMemo(() => {
+    const formattedExplicit = (edges || []).map((e) => ({
+      ...e,
+      type: 'relationship',
+      data: {
+        ...e.data,
+        isInferred: false,
+        relationshipType: e.data?.relationshipType || 'EXPLICIT',
+      },
+    }));
+
+    const explicitPairs = new Set(
+      formattedExplicit.map((e) => `${e.source}->${e.target}`)
+    );
+
+    const uniqueInferred = inferredEdges.filter(
+      (e) =>
+        !explicitPairs.has(`${e.source}->${e.target}`) &&
+        !explicitPairs.has(`${e.target}->${e.source}`)
+    );
+
+    const all = [...formattedExplicit, ...uniqueInferred];
+    return filterEdges(all, relationshipFilter, inferredTypeFilters);
+  }, [edges, inferredEdges, relationshipFilter, inferredTypeFilters]);
+
   // Keyboard shortcuts (Delete, F, Escape, Ctrl+A)
   useCanvasShortcuts({ fitView, setCenter });
 
@@ -80,6 +129,13 @@ function ApiCanvasInternal({ workspaceId }) {
       closePaneContextMenu();
     },
     [setSelectedNodeId, closeContextMenu, closePaneContextMenu]
+  );
+
+  const handleEdgeClick = useCallback(
+    (e, edge) => {
+      setSelectedRelationship(edge);
+    },
+    [setSelectedRelationship]
   );
 
   const handlePaneClick = useCallback(() => {
@@ -113,7 +169,7 @@ function ApiCanvasInternal({ workspaceId }) {
 
   const defaultEdgeOptions = useMemo(
     () => ({
-      style: { stroke: '#475569', strokeWidth: 1.5 },
+      style: { stroke: '#38bdf8', strokeWidth: 1.5 },
       animated: false,
     }),
     []
@@ -162,15 +218,17 @@ function ApiCanvasInternal({ workspaceId }) {
       {/* React Flow Viewport */}
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={combinedEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={handleConnectWithSave}
         onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
         onNodeDragStop={handleNodeDragStop}
         onPaneClick={handlePaneClick}
         onPaneContextMenu={handlePaneContextMenu}
         nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
         defaultEdgeOptions={defaultEdgeOptions}
         fitView={nodes.length > 0}
         minZoom={0.2}
@@ -273,6 +331,12 @@ function ApiCanvasInternal({ workspaceId }) {
         onSelectRequest={addRequest}
         onAddCollection={addCollection}
       />
+
+      {/* Visual Relationship Legend */}
+      <CanvasLegend isOpen={isLegendOpen} onClose={toggleLegend} />
+
+      {/* Relationship Details Inspector Modal */}
+      <RelationshipDetailsModal onSaveLayout={saveLayout} />
     </div>
   );
 }

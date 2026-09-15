@@ -14,6 +14,65 @@ export const useCanvasStore = create((set, get) => ({
   paneContextMenu: { isOpen: false, x: 0, y: 0 },
   clipboardNodeRefs: [],
 
+  // Step 48: Relationship & Dependency Visualization
+  relationshipFilter: 'all', // 'all' | 'explicit' | 'inferred' | 'none'
+  inferredTypeFilters: { resource: true, variable: true, auth: true },
+  isLegendOpen: false,
+  selectedRelationship: null,
+
+  setRelationshipFilter: (relationshipFilter) => set({ relationshipFilter }),
+  toggleInferredTypeFilter: (type) =>
+    set((state) => ({
+      inferredTypeFilters: {
+        ...state.inferredTypeFilters,
+        [type]: !state.inferredTypeFilters[type],
+      },
+    })),
+  toggleLegend: () => set((state) => ({ isLegendOpen: !state.isLegendOpen })),
+  setIsLegendOpen: (isLegendOpen) => set({ isLegendOpen }),
+  setSelectedRelationship: (selectedRelationship) => set({ selectedRelationship }),
+
+  promoteInferredToExplicit: (inferredEdgeId) => {
+    const { edges, selectedRelationship } = get();
+    // If selectedRelationship is currently open and matches
+    const rel = selectedRelationship && selectedRelationship.id === inferredEdgeId
+      ? selectedRelationship
+      : null;
+
+    if (!rel) {
+      set({ selectedRelationship: null });
+      return;
+    }
+
+    const explicitId = `e-${rel.source}-${rel.target}`;
+    // Check if edge already exists
+    if (!edges.some((e) => e.id === explicitId || (e.source === rel.source && e.target === rel.target))) {
+      const newEdge = {
+        id: explicitId,
+        source: rel.source,
+        target: rel.target,
+        type: 'relationship',
+        animated: false,
+        style: { stroke: '#38bdf8', strokeWidth: 1.5 },
+        data: {
+          isInferred: false,
+          relationshipType: rel.data?.relationshipType || 'EXPLICIT',
+          label: rel.data?.label || '',
+          sourceName: rel.data?.sourceName,
+          targetName: rel.data?.targetName,
+          sourceMethod: rel.data?.sourceMethod,
+          targetMethod: rel.data?.targetMethod,
+        },
+      };
+      set({
+        edges: [...edges, newEdge],
+        selectedRelationship: null,
+      });
+    } else {
+      set({ selectedRelationship: null });
+    }
+  },
+
   onNodesChange: (changes) => {
     set({
       nodes: applyNodeChanges(changes, get().nodes),
@@ -37,8 +96,13 @@ export const useCanvasStore = create((set, get) => ({
         {
           ...connection,
           id: `e-${connection.source}-${connection.target}`,
+          type: 'relationship',
           animated: false,
-          style: { stroke: '#475569', strokeWidth: 1.5 },
+          style: { stroke: '#38bdf8', strokeWidth: 1.5 },
+          data: {
+            isInferred: false,
+            relationshipType: 'EXPLICIT',
+          },
         },
         get().edges
       ),
@@ -238,6 +302,7 @@ export const useCanvasStore = create((set, get) => ({
       contextMenu: { isOpen: false, x: 0, y: 0, node: null },
       paneContextMenu: { isOpen: false, x: 0, y: 0 },
       clipboardNodeRefs: [],
+      selectedRelationship: null,
     });
   },
 }));

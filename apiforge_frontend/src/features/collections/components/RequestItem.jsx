@@ -11,7 +11,6 @@ import {
   useDeleteRequestMutation,
   useDuplicateRequestMutation,
 } from '../../requests/hooks/useRequest';
-import useRequestTabStore from '../../requests/store/requestTabStore';
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { toast } from '../../../stores/toastStore';
@@ -50,7 +49,6 @@ export default function RequestItem({
   const itemRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
-  const openTab = useRequestTabStore((s) => s.openTab);
   const addRequestNode = useCanvasStore((s) => s.addRequestNode);
 
   const isActive = activeRequestId === request.id;
@@ -119,11 +117,8 @@ export default function RequestItem({
         duplicated.name = customName;
       }
 
-      openTab({
-        workspaceId,
       openRequest(duplicated.id, {
         collectionId,
-        requestId: duplicated.id,
         title: duplicated.name || `${request.name} (Copy)`,
         method: duplicated.method || request.method || 'GET',
       });
@@ -156,11 +151,8 @@ export default function RequestItem({
   };
 
   const handleOpenInNewTab = () => {
-    openTab({
-      workspaceId,
     openRequest(request.id, {
       collectionId,
-      requestId: request.id,
       folderId: request.folderId,
       title: request.name,
       method: request.method,

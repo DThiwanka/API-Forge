@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ExternalLink, Maximize2, Link as LinkIcon, Download, Trash2 } from 'lucide-react';
 import { ExternalLink, Maximize2, Link as LinkIcon, Download, Trash2, FolderGit2 } from 'lucide-react';
 import useCanvasStore from '../store/canvasStore';
 import useRequestTabStore from '../../requests/store/requestTabStore';

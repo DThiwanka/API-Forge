@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useParams } from 'react-router-dom';
 import { Handle, Position } from '@xyflow/react';
 import { ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getMethodStyle } from '../utils/nodeHelpers';
@@ -15,6 +14,9 @@ function RequestNodeComponent({ id, data, selected }) {
   const { openRequest } = useResourceNavigation(workspaceId);
   const searchQuery = useCanvasStore((s) => s.searchQuery);
   const openContextMenu = useCanvasStore((s) => s.openContextMenu);
+  const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
+  const edges = useCanvasStore((s) => s.edges);
+  const selectedRelationship = useCanvasStore((s) => s.selectedRelationship);
 
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
   const activeTabId = useRequestTabStore((s) => s.activeTabByWorkspace[workspaceId]);
@@ -49,6 +51,20 @@ function RequestNodeComponent({ id, data, selected }) {
       (method && method.toLowerCase().includes(query)) ||
       (effectiveBreadcrumb && effectiveBreadcrumb.toLowerCase().includes(query)));
 
+  // Relationship Highlighting / Dimming
+  const isAnotherNodeSelected = Boolean(selectedNodeId && selectedNodeId !== id);
+  const isConnectedToSelected =
+    isAnotherNodeSelected &&
+    (edges.some(
+      (e) =>
+        (e.source === id && e.target === selectedNodeId) ||
+        (e.source === selectedNodeId && e.target === id)
+    ) ||
+      (selectedRelationship &&
+        (selectedRelationship.source === id || selectedRelationship.target === id)));
+
+  const isDimmed = isAnotherNodeSelected && !isConnectedToSelected;
+
   const handleOpenRequest = (e) => {
     e.stopPropagation();
     if (workspaceId && collectionId && requestId) {
@@ -81,11 +97,14 @@ function RequestNodeComponent({ id, data, selected }) {
       className={cn(
         'group relative w-64 rounded-xl bg-[#12141c] border transition-all duration-150 select-none shadow-lg',
         selected
-          ? 'border-sky-500 shadow-sky-500/15 ring-2 ring-sky-500/60'
+          ? 'border-sky-500 shadow-sky-500/15 ring-2 ring-sky-500/60 z-10'
+          : isConnectedToSelected
+          ? 'border-sky-400/80 shadow-sky-400/10 ring-1 ring-sky-400/50 z-10'
           : isActiveTab
           ? 'border-sky-400/80 shadow-sky-400/20 ring-1 ring-sky-400/50'
           : 'border-[#262c3b] hover:border-slate-500 shadow-black/40',
-        isMatchedBySearch && 'ring-2 ring-amber-400/90 border-amber-400'
+        isMatchedBySearch && 'ring-2 ring-amber-400/90 border-amber-400',
+        isDimmed && 'opacity-35 hover:opacity-100'
       )}
     >
       {/* Target Handle (Left) */}
@@ -123,8 +142,6 @@ function RequestNodeComponent({ id, data, selected }) {
           {/* Open in tab badge */}
           {isOpenInTab && (
             <span
-              className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-sky-950/60 text-sky-400 border border-sky-800/40"
-              title="Currently open in request tab"
               className={cn(
                 'text-[9px] font-mono font-semibold px-1 py-0.2 rounded border transition-colors',
                 isActiveTab
@@ -133,7 +150,6 @@ function RequestNodeComponent({ id, data, selected }) {
               )}
               title={isActiveTab ? 'Active Request in Workspace' : 'Currently open in request tab'}
             >
-              TAB
               {isActiveTab ? 'ACTIVE' : 'TAB'}
             </span>
           )}

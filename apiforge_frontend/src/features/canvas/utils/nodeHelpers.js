@@ -79,6 +79,12 @@ export function requestToNode(
       url: request.url || '',
       lastStatus: request.lastStatus || null,
       lastDurationMs: request.lastDurationMs || null,
+      headers: request.headers || [],
+      params: request.params || [],
+      auth: request.auth || null,
+      body: request.body || null,
+      settings: request.settings || null,
+      extract: request.extract || null,
     },
   };
 }
