@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Edit2,
   Check,
@@ -14,6 +15,7 @@ import {
 import RequestSaveButton from './RequestSaveButton';
 import ExportDialog from '../../import-export/components/ExportDialog';
 import { useToastStore } from '../../../stores/toastStore';
+import { useCanvasStore } from '../../canvas/store/canvasStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
 
@@ -36,6 +38,7 @@ export default function RequestHeader({
   onDelete,
   className,
 }) {
+  const navigate = useNavigate();
   const { revealInCollection, openInCanvas } = useResourceNavigation(workspaceId);
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(name || '');
@@ -107,6 +110,11 @@ export default function RequestHeader({
   const handleOpenInCanvas = () => {
     setIsMenuOpen(false);
     if (!requestId) return;
+    useCanvasStore.getState().addRequestNode({
+      id: requestId,
+      name: name || 'Untitled Request',
+      method: method || 'GET',
+      url: url || '',
     openInCanvas(requestId, {
       collectionId,
       request: {
@@ -120,6 +128,8 @@ export default function RequestHeader({
       collectionName,
       folderName,
     });
+    useToastStore.getState().toast.success(`Added "${name || 'Request'}" to Canvas`);
+    navigate(`/workspace/${workspaceId}/canvas`);
   };
 
   const handleDuplicate = () => {
@@ -152,6 +162,7 @@ export default function RequestHeader({
       )}
     >
       <div className="flex items-center gap-2 flex-1 min-w-0 mr-4">
+        {/* Breadcrumb Context */}
         {/* Breadcrumb Context with Instant Reveal */}
         {collectionName && (
           <nav
@@ -159,6 +170,19 @@ export default function RequestHeader({
             className="flex items-center gap-1.5 text-xs text-slate-400 max-w-[280px] truncate shrink-0"
           >
             <FolderGit2 size={13} className="text-sky-400 shrink-0" />
+            {workspaceId && collectionId ? (
+              <Link
+                to={`/workspace/${workspaceId}/collections/${collectionId}`}
+                className="truncate hover:text-sky-300 font-medium transition-colors"
+                title={`Go to collection ${collectionName}`}
+              >
+                {collectionName}
+              </Link>
+            ) : (
+              <span className="truncate hover:text-slate-300 font-medium" title={collectionName}>
+                {collectionName}
+              </span>
+            )}
             <button
               type="button"
               onClick={handleRevealBreadcrumb}
@@ -170,6 +194,7 @@ export default function RequestHeader({
             {folderName && (
               <>
                 <span className="text-slate-600">/</span>
+                <span className="truncate hover:text-slate-300" title={folderName}>
                 <button
                   type="button"
                   onClick={handleRevealBreadcrumb}
@@ -177,6 +202,7 @@ export default function RequestHeader({
                   title={`Click to reveal in collection tree: ${folderName}`}
                 >
                   {folderName}
+                </span>
                 </button>
               </>
             )}
@@ -243,6 +269,16 @@ export default function RequestHeader({
 
       <div className="flex items-center gap-2 shrink-0">
         {requestId && (
+          <button
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer shadow-sm"
+            title="Export request as cURL command"
+            aria-label="Export request"
+          >
+            <Terminal size={12} className="text-sky-400" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
           <>
             <button
               type="button"

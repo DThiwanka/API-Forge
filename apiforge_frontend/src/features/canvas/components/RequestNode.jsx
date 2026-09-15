@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import { Handle, Position } from '@xyflow/react';
 import { ExternalLink, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -9,6 +10,7 @@ import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
 
 function RequestNodeComponent({ id, data, selected }) {
+  const navigate = useNavigate();
   const { workspaceId } = useParams();
   const { openRequest } = useResourceNavigation(workspaceId);
   const searchQuery = useCanvasStore((s) => s.searchQuery);
@@ -50,6 +52,9 @@ function RequestNodeComponent({ id, data, selected }) {
   const handleOpenRequest = (e) => {
     e.stopPropagation();
     if (workspaceId && collectionId && requestId) {
+      navigate(
+        `/workspace/${workspaceId}/collections/${collectionId}/requests/${requestId}`
+      );
       openRequest(requestId, {
         collectionId,
         title: name,
@@ -118,6 +123,8 @@ function RequestNodeComponent({ id, data, selected }) {
           {/* Open in tab badge */}
           {isOpenInTab && (
             <span
+              className="text-[9px] font-mono font-semibold px-1 py-0.2 rounded bg-sky-950/60 text-sky-400 border border-sky-800/40"
+              title="Currently open in request tab"
               className={cn(
                 'text-[9px] font-mono font-semibold px-1 py-0.2 rounded border transition-colors',
                 isActiveTab
@@ -126,6 +133,7 @@ function RequestNodeComponent({ id, data, selected }) {
               )}
               title={isActiveTab ? 'Active Request in Workspace' : 'Currently open in request tab'}
             >
+              TAB
               {isActiveTab ? 'ACTIVE' : 'TAB'}
             </span>
           )}

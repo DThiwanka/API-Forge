@@ -85,6 +85,7 @@ export function useDeleteRequestMutation(workspaceId, collectionId) {
 
   return useMutation({
     mutationFn: (requestId) => deleteRequest(workspaceId, collectionId, requestId),
+    onSuccess: () => {
     onSuccess: (_, deletedRequestId) => {
       queryClient.invalidateQueries({
         queryKey: ['requests', workspaceId, collectionId],
