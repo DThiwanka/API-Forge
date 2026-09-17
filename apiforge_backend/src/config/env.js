@@ -23,6 +23,9 @@ export const env = {
   BROWSER_SESSION_INACTIVITY_TIMEOUT_MS: parseInt(process.env.BROWSER_SESSION_INACTIVITY_TIMEOUT_MS, 10) || 1800000, // 30 mins
   BROWSER_CLEANUP_INTERVAL_MS: parseInt(process.env.BROWSER_CLEANUP_INTERVAL_MS, 10) || 300000, // 5 mins
   BROWSER_MAX_NETWORK_EVENTS_PER_TAB: parseInt(process.env.BROWSER_MAX_NETWORK_EVENTS_PER_TAB, 10) || 500,
+
+  // Step 53: Collaboration & Invitation Configuration
+  INVITATION_EXPIRATION_HOURS: parseInt(process.env.INVITATION_EXPIRATION_HOURS, 10) || 168, // 7 days
 };
 
 export default env;

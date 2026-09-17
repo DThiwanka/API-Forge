@@ -15,6 +15,8 @@ import {
   Copy,
   Folder,
   Clock,
+  Users,
+  UserPlus,
 } from 'lucide-react';
 import useCommandCenterStore from '../store/commandCenterStore';
 import { searchCommands, groupCommands } from '../utils/commandUtils';
@@ -215,6 +217,22 @@ export function useCommandCenter(workspaceId) {
         keywords: ['new collection', 'add collection', 'create collection', 'folder'],
         execute: () => {
           openCreateCollection();
+        },
+      });
+    }
+
+    const canManageCollaboration = currentWs?.role === 'OWNER' || currentWs?.role === 'ADMIN';
+
+    if (canManageCollaboration) {
+      list.push({
+        id: 'action-invite-member',
+        title: 'Invite Member to Workspace',
+        description: 'Send an email invitation to collaborate on this workspace',
+        group: 'Actions',
+        icon: UserPlus,
+        keywords: ['invite', 'member', 'collaboration', 'email', 'add user', 'team'],
+        execute: () => {
+          window.dispatchEvent(new CustomEvent('apiforge:open-invite-dialog'));
         },
       });
     }
@@ -422,6 +440,18 @@ export function useCommandCenter(workspaceId) {
       },
     });
 
+    list.push({
+      id: 'nav-members',
+      title: 'Open Workspace Members',
+      description: 'Manage workspace collaboration, members, and roles',
+      group: 'Navigation',
+      icon: Users,
+      keywords: ['members', 'users', 'collaboration', 'roles', 'invite', 'team'],
+      execute: () => {
+        window.dispatchEvent(new CustomEvent('apiforge:open-members-modal'));
+      },
+    });
+
     // 4. REQUESTS (From Open Tabs & Cache)
     const registeredRequestIds = new Set(recentTabs.map((t) => t.requestId));
 
@@ -567,6 +597,7 @@ export function useCommandCenter(workspaceId) {
     currentRequestUrl,
     browserAddress,
     isViewer,
+    currentWs?.role,
     isDirty,
     isSaving,
     recentCommandIds,

@@ -1,5 +1,7 @@
-import { Search, Layers, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Layers, Clock, Users } from 'lucide-react';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
+import WorkspaceMembersModal from '../../collaboration/components/WorkspaceMembersModal';
 import { useCommandCenterStore } from '../../command-center/store/commandCenterStore';
 
 const ROLE_BADGES = {
@@ -10,6 +12,7 @@ const ROLE_BADGES = {
 };
 
 export default function WorkspaceHeaderSection({ workspace, lastActivity }) {
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
   const openCommandCenter = useCommandCenterStore((s) => s.open);
 
   const role = workspace?.role || 'MEMBER';
@@ -68,8 +71,25 @@ export default function WorkspaceHeaderSection({ workspace, lastActivity }) {
           </kbd>
         </button>
 
+        <button
+          type="button"
+          onClick={() => setIsMembersOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141720] hover:bg-[#1a1e2a] border border-[#262c3b] hover:border-slate-700 text-xs text-slate-300 hover:text-slate-100 transition-all cursor-pointer shadow-sm"
+          title="Manage workspace members and invitations"
+        >
+          <Users size={13} className="text-sky-400" />
+          <span className="font-medium">Members</span>
+        </button>
+
         <WorkspaceSwitcher currentWorkspaceId={workspace?.id} />
       </div>
+
+      <WorkspaceMembersModal
+        isOpen={isMembersOpen}
+        onClose={() => setIsMembersOpen(false)}
+        workspaceId={workspace?.id}
+        workspaceRole={workspace?.role || 'MEMBER'}
+      />
     </div>
   );
 }

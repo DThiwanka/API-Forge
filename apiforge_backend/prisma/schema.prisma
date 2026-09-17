@@ -23,6 +23,8 @@ model User {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   memberships WorkspaceMember[]
+  memberships     WorkspaceMember[]
+  invitationsSent WorkspaceInvitation[] @relation("InvitationsSent")
 
   @@map("users")
 }
@@ -34,6 +36,7 @@ model Workspace {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   members      WorkspaceMember[]
+  invitations  WorkspaceInvitation[]
   collections  Collection[]
   environments Environment[]
   executions   RequestExecution[]
@@ -219,5 +222,26 @@ model ApiAssertion {
 
   @@index([testId])
   @@map("api_assertions")
+}
+
+model WorkspaceInvitation {
+  id          String        @id @default(uuid())
+  workspaceId String
+  email       String
+  role        WorkspaceRole @default(MEMBER)
+  tokenHash   String        @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  invitedById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   User          @relation("InvitationsSent", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, email])
+  @@index([tokenHash])
+  @@map("workspace_invitations")
 }
 

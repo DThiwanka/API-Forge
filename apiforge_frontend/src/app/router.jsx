@@ -8,6 +8,7 @@ import EnvironmentSettingsPage from '../pages/environments/EnvironmentSettingsPa
 import HistoryPage from '../pages/history/HistoryPage';
 import CollectionRunnerPage from '../pages/runner/CollectionRunnerPage';
 import BrowserPage from '../pages/browser/BrowserPage';
+import InvitationAcceptancePage from '../pages/collaboration/InvitationAcceptancePage';
 import NotFound from '../pages/NotFound';
 
 export function AppRouter() {
@@ -17,6 +18,7 @@ export function AppRouter() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/invite/:token" element={<InvitationAcceptancePage />} />
         <Route path="/workspace" element={<Workspace />} />
         <Route path="/workspace/:workspaceId" element={<Workspace />} />
         <Route path="/workspace/:workspaceId/canvas" element={<ApiCanvasPage />} />

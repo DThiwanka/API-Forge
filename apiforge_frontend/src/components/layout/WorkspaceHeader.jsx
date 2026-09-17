@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History, Compass, Download, Upload } from 'lucide-react';
+import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History, Compass, Download, Upload, Users } from 'lucide-react';
 import { useWorkspaceQuery, useCollectionsQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 import useWorkspaceStore from '../../features/workspace/store/workspaceStore';
 import ImportDialog from '../../features/import-export/components/ImportDialog';
 import ExportDialog from '../../features/import-export/components/ExportDialog';
+import WorkspaceMembersModal from '../../features/collaboration/components/WorkspaceMembersModal';
 import { cn } from '../../utils/cn';
 
 const ROLE_BADGES = {
@@ -28,9 +29,21 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
   const { data: workspace } = useWorkspaceQuery(workspaceId);
   const { data: collections = [] } = useCollectionsQuery(workspaceId);
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
+
+  // Global listeners for command center collaboration shortcuts
+  useEffect(() => {
+    const handleOpenMembers = () => setIsMembersOpen(true);
+    window.addEventListener('apiforge:open-members-modal', handleOpenMembers);
+    window.addEventListener('apiforge:open-invite-dialog', handleOpenMembers);
+    return () => {
+      window.removeEventListener('apiforge:open-members-modal', handleOpenMembers);
+      window.removeEventListener('apiforge:open-invite-dialog', handleOpenMembers);
+    };
+  }, []);
 
   const activeEnv = environments.find((e) => e.isActive);
   const roleBadge = ROLE_BADGES[workspace?.role] || ROLE_BADGES.VIEWER;
@@ -155,7 +168,17 @@ export default function WorkspaceHeader({ workspaceId, className }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 text-[11px] text-slate-400 font-mono">
+      <div className="flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
+        <button
+          type="button"
+          onClick={() => setIsMembersOpen(true)}
+          className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+          title="Manage workspace members and invitations"
+        >
+          <Users size={12} />
+          <span>Members</span>
+        </button>
+
         {canWrite && (
           <button
             type="button"
@@ -202,6 +225,13 @@ export default function WorkspaceHeader({ workspaceId, className }) {
         onClose={() => setIsExportOpen(false)}
         workspaceId={workspaceId}
         initialTab="openapi"
+      />
+
+      <WorkspaceMembersModal
+        isOpen={isMembersOpen}
+        onClose={() => setIsMembersOpen(false)}
+        workspaceId={workspaceId}
+        workspaceRole={workspace?.role || 'MEMBER'}
       />
     </div>
   );

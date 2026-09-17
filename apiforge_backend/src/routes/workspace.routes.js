@@ -6,6 +6,7 @@ import historyRoutes from './history.routes.js';
 import testingRoutes from './testing.routes.js';
 import importRoutes from './import.routes.js';
 import browserRoutes from './browser.routes.js';
+import { memberRouter, workspaceInvitationRouter } from './collaboration.routes.js';
 import exportController from '../controllers/export.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireWorkspaceMember } from '../middleware/workspace.middleware.js';
@@ -20,6 +21,12 @@ const router = Router();
 
 // All workspace routes require an authenticated user
 router.use(authenticate);
+
+// Nested member routes under /:workspaceId/members
+router.use('/:workspaceId/members', requireWorkspaceMember, memberRouter);
+
+// Nested invitation routes under /:workspaceId/invitations
+router.use('/:workspaceId/invitations', requireWorkspaceMember, workspaceInvitationRouter);
 
 // Nested collection routes under /:workspaceId/collections
 router.use('/:workspaceId/collections', requireWorkspaceMember, collectionRoutes);
