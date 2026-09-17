@@ -138,6 +138,8 @@ export function recordRequest(tabId, req) {
   const rawType = typeof req.resourceType === 'function' ? req.resourceType() : req.resourceType || 'other';
 
   const { pathname, hostname, search, queryParams } = parseUrlDetails(url);
+  const rawPostData = typeof req.postData === 'function' ? req.postData() : req.postData || null;
+  const postData = rawPostData ? String(rawPostData).slice(0, 50000) : null;
   const now = Date.now();
 
   const event = {
@@ -157,6 +159,7 @@ export function recordRequest(tabId, req) {
     sizeBytes: null,
     requestHeaders: redactHeaders(rawHeaders),
     responseHeaders: {},
+    postData,
     error: null,
     timestamp: new Date(now).toISOString(),
     startTime: now,
@@ -365,6 +368,18 @@ export function subscribeTabEvents(tabId, res) {
 }
 
 /**
+ * Lookup a single network event by eventId across all tabs
+ */
+export function getNetworkEvent(eventId) {
+  if (!eventId) return null;
+  for (const events of tabNetworkEvents.values()) {
+    const found = events.find((e) => e.id === eventId);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
  * Reset all buffers (for unit tests)
  */
 export function resetNetworkBuffers() {
@@ -379,6 +394,7 @@ export default {
   recordRequestFailed,
   attachNetworkListeners,
   getTabNetworkEvents,
+  getNetworkEvent,
   clearTabNetworkEvents,
   removeTab,
   removeSession,

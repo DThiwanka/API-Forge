@@ -3,13 +3,9 @@ import {
   X,
   Copy,
   Check,
-  Globe,
-  Clock,
-  HardDrive,
   Shield,
-  Layers,
   AlertCircle,
-  FileCode,
+  Code2,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -48,7 +44,7 @@ function getStatusBadgeClass(status, state) {
   return 'bg-rose-950/60 text-rose-400 border-rose-800/60';
 }
 
-function NetworkInspectorComponent({ event, onClose }) {
+function NetworkInspectorComponent({ event, onClose, onImport }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'headers' | 'params'
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
 
@@ -89,7 +85,18 @@ function NetworkInspectorComponent({ event, onClose }) {
           </span>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onImport && (
+            <button
+              type="button"
+              onClick={onImport}
+              className="flex items-center gap-1 px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium text-[11px] transition-colors cursor-pointer shadow-xs"
+              title="Import captured request into API Client"
+            >
+              <Code2 size={12} />
+              <span>Import to API Client</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleCopyUrl}

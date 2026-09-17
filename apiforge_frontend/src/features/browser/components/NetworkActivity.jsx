@@ -1,19 +1,17 @@
-import { memo } from 'react';
+import { useState, memo } from 'react';
 import {
-  Radio,
   Trash2,
   Search,
   ChevronDown,
-  ChevronUp,
   X,
   Filter,
-  ArrowDownUp,
-  AlertTriangle,
   Globe,
+  Code2,
 } from 'lucide-react';
 import { useBrowserStore } from '../store/browserStore';
 import { useNetworkActivity } from '../hooks/useNetworkActivity';
 import NetworkInspector from './NetworkInspector';
+import ImportCapturedRequestDialog from './ImportCapturedRequestDialog';
 import { cn } from '../../../utils/cn';
 
 function formatBytes(bytes) {
@@ -63,6 +61,8 @@ function NetworkActivityComponent({ workspaceId, sessionId, tabId }) {
   const selectedEventId = useBrowserStore((s) => s.selectedEventId);
   const setSelectedEventId = useBrowserStore((s) => s.setSelectedEventId);
   const clearSelectedEvent = useBrowserStore((s) => s.clearSelectedEvent);
+
+  const [importDialogState, setImportDialogState] = useState({ isOpen: false, event: null });
 
   const {
     events,
@@ -183,6 +183,18 @@ function NetworkActivityComponent({ workspaceId, sessionId, tabId }) {
             )}
           </div>
 
+          {selectedEvent && (
+            <button
+              type="button"
+              onClick={() => setImportDialogState({ isOpen: true, event: selectedEvent })}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-sky-600 hover:bg-sky-500 text-white font-medium text-[11px] transition-colors cursor-pointer shadow-xs"
+              title="Import selected request into API Client"
+            >
+              <Code2 size={12} />
+              <span>Import to API Client</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={toggleNetworkPanel}
@@ -199,13 +211,14 @@ function NetworkActivityComponent({ workspaceId, sessionId, tabId }) {
         {/* Table View */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-[80px_1fr_90px_70px_70px_70px] items-center px-3 py-1.5 bg-[#10131b] border-b border-[#232732] text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+          <div className="grid grid-cols-[70px_1fr_80px_60px_60px_60px_32px] items-center px-3 py-1.5 bg-[#10131b] border-b border-[#232732] text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
             <div>Method</div>
             <div>Name</div>
             <div>Status</div>
             <div>Type</div>
             <div>Size</div>
             <div>Time</div>
+            <div />
           </div>
 
           {/* Table Body */}
@@ -241,6 +254,7 @@ function NetworkActivityComponent({ workspaceId, sessionId, tabId }) {
                     }
                     className={cn(
                       'grid grid-cols-[80px_1fr_90px_70px_70px_70px] items-center px-3 py-1 text-xs cursor-pointer font-mono transition-colors',
+                      'group grid grid-cols-[70px_1fr_80px_60px_60px_60px_32px] items-center px-3 py-1 text-xs cursor-pointer font-mono transition-colors',
                       isSelected
                         ? 'bg-sky-950/40 border-l-2 border-sky-400 text-slate-200'
                         : 'hover:bg-[#151922] text-slate-300'
@@ -295,6 +309,21 @@ function NetworkActivityComponent({ workspaceId, sessionId, tabId }) {
                     <div className="text-[10px] text-slate-400">
                       {event.durationMs !== null ? `${event.durationMs}ms` : '—'}
                     </div>
+
+                    {/* Quick Import Action */}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImportDialogState({ isOpen: true, event });
+                        }}
+                        className="p-1 rounded text-slate-500 hover:text-sky-400 hover:bg-[#1f2432] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                        title="Import into API Client"
+                      >
+                        <Code2 size={12} />
+                      </button>
+                    </div>
                   </div>
                 );
               })
@@ -307,9 +336,19 @@ function NetworkActivityComponent({ workspaceId, sessionId, tabId }) {
           <NetworkInspector
             event={selectedEvent}
             onClose={clearSelectedEvent}
+            onImport={() => setImportDialogState({ isOpen: true, event: selectedEvent })}
           />
         )}
       </div>
+
+      {/* Import Captured Request Dialog */}
+      <ImportCapturedRequestDialog
+        isOpen={importDialogState.isOpen}
+        onClose={() => setImportDialogState({ isOpen: false, event: null })}
+        workspaceId={workspaceId}
+        sessionId={sessionId}
+        networkEvent={importDialogState.event}
+      />
     </div>
   );
 }

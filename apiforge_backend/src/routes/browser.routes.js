@@ -27,5 +27,8 @@ router.get('/sessions/:sessionId/tabs/:tabId/network', requireWorkspaceRole(WORK
 router.delete('/sessions/:sessionId/tabs/:tabId/network', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.clearNetworkActivity);
 router.get('/sessions/:sessionId/network/stream', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.streamNetworkActivity);
 
+// Captured Request Import Preview (Step 52)
+router.post('/sessions/:sessionId/network/:eventId/import-preview', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.getImportPreview);
+
 export default router;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getTabNetworkActivity,
@@ -19,23 +19,14 @@ export function useNetworkActivity(workspaceId, sessionId, tabId) {
   const selectedEventId = useBrowserStore((s) => s.selectedEventId);
   const setSelectedEventId = useBrowserStore((s) => s.setSelectedEventId);
 
-  const [liveEvents, setLiveEvents] = useState([]);
-
   // Fetch initial events buffer for the active tab
-  const { data: initialEvents = [], isLoading } = useQuery({
+  const { data: events = [], isLoading } = useQuery({
     queryKey: ['browser-network', workspaceId, sessionId, tabId],
     queryFn: () => getTabNetworkActivity(workspaceId, sessionId, tabId),
     enabled: Boolean(workspaceId && sessionId && tabId),
-    staleTime: 5000,
+    staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
-
-  // Sync initial query data into local state when tabId or initial data changes
-  useEffect(() => {
-    if (initialEvents) {
-      setLiveEvents(initialEvents);
-    }
-  }, [initialEvents, tabId]);
 
   // Connect SSE stream for the active tab
   useEffect(() => {
@@ -49,19 +40,18 @@ export function useNetworkActivity(workspaceId, sessionId, tabId) {
         if (!isCapturing && type !== 'clear') return;
 
         if (type === 'clear') {
-          setLiveEvents([]);
+          queryClient.setQueryData(['browser-network', workspaceId, sessionId, tabId], []);
           setSelectedEventId(null);
           return;
         }
 
         if (type === 'request') {
-          setLiveEvents((prev) => {
-            // Check if already present
+          queryClient.setQueryData(['browser-network', workspaceId, sessionId, tabId], (prev = []) => {
             if (prev.some((e) => e.id === data.id)) return prev;
             return [...prev, data];
           });
         } else if (type === 'response' || type === 'failed') {
-          setLiveEvents((prev) =>
+          queryClient.setQueryData(['browser-network', workspaceId, sessionId, tabId], (prev = []) =>
             prev.map((e) => (e.id === data.id ? { ...e, ...data } : e))
           );
         }
@@ -73,15 +63,14 @@ export function useNetworkActivity(workspaceId, sessionId, tabId) {
         eventSource.close();
       }
     };
-  }, [workspaceId, sessionId, tabId, isCapturing, setSelectedEventId]);
+  }, [workspaceId, sessionId, tabId, isCapturing, setSelectedEventId, queryClient]);
 
   // Clear tab network activity mutation
   const clearMutation = useMutation({
     mutationFn: () => clearTabNetworkActivity(workspaceId, sessionId, tabId),
     onSuccess: () => {
-      setLiveEvents([]);
-      setSelectedEventId(null);
       queryClient.setQueryData(['browser-network', workspaceId, sessionId, tabId], []);
+      setSelectedEventId(null);
     },
   });
 
@@ -91,7 +80,7 @@ export function useNetworkActivity(workspaceId, sessionId, tabId) {
 
   // Filtered and searched events
   const filteredEvents = useMemo(() => {
-    return liveEvents.filter((item) => {
+    return events.filter((item) => {
       // 1. Category Filter
       if (networkFilter === 'fetch') {
         if (item.resourceType !== 'fetch' && item.resourceType !== 'xhr') return false;
@@ -128,17 +117,17 @@ export function useNetworkActivity(workspaceId, sessionId, tabId) {
 
       return true;
     });
-  }, [liveEvents, networkFilter, networkSearch]);
+  }, [events, networkFilter, networkSearch]);
 
   const selectedEvent = useMemo(() => {
     if (!selectedEventId) return null;
-    return liveEvents.find((e) => e.id === selectedEventId) || null;
-  }, [liveEvents, selectedEventId]);
+    return events.find((e) => e.id === selectedEventId) || null;
+  }, [events, selectedEventId]);
 
   return {
     events: filteredEvents,
-    allEvents: liveEvents,
-    totalCount: liveEvents.length,
+    allEvents: events,
+    totalCount: events.length,
     filteredCount: filteredEvents.length,
     selectedEvent,
     selectedEventId,

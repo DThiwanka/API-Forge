@@ -112,6 +112,13 @@ export function createNetworkEventSource(workspaceId, sessionId, tabId, onEvent)
   }
 }
 
+export async function getCapturedRequestImportPreview(workspaceId, sessionId, eventId) {
+  const response = await apiClient.post(
+    `/workspaces/${workspaceId}/browser/sessions/${sessionId}/network/${eventId}/import-preview`
+  );
+  return response.data?.data;
+}
+
 export default {
   createBrowserSession,
   getBrowserSessions,
@@ -123,5 +130,6 @@ export default {
   getTabNetworkActivity,
   clearTabNetworkActivity,
   createNetworkEventSource,
+  getCapturedRequestImportPreview,
 };
 

@@ -1,5 +1,6 @@
 import browserSessionService from '../services/browser/browser-session.service.js';
 import networkService from '../services/browser/network.service.js';
+import browserImportService from '../services/browser/browser-import.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -192,6 +193,24 @@ export const streamNetworkActivity = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Generate sanitized import preview for a captured network event
+ * POST /api/workspaces/:workspaceId/browser/sessions/:sessionId/network/:eventId/import-preview
+ */
+export const getImportPreview = asyncHandler(async (req, res) => {
+  const { workspaceId, sessionId, eventId } = req.params;
+
+  // Validate session belongs to workspace
+  browserSessionService.getSession(workspaceId, sessionId);
+
+  const preview = browserImportService.getCapturedRequestImportPreview(eventId);
+
+  res.status(200).json({
+    success: true,
+    data: preview,
+  });
+});
+
 export default {
   createSession,
   listSessions,
@@ -203,5 +222,6 @@ export default {
   getNetworkActivity,
   clearNetworkActivity,
   streamNetworkActivity,
+  getImportPreview,
 };
 
