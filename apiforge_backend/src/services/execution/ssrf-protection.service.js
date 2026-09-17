@@ -1,4 +1,4 @@
-import dns from 'node:dns/promises';
+import dns from 'node:dns';
 import net from 'node:net';
 import { AppError } from '../../utils/appError.js';
 import env from '../../config/env.js';

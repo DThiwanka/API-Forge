@@ -15,6 +15,7 @@ import {
   Sparkles,
   Link as LinkIcon,
   Info,
+  Compass,
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -35,6 +36,7 @@ export default function CollectionContextMenu({
   onOpen,
   onOpenInNewTab,
   onOpenInCanvas,
+  onOpenInBrowser,
   onCopyUrl,
   isViewer = false,
   triggerCoords = null, // { x, y } if triggered via right-click
@@ -337,6 +339,16 @@ export default function CollectionContextMenu({
                 >
                   <Sparkles size={13} className="text-sky-400" />
                   <span>Open in Canvas</span>
+                </button>
+              )}
+              {onOpenInBrowser && (
+                <button
+                  type="button"
+                  onClick={() => handleAction(onOpenInBrowser)}
+                  className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#232732] flex items-center gap-2"
+                >
+                  <Compass size={13} className="text-teal-400" />
+                  <span>Open in Browser</span>
                 </button>
               )}
               {onExportCurl && (

@@ -6,6 +6,8 @@ import MoveItemDialog from './MoveItemDialog';
 import DuplicateRequestDialog from '../../requests/components/DuplicateRequestDialog';
 import ExportDialog from '../../import-export/components/ExportDialog';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import OpenInBrowserModal from '../../requests/components/OpenInBrowserModal';
+import { useVariableSuggestions } from '../../requests/hooks/useVariableSuggestions';
 import {
   useUpdateRequestMutation,
   useDeleteRequestMutation,
@@ -45,8 +47,10 @@ export default function RequestItem({
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [isExportCurlOpen, setIsExportCurlOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isBrowserModalOpen, setIsBrowserModalOpen] = useState(false);
   const [contextCoords, setContextCoords] = useState(null);
 
+  const { variableMap, activeEnv } = useVariableSuggestions(workspaceId);
   const itemRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
@@ -154,6 +158,14 @@ export default function RequestItem({
     } catch {
       toast.error('Failed to copy URL to clipboard');
     }
+  };
+
+  const handleOpenInBrowser = () => {
+    if (!request.url || !request.url.trim()) {
+      toast.info('No URL configured on this request');
+      return;
+    }
+    setIsBrowserModalOpen(true);
   };
 
   const handleOpenInNewTab = () => {
@@ -305,6 +317,7 @@ export default function RequestItem({
           onOpenInNewTab={handleOpenInNewTab}
           onCopyUrl={handleCopyUrl}
           onOpenInCanvas={handleOpenInCanvas}
+          onOpenInBrowser={request.url ? handleOpenInBrowser : undefined}
           onExportCurl={() => setIsExportCurlOpen(true)}
           onDuplicate={() => setIsDuplicateOpen(true)}
           onRename={handleStartRename}
@@ -365,6 +378,16 @@ export default function RequestItem({
           isLoading={deleteMutation.isPending}
         />
       )}
+
+      <OpenInBrowserModal
+        isOpen={isBrowserModalOpen}
+        onClose={() => setIsBrowserModalOpen(false)}
+        workspaceId={workspaceId}
+        url={request.url || ''}
+        method={request.method || 'GET'}
+        variableMap={variableMap}
+        activeEnv={activeEnv}
+      />
     </>
   );
 }

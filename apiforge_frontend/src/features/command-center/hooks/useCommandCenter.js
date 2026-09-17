@@ -21,6 +21,7 @@ import { searchCommands, groupCommands } from '../utils/commandUtils';
 import { useCollectionsQuery, useWorkspacesQuery } from '../../workspace/hooks/useWorkspace';
 import useRequestTabStore from '../../requests/store/requestTabStore';
 import useRequestStore from '../../requests/store/requestStore';
+import useBrowserStore from '../../browser/store/browserStore';
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { useUpdateRequestMutation, useDuplicateRequestMutation } from '../../requests/hooks/useRequest';
 
@@ -63,6 +64,8 @@ export function useCommandCenter(workspaceId) {
   const currentRequestId = useRequestStore((s) => s.id);
   const currentCollectionId = useRequestStore((s) => s.collectionId);
   const currentRequestName = useRequestStore((s) => s.name);
+  const currentRequestUrl = useRequestStore((s) => s.url);
+  const browserAddress = useBrowserStore((s) => s.addressBarValue);
   const isSaving = useRequestStore((s) => s.isSaving);
   const isDirty = useRequestStore((s) => s.isDirty);
   const getCleanPayload = useRequestStore((s) => s.getCleanPayload);
@@ -316,6 +319,34 @@ export function useCommandCenter(workspaceId) {
           }
         },
       });
+
+      if (currentRequestUrl && currentRequestUrl.trim()) {
+        list.push({
+          id: 'action-open-request-in-browser',
+          title: `Open Current Request in Browser`,
+          description: `Open ${currentRequestUrl} in Browser Space`,
+          group: 'Actions',
+          icon: Compass,
+          keywords: ['browser', 'open url', 'web', 'navigate', currentRequestUrl, currentRequestName || ''],
+          execute: () => {
+            navigate(`/workspace/${workspaceId}/browser?openUrl=${encodeURIComponent(currentRequestUrl.trim())}`);
+          },
+        });
+      }
+    }
+
+    if (browserAddress && browserAddress.trim()) {
+      list.push({
+        id: 'action-open-browser-tab-in-api-client',
+        title: 'Open Current Browser Tab in API Client',
+        description: `Create API request from ${browserAddress}`,
+        group: 'Actions',
+        icon: Compass,
+        keywords: ['api client', 'create request', 'draft', browserAddress],
+        execute: () => {
+          navigate(`/workspace/${workspaceId}/browser`);
+        },
+      });
     }
 
     // 3. NAVIGATION
@@ -376,6 +407,18 @@ export function useCommandCenter(workspaceId) {
       keywords: ['canvas', 'visual', 'graph', 'nodes', 'flow'],
       execute: () => {
         navigate(`/workspace/${workspaceId}/canvas`);
+      },
+    });
+
+    list.push({
+      id: 'nav-browser',
+      title: 'Open Browser Space',
+      description: 'Open isolated developer browser space for documentation and APIs',
+      group: 'Navigation',
+      icon: Compass,
+      keywords: ['browser', 'web', 'docs', 'portal', 'http'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/browser`);
       },
     });
 
@@ -521,6 +564,8 @@ export function useCommandCenter(workspaceId) {
     currentRequestId,
     currentCollectionId,
     currentRequestName,
+    currentRequestUrl,
+    browserAddress,
     isViewer,
     isDirty,
     isSaving,

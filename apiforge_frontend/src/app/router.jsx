@@ -7,6 +7,7 @@ import ApiCanvasPage from '../pages/canvas/ApiCanvasPage';
 import EnvironmentSettingsPage from '../pages/environments/EnvironmentSettingsPage';
 import HistoryPage from '../pages/history/HistoryPage';
 import CollectionRunnerPage from '../pages/runner/CollectionRunnerPage';
+import BrowserPage from '../pages/browser/BrowserPage';
 import NotFound from '../pages/NotFound';
 
 export function AppRouter() {
@@ -19,6 +20,7 @@ export function AppRouter() {
         <Route path="/workspace" element={<Workspace />} />
         <Route path="/workspace/:workspaceId" element={<Workspace />} />
         <Route path="/workspace/:workspaceId/canvas" element={<ApiCanvasPage />} />
+        <Route path="/workspace/:workspaceId/browser" element={<BrowserPage />} />
         <Route path="/workspace/:workspaceId/environments" element={<EnvironmentSettingsPage />} />
         <Route path="/workspace/:workspaceId/history" element={<HistoryPage />} />
         <Route path="/workspace/:workspaceId/runner" element={<CollectionRunnerPage />} />

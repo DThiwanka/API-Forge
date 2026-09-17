@@ -11,9 +11,12 @@ import {
   CopyPlus,
   Workflow,
   Trash2,
+  Compass,
 } from 'lucide-react';
 import RequestSaveButton from './RequestSaveButton';
 import ExportDialog from '../../import-export/components/ExportDialog';
+import OpenInBrowserModal from './OpenInBrowserModal';
+import { useVariableSuggestions } from '../hooks/useVariableSuggestions';
 import { toast, useToastStore } from '../../../stores/toastStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
@@ -39,9 +42,11 @@ export default function RequestHeader({
 }) {
   const navigate = useNavigate();
   const { revealInCollection, openInCanvas } = useResourceNavigation(workspaceId);
+  const { variableMap, activeEnv } = useVariableSuggestions(workspaceId);
   const [isEditing, setIsEditing] = useState(false);
   const [tempName, setTempName] = useState(name || '');
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isBrowserModalOpen, setIsBrowserModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -104,6 +109,15 @@ export default function RequestHeader({
     } catch {
       useToastStore.getState().toast.error('Failed to copy URL');
     }
+  };
+
+  const handleOpenInBrowser = () => {
+    setIsMenuOpen(false);
+    if (!url || !url.trim()) {
+      useToastStore.getState().toast.info('No URL configured on this request');
+      return;
+    }
+    setIsBrowserModalOpen(true);
   };
 
   const handleOpenInCanvas = () => {
@@ -317,6 +331,16 @@ export default function RequestHeader({
                 <span>Copy Request URL</span>
               </button>
 
+              <button
+                type="button"
+                role="menuitem"
+                onClick={handleOpenInBrowser}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-slate-300 hover:text-white hover:bg-[#1f2430] transition-colors cursor-pointer"
+              >
+                <Compass size={13} className="text-teal-400" />
+                <span>Open URL in Browser</span>
+              </button>
+
               {onDuplicate && (
                 <button
                   type="button"
@@ -391,6 +415,16 @@ export default function RequestHeader({
           requestName={name}
         />
       )}
+
+      <OpenInBrowserModal
+        isOpen={isBrowserModalOpen}
+        onClose={() => setIsBrowserModalOpen(false)}
+        workspaceId={workspaceId}
+        url={url}
+        method={method}
+        variableMap={variableMap}
+        activeEnv={activeEnv}
+      />
     </div>
   );
 }

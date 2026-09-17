@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { X, ArrowRightToLine, Layers, XCircle, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { X, ArrowRightToLine, Layers, XCircle, Link as LinkIcon, Sparkles, Compass } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 export default function TabContextMenu({
@@ -16,6 +16,7 @@ export default function TabContextMenu({
   onCloseAllTabs,
   onCopyUrl,
   onOpenInCanvas,
+  onOpenInBrowser,
 }) {
   const menuRef = useRef(null);
 
@@ -115,7 +116,7 @@ export default function TabContextMenu({
         </button>
       )}
 
-      {(onCopyUrl || onOpenInCanvas) && (
+      {(onCopyUrl || onOpenInCanvas || onOpenInBrowser) && (
         <div className="h-px bg-[#232732] my-1" />
       )}
 
@@ -130,6 +131,20 @@ export default function TabContextMenu({
         >
           <LinkIcon size={12} className="text-slate-400" />
           <span>Copy URL</span>
+        </button>
+      )}
+
+      {onOpenInBrowser && tab.url && (
+        <button
+          type="button"
+          onClick={() => {
+            onCloseMenu();
+            onOpenInBrowser(tab);
+          }}
+          className="w-full px-2.5 py-1.5 rounded flex items-center gap-2 text-slate-200 hover:bg-[#1c2232] hover:text-white transition-colors cursor-pointer"
+        >
+          <Compass size={12} className="text-teal-400" />
+          <span>Open in Browser</span>
         </button>
       )}
 

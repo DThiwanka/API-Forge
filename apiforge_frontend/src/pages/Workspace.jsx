@@ -6,6 +6,8 @@ import RequestWorkspace from '../features/requests/components/RequestWorkspace';
 import RequestTabBar from '../features/requests/components/RequestTabBar';
 import UnsavedTabDialog from '../features/requests/components/UnsavedTabDialog';
 import CreateRequestDialog from '../features/collections/components/CreateRequestDialog';
+import OpenInBrowserModal from '../features/requests/components/OpenInBrowserModal';
+import { useVariableSuggestions } from '../features/requests/hooks/useVariableSuggestions';
 import { useWorkspacesQuery } from '../features/workspace/hooks/useWorkspace';
 import useWorkspaceStore from '../features/workspace/store/workspaceStore';
 import useRequestTabStore from '../features/requests/store/requestTabStore';
@@ -236,6 +238,21 @@ export default function Workspace() {
     navigate(`/workspace/${currentWorkspaceId}/canvas`);
   }, [currentWorkspaceId, navigate]);
 
+  const [browserModalTab, setBrowserModalTab] = useState(null);
+  const { variableMap, activeEnv } = useVariableSuggestions(currentWorkspaceId);
+
+  const handleTabOpenInBrowser = useCallback((tab) => {
+    if (!tab) return;
+    const reqStore = useRequestStore.getState();
+    const url = (reqStore.id === tab.requestId ? reqStore.url : tab.url) || '';
+    const method = (reqStore.id === tab.requestId ? reqStore.method : tab.method) || 'GET';
+    if (!url || !url.trim()) {
+      toast.info('No URL configured on this request');
+      return;
+    }
+    setBrowserModalTab({ url, method, title: tab.title });
+  }, []);
+
   // Keyboard shortcuts: Ctrl+W to close active tab, Ctrl+Shift+[/] to cycle tabs
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -313,6 +330,7 @@ export default function Workspace() {
               onCloseAllTabs={handleCloseAllTabs}
               onCopyUrl={handleTabCopyUrl}
               onOpenInCanvas={handleTabOpenInCanvas}
+              onOpenInBrowser={handleTabOpenInBrowser}
               onNewRequest={() => setIsNewRequestOpen(true)}
             />
           )}
@@ -358,6 +376,17 @@ export default function Workspace() {
         onClose={() => setIsNewRequestOpen(false)}
         workspaceId={currentWorkspaceId}
         collectionId={collectionId || null}
+      />
+
+      {/* Open in Browser Dialog */}
+      <OpenInBrowserModal
+        isOpen={Boolean(browserModalTab)}
+        onClose={() => setBrowserModalTab(null)}
+        workspaceId={currentWorkspaceId}
+        url={browserModalTab?.url || ''}
+        method={browserModalTab?.method || 'GET'}
+        variableMap={variableMap}
+        activeEnv={activeEnv}
       />
     </AppShell>
   );

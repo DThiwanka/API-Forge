@@ -23,6 +23,7 @@ export default function RequestTabBar({
   onCloseAllTabs,
   onCopyUrl,
   onOpenInCanvas,
+  onOpenInBrowser,
   onNewRequest,
   className,
 }) {
@@ -352,6 +353,7 @@ export default function RequestTabBar({
         onCloseAllTabs={onCloseAllTabs}
         onCopyUrl={onCopyUrl}
         onOpenInCanvas={onOpenInCanvas}
+        onOpenInBrowser={onOpenInBrowser}
       />
     </div>
   );

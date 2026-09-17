@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History, Download, Upload } from 'lucide-react';
+import { Layers, PanelLeftClose, PanelLeft, Globe, Network, ListTree, History, Compass, Download, Upload } from 'lucide-react';
 import { useWorkspaceQuery, useCollectionsQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 import useWorkspaceStore from '../../features/workspace/store/workspaceStore';
@@ -18,9 +18,10 @@ const ROLE_BADGES = {
 export default function WorkspaceHeader({ workspaceId, className }) {
   const location = useLocation();
   const isCanvas = location.pathname.endsWith('/canvas');
+  const isBrowser = location.pathname.includes('/browser');
   const isEnvironments = location.pathname.includes('/environments');
   const isHistory = location.pathname.includes('/history');
-  const isEditor = !isCanvas && !isEnvironments && !isHistory;
+  const isEditor = !isCanvas && !isEnvironments && !isHistory && !isBrowser;
 
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useWorkspaceStore((s) => s.toggleSidebar);
@@ -108,6 +109,20 @@ export default function WorkspaceHeader({ workspaceId, className }) {
           >
             <Network size={12} />
             <span>Canvas</span>
+          </Link>
+
+          <Link
+            to={`/workspace/${workspaceId}/browser`}
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
+              isBrowser
+                ? 'bg-[#181b22] text-sky-400 border border-[#2b313e] shadow-xs'
+                : 'text-slate-400 hover:text-slate-200'
+            )}
+            title="Integrated Developer Browser Space"
+          >
+            <Compass size={12} />
+            <span>Browser</span>
           </Link>
 
           <Link

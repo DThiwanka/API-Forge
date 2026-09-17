@@ -5,6 +5,7 @@ import environmentRoutes from './environment.routes.js';
 import historyRoutes from './history.routes.js';
 import testingRoutes from './testing.routes.js';
 import importRoutes from './import.routes.js';
+import browserRoutes from './browser.routes.js';
 import exportController from '../controllers/export.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireWorkspaceMember } from '../middleware/workspace.middleware.js';
@@ -34,6 +35,9 @@ router.use('/:workspaceId/requests/:requestId/tests', requireWorkspaceMember, te
 
 // Nested import routes under /:workspaceId/import
 router.use('/:workspaceId/import', requireWorkspaceMember, importRoutes);
+
+// Nested browser routes under /:workspaceId/browser
+router.use('/:workspaceId/browser', requireWorkspaceMember, browserRoutes);
 
 // Export request definition as cURL
 router.get(

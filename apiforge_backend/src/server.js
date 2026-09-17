@@ -1,6 +1,9 @@
 import app from './app.js';
 import { env } from './config/env.js';
 import { db } from './config/database.js';
+import { startBrowserCleanupJob } from './jobs/browser-cleanup.job.js';
+
+startBrowserCleanupJob();
 
 const server = app.listen(env.PORT, () => {
   console.log(`[APIForge Backend] Running on port ${env.PORT} (${env.NODE_ENV})`);
