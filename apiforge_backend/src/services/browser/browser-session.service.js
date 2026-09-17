@@ -6,6 +6,7 @@ import {
   createIsolatedBrowserContext,
   closeIsolatedBrowserContext,
 } from './browser.service.js';
+import networkService from './network.service.js';
 
 // In-memory ephemeral storage for active browser sessions
 // Map<sessionId, BrowserSession>
@@ -63,6 +64,7 @@ export async function createSession(workspaceId, userId) {
 
   const sessionId = crypto.randomUUID();
   const initialTabId = crypto.randomUUID();
+  networkService.attachNetworkListeners(initialTabId, page);
 
   const initialTab = {
     id: initialTabId,
@@ -130,6 +132,7 @@ export async function closeSession(workspaceId, sessionId) {
   }
 
   await closeIsolatedBrowserContext(session.context);
+  networkService.removeSession(session);
   sessions.delete(sessionId);
 
   return { success: true, sessionId };
@@ -156,6 +159,7 @@ export async function createTab(workspaceId, sessionId, initialUrl = '') {
 
   const page = await session.context.newPage();
   const tabId = crypto.randomUUID();
+  networkService.attachNetworkListeners(tabId, page);
 
   const tab = {
     id: tabId,
@@ -208,11 +212,15 @@ export async function closeTab(workspaceId, sessionId, tabId) {
       // Ignore
     }
   }
+  if (removedTab?.id) {
+    networkService.removeTab(removedTab.id);
+  }
 
   // If last tab was closed, create a fresh blank tab to maintain session continuity
   if (session.tabs.length === 0) {
     const page = await session.context.newPage();
     const newTabId = crypto.randomUUID();
+    networkService.attachNetworkListeners(newTabId, page);
     session.tabs.push({
       id: newTabId,
       sessionId,
@@ -352,6 +360,7 @@ export async function cleanupInactiveSessions(maxInactivityMs = env.BROWSER_SESS
       } catch {
         // Ignore
       }
+      networkService.removeSession(session);
       sessions.delete(sessionId);
       cleanedCount += 1;
     }
@@ -372,6 +381,7 @@ export async function clearAllSessions() {
     }
   }
   sessions.clear();
+  networkService.resetNetworkBuffers();
 }
 
 export default {

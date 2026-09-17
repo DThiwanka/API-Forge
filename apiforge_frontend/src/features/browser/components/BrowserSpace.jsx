@@ -5,6 +5,7 @@ import BrowserTabs from './BrowserTabs';
 import BrowserToolbar from './BrowserToolbar';
 import BrowserViewport from './BrowserViewport';
 import OpenInApiClientModal from './OpenInApiClientModal';
+import NetworkActivity from './NetworkActivity';
 
 function BrowserSpaceComponent({ workspaceId }) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +18,7 @@ function BrowserSpaceComponent({ workspaceId }) {
     tabs,
     activeTab,
     activeTabId,
+    activeSessionId,
     addressBarValue,
     setAddressBarValue,
     isLoading,
@@ -104,6 +106,15 @@ function BrowserSpaceComponent({ workspaceId }) {
         onClearError={clearError}
         onOpenInApiClient={() => handleOpenInApiClient()}
       />
+
+      {/* Network Activity Panel */}
+      {activeSessionId && activeTabId && (
+        <NetworkActivity
+          workspaceId={workspaceId}
+          sessionId={activeSessionId}
+          tabId={activeTabId}
+        />
+      )}
 
       {/* Open in API Client Modal */}
       <OpenInApiClientModal

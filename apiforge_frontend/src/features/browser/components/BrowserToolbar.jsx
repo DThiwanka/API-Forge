@@ -1,7 +1,8 @@
 import { memo } from 'react';
-import { ArrowLeft, ArrowRight, RotateCw, ShieldCheck, RefreshCw, Code2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, RotateCw, ShieldCheck, RefreshCw, Code2, Activity } from 'lucide-react';
 import BrowserAddressBar from './BrowserAddressBar';
 import { cn } from '../../../utils/cn';
+import { useBrowserStore } from '../store/browserStore';
 
 function BrowserToolbarComponent({
   activeTab,
@@ -17,6 +18,8 @@ function BrowserToolbarComponent({
 }) {
   const canGoBack = Boolean(activeTab?.canGoBack);
   const canGoForward = Boolean(activeTab?.canGoForward);
+  const isNetworkPanelOpen = useBrowserStore((s) => s.isNetworkPanelOpen);
+  const toggleNetworkPanel = useBrowserStore((s) => s.toggleNetworkPanel);
 
   return (
     <div className="flex items-center gap-2 h-10 px-3 bg-[#111318] border-b border-[#232732] select-none text-xs">
@@ -81,6 +84,21 @@ function BrowserToolbarComponent({
 
       {/* Isolated Context Badge & Session Action */}
       <div className="flex items-center gap-2 ml-auto shrink-0">
+        <button
+          type="button"
+          onClick={toggleNetworkPanel}
+          className={cn(
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer text-xs shrink-0',
+            isNetworkPanelOpen
+              ? 'bg-sky-950/50 border-sky-800/60 text-sky-300 hover:bg-sky-950/70'
+              : 'bg-[#181b24] border-[#2b313e] hover:border-slate-600 text-slate-400 hover:text-slate-200'
+          )}
+          title="Toggle live browser network activity panel"
+        >
+          <Activity size={13} className={isNetworkPanelOpen ? 'text-sky-400' : 'text-slate-400'} />
+          <span className="font-medium text-[11px]">Network</span>
+        </button>
+
         {activeTab?.url && onOpenInApiClient && (
           <button
             type="button"

@@ -1,9 +1,4 @@
-/**
- * Browser Engine Service
- *
- * Provides a clean server-side abstraction over Playwright Chromium / isolated browser engine.
- * Ensures strict context isolation, resource bounds, and safe disposal.
- */
+import { EventEmitter } from 'node:events';
 
 let playwrightInstance = null;
 let chromiumBrowser = null;
@@ -64,8 +59,9 @@ async function getChromiumBrowser() {
 /**
  * Lightweight Isolated Engine Page Driver (used when native Playwright Chromium binary is not installed)
  */
-class IsolatedPageDriver {
+class IsolatedPageDriver extends EventEmitter {
   constructor(options = {}) {
+    super();
     this._url = options.url || 'about:blank';
     this._title = options.title || 'New Tab';
     this._status = null;
@@ -86,6 +82,7 @@ class IsolatedPageDriver {
 
   async close() {
     this._isClosed = true;
+    this.removeAllListeners();
   }
 
   async goto(targetUrl, options = {}) {
@@ -95,13 +92,25 @@ class IsolatedPageDriver {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
 
+    const requestHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 APIForge/1.0',
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    };
+
+    const reqObj = {
+      url: () => targetUrl,
+      method: () => 'GET',
+      headers: () => requestHeaders,
+      resourceType: () => 'document',
+      postData: () => null,
+    };
+
+    this.emit('request', reqObj);
+
     try {
       const response = await fetch(targetUrl, {
         method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 APIForge/1.0',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        },
+        headers: requestHeaders,
         signal: controller.signal,
         redirect: 'follow',
       });
@@ -138,6 +147,17 @@ class IsolatedPageDriver {
         this._historyIndex = this._history.length - 1;
       }
 
+      const respObj = {
+        request: () => reqObj,
+        url: () => this._url,
+        status: () => this._status,
+        statusText: () => (this._status === 200 ? 'OK' : String(this._status)),
+        headers: () => this._headers,
+        body: async () => bodyText,
+      };
+
+      this.emit('response', respObj);
+
       return {
         status: () => this._status,
         url: () => this._url,
@@ -145,6 +165,13 @@ class IsolatedPageDriver {
       };
     } catch (err) {
       clearTimeout(timer);
+
+      this.emit('requestfailed', {
+        request: () => reqObj,
+        url: () => targetUrl,
+        failure: () => ({ errorText: err.message }),
+      });
+
       if (err.name === 'AbortError') {
         throw new Error(`Navigation timeout of ${timeout}ms exceeded`);
       }

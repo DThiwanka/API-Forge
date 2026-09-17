@@ -21,5 +21,11 @@ router.delete('/sessions/:sessionId/tabs/:tabId', requireWorkspaceRole(WORKSPACE
 // Navigation
 router.post('/sessions/:sessionId/tabs/:tabId/navigate', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.navigateTab);
 
+// Network Activity (Step 51)
+router.get('/sessions/:sessionId/network', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.getNetworkActivity);
+router.get('/sessions/:sessionId/tabs/:tabId/network', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.getNetworkActivity);
+router.delete('/sessions/:sessionId/tabs/:tabId/network', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.clearNetworkActivity);
+router.get('/sessions/:sessionId/network/stream', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.streamNetworkActivity);
+
 export default router;
 

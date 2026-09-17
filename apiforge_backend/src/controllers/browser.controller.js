@@ -1,4 +1,5 @@
 import browserSessionService from '../services/browser/browser-session.service.js';
+import networkService from '../services/browser/network.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -113,6 +114,84 @@ export const navigateTab = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Get captured network activity for a session/tab
+ * GET /api/workspaces/:workspaceId/browser/sessions/:sessionId/network?tabId=...
+ * or GET /api/workspaces/:workspaceId/browser/sessions/:sessionId/tabs/:tabId/network
+ */
+export const getNetworkActivity = asyncHandler(async (req, res) => {
+  const { workspaceId, sessionId } = req.params;
+  const tabId = req.params.tabId || req.query.tabId;
+
+  // Validate session belongs to workspace
+  const session = browserSessionService.getSession(workspaceId, sessionId);
+  const targetTabId = tabId || session.activeTabId;
+
+  const events = networkService.getTabNetworkEvents(targetTabId);
+  res.status(200).json({
+    success: true,
+    data: {
+      sessionId,
+      tabId: targetTabId,
+      events,
+      count: events.length,
+    },
+  });
+});
+
+/**
+ * Clear captured network activity for a tab
+ * DELETE /api/workspaces/:workspaceId/browser/sessions/:sessionId/tabs/:tabId/network
+ */
+export const clearNetworkActivity = asyncHandler(async (req, res) => {
+  const { workspaceId, sessionId, tabId } = req.params;
+
+  // Validate session belongs to workspace
+  browserSessionService.getSession(workspaceId, sessionId);
+
+  networkService.clearTabNetworkEvents(tabId);
+  res.status(200).json({
+    success: true,
+    message: 'Network activity cleared successfully',
+    data: { tabId },
+  });
+});
+
+/**
+ * Stream real-time network events for a tab via Server-Sent Events (SSE)
+ * GET /api/workspaces/:workspaceId/browser/sessions/:sessionId/network/stream?tabId=...
+ */
+export const streamNetworkActivity = asyncHandler(async (req, res) => {
+  const { workspaceId, sessionId } = req.params;
+  const tabId = req.query.tabId;
+
+  // Validate session belongs to workspace
+  const session = browserSessionService.getSession(workspaceId, sessionId);
+  const targetTabId = tabId || session.activeTabId;
+
+  if (!targetTabId) {
+    return res.status(400).json({ success: false, message: 'Tab ID is required' });
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  res.write(`event: connected\ndata: ${JSON.stringify({ sessionId, tabId: targetTabId })}\n\n`);
+
+  const unsubscribe = networkService.subscribeTabEvents(targetTabId, res);
+
+  req.on('close', () => {
+    unsubscribe();
+  });
+});
+
 export default {
   createSession,
   listSessions,
@@ -121,5 +200,8 @@ export default {
   createTab,
   closeTab,
   navigateTab,
+  getNetworkActivity,
+  clearNetworkActivity,
+  streamNetworkActivity,
 };
 

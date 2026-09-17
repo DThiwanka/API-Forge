@@ -48,6 +48,70 @@ export async function navigateBrowserTab(workspaceId, sessionId, tabId, { url, a
   return response.data?.data?.session;
 }
 
+export async function getTabNetworkActivity(workspaceId, sessionId, tabId) {
+  const response = await apiClient.get(
+    `/workspaces/${workspaceId}/browser/sessions/${sessionId}/tabs/${tabId}/network`
+  );
+  return response.data?.data?.events || [];
+}
+
+export async function clearTabNetworkActivity(workspaceId, sessionId, tabId) {
+  const response = await apiClient.delete(
+    `/workspaces/${workspaceId}/browser/sessions/${sessionId}/tabs/${tabId}/network`
+  );
+  return response.data?.data;
+}
+
+export function createNetworkEventSource(workspaceId, sessionId, tabId, onEvent) {
+  if (typeof EventSource === 'undefined') return null;
+  const baseUrl = apiClient.defaults?.baseURL || 'http://localhost:5000/api';
+  const url = `${baseUrl}/workspaces/${workspaceId}/browser/sessions/${sessionId}/network/stream?tabId=${encodeURIComponent(tabId)}`;
+
+  try {
+    const es = new EventSource(url, { withCredentials: true });
+
+    es.addEventListener('network_request', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        onEvent?.({ type: 'request', data });
+      } catch {
+        // Ignore JSON parse errors
+      }
+    });
+
+    es.addEventListener('network_response', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        onEvent?.({ type: 'response', data });
+      } catch {
+        // Ignore JSON parse errors
+      }
+    });
+
+    es.addEventListener('network_failed', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        onEvent?.({ type: 'failed', data });
+      } catch {
+        // Ignore JSON parse errors
+      }
+    });
+
+    es.addEventListener('network_clear', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        onEvent?.({ type: 'clear', data });
+      } catch {
+        // Ignore
+      }
+    });
+
+    return es;
+  } catch {
+    return null;
+  }
+}
+
 export default {
   createBrowserSession,
   getBrowserSessions,
@@ -56,5 +120,8 @@ export default {
   createBrowserTab,
   closeBrowserTab,
   navigateBrowserTab,
+  getTabNetworkActivity,
+  clearTabNetworkActivity,
+  createNetworkEventSource,
 };
 
