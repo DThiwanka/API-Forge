@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
-import { Users, Mail, UserPlus, X, Search } from 'lucide-react';
+import { useState } from 'react';
+import { Users, Mail, UserPlus, X, Shield } from 'lucide-react';
 import MemberList from './MemberList';
-import InvitationList from './InvitationList';
+import PendingInvitationList from './PendingInvitationList';
 import InviteMemberDialog from './InviteMemberDialog';
+import PermissionOverviewModal from './PermissionOverviewModal';
 import {
   useMembersQuery,
   useInvitationsQuery,
@@ -11,6 +12,7 @@ import {
   useRevokeInvitationMutation,
 } from '../hooks/useCollaboration';
 import { useCurrentUser } from '../../auth/hooks/useAuth';
+import { useWorkspaceQuery } from '../../workspace/hooks/useWorkspace';
 import { cn } from '../../../utils/cn';
 
 export default function WorkspaceMembersModal({
@@ -20,10 +22,11 @@ export default function WorkspaceMembersModal({
   workspaceRole = 'MEMBER',
 }) {
   const [activeTab, setActiveTab] = useState('members'); // 'members' | 'invitations'
-  const [searchQuery, setSearchQuery] = useState('');
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
 
   const { data: currentUser } = useCurrentUser();
+  const { data: workspace } = useWorkspaceQuery(workspaceId);
   const canManage = workspaceRole === 'OWNER' || workspaceRole === 'ADMIN';
 
   // Queries
@@ -38,30 +41,6 @@ export default function WorkspaceMembersModal({
   const removeMemberMutation = useRemoveMemberMutation(workspaceId);
   const revokeInviteMutation = useRevokeInvitationMutation(workspaceId);
 
-  // Filter members by search query
-  const filteredMembers = useMemo(() => {
-    if (!searchQuery.trim()) return members;
-    const q = searchQuery.toLowerCase().trim();
-    return members.filter(
-      (m) =>
-        (m.name && m.name.toLowerCase().includes(q)) ||
-        (m.email && m.email.toLowerCase().includes(q)) ||
-        m.role.toLowerCase().includes(q)
-    );
-  }, [members, searchQuery]);
-
-  // Filter invitations by search query
-  const filteredInvitations = useMemo(() => {
-    if (!searchQuery.trim()) return invitations;
-    const q = searchQuery.toLowerCase().trim();
-    return invitations.filter(
-      (i) =>
-        i.email.toLowerCase().includes(q) ||
-        i.role.toLowerCase().includes(q) ||
-        i.status.toLowerCase().includes(q)
-    );
-  }, [invitations, searchQuery]);
-
   if (!isOpen) return null;
 
   return (
@@ -75,7 +54,9 @@ export default function WorkspaceMembersModal({
                 <Users size={15} />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-slate-100 leading-tight">Workspace Collaboration</h2>
+                <h2 className="text-sm font-bold text-slate-100 leading-tight">
+                  {workspace?.name ? `${workspace.name} — Collaboration` : 'Workspace Collaboration'}
+                </h2>
                 <p className="text-[11px] text-slate-400">
                   Manage workspace members, assign roles, and send email invitations.
                 </p>
@@ -83,6 +64,16 @@ export default function WorkspaceMembersModal({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsPermissionsOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#191d27] hover:bg-[#222735] border border-[#2d3446] text-slate-300 hover:text-white font-medium text-xs transition-colors cursor-pointer"
+                title="View workspace roles and capabilities"
+              >
+                <Shield size={13} className="text-sky-400" />
+                <span>Role Matrix</span>
+              </button>
+
               {canManage && (
                 <button
                   type="button"
@@ -93,6 +84,7 @@ export default function WorkspaceMembersModal({
                   <span>Invite Member</span>
                 </button>
               )}
+
               <button
                 type="button"
                 onClick={onClose}
@@ -103,9 +95,8 @@ export default function WorkspaceMembersModal({
             </div>
           </div>
 
-          {/* Sub-header: Navigation Tabs & Search */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5 bg-[#0e1016] border-b border-[#232732]">
-            {/* Tabs */}
+          {/* Sub-header: Navigation Tabs */}
+          <div className="flex items-center justify-between px-5 py-2.5 bg-[#0e1016] border-b border-[#232732]">
             <div className="flex items-center gap-1 p-0.5 rounded-lg bg-[#141720] border border-[#232732]">
               <button
                 type="button"
@@ -137,28 +128,17 @@ export default function WorkspaceMembersModal({
                 </button>
               )}
             </div>
-
-            {/* Filter Search */}
-            <div className="relative flex items-center">
-              <Search size={12} className="absolute left-2.5 text-slate-500 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={activeTab === 'members' ? 'Search members...' : 'Search invitations...'}
-                className="w-48 sm:w-60 pl-7 pr-3 py-1 bg-[#12151e] border border-[#262c3b] rounded text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500"
-              />
-            </div>
           </div>
 
           {/* Body Content */}
-          <div className="flex-1 overflow-y-auto p-5 min-h-[300px]">
+          <div className="flex-1 overflow-y-auto p-5 min-h-[340px]">
             {activeTab === 'members' ? (
               <MemberList
-                members={filteredMembers}
+                members={members}
                 isLoading={loadingMembers}
                 currentUser={currentUser}
                 currentUserRole={workspaceRole}
+                workspaceName={workspace?.name || 'Workspace'}
                 onUpdateRole={(memberId, newRole) =>
                   updateRoleMutation.mutate({ memberId, role: newRole })
                 }
@@ -167,8 +147,8 @@ export default function WorkspaceMembersModal({
                 isRemoving={removeMemberMutation.isPending}
               />
             ) : (
-              <InvitationList
-                invitations={filteredInvitations}
+              <PendingInvitationList
+                invitations={invitations}
                 isLoading={loadingInvitations}
                 onRevokeInvitation={(invId) => revokeInviteMutation.mutate(invId)}
                 isRevoking={revokeInviteMutation.isPending}
@@ -185,7 +165,12 @@ export default function WorkspaceMembersModal({
         workspaceId={workspaceId}
         currentUserRole={workspaceRole}
       />
+
+      {/* Roles & Capabilities Matrix */}
+      <PermissionOverviewModal
+        isOpen={isPermissionsOpen}
+        onClose={() => setIsPermissionsOpen(false)}
+      />
     </>
   );
 }
-

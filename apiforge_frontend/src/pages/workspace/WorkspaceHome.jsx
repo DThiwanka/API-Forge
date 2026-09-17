@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Layers, Plus, FileCode2, Network, Play, Globe, History, AlertCircle } from 'lucide-react';
+import { Layers, Plus, FileCode2, Network, Play, Globe, History, AlertCircle, Users } from 'lucide-react';
 import { useWorkspaceQuery, useCollectionsQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
 import { useHistoryQuery } from '../../features/history/hooks/useHistory';
+import { useMembersQuery } from '../../features/collaboration/hooks/useCollaboration';
 import { computeWorkspaceMetrics, formatLastActivity } from '../../features/workspace/utils/workspaceDashboardUtils';
 
 import WorkspaceHeaderSection from '../../features/workspace/components/WorkspaceHeaderSection';
@@ -19,6 +20,7 @@ import WorkspaceCanvasCard from '../../features/workspace/components/WorkspaceCa
 import CreateRequestDialog from '../../features/collections/components/CreateRequestDialog';
 import CreateCollectionDialog from '../../features/collections/components/CreateCollectionDialog';
 import ImportDialog from '../../features/import-export/components/ImportDialog';
+import WorkspaceMembersModal from '../../features/collaboration/components/WorkspaceMembersModal';
 
 export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequest }) {
   const queryClient = useQueryClient();
@@ -28,6 +30,7 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
   const [importModal, setImportModal] = useState({ isOpen: false, tab: 'curl' });
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
   // Workspace queries
   const {
@@ -39,6 +42,7 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
   const { data: collections = [], isLoading: loadingCollections } = useCollectionsQuery(workspaceId);
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
   const { data: historyData } = useHistoryQuery(workspaceId, { limit: 5 });
+  const { data: members = [] } = useMembersQuery(workspaceId);
 
   const isViewer = workspace?.role === 'VIEWER';
 
@@ -166,7 +170,12 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
             />
 
             {/* 3. Summary Metrics Strip */}
-            <WorkspaceSummaryMetrics metrics={metrics} activeEnvironment={activeEnvironment} />
+            <WorkspaceSummaryMetrics
+              metrics={metrics}
+              activeEnvironment={activeEnvironment}
+              memberCount={members.length}
+              onOpenMembers={() => setIsMembersModalOpen(true)}
+            />
 
             {/* 4. Two Column Operational Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
@@ -199,6 +208,14 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
               </span>
 
               <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setIsMembersModalOpen(true)}
+                  className="hover:text-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Users size={13} className="text-sky-400" />
+                  <span>Team ({members.length})</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => navigate(`/workspace/${workspaceId}/canvas`)}
@@ -255,6 +272,13 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
         onClose={() => setImportModal({ isOpen: false, tab: 'curl' })}
         workspaceId={workspaceId}
         initialTab={importModal.tab}
+      />
+
+      <WorkspaceMembersModal
+        isOpen={isMembersModalOpen}
+        onClose={() => setIsMembersModalOpen(false)}
+        workspaceId={workspaceId}
+        workspaceRole={workspace?.role || 'MEMBER'}
       />
     </div>
   );

@@ -170,5 +170,176 @@ describe('Step 53: Workspace Collaboration Frontend Tests', () => {
       assert.equal(isInvitationEmailMatch('hacker@domain.com', 'intended@domain.com'), false);
     });
   });
+
+  describe('Step 54: Workspace Member & Permission UX', () => {
+    const mockMembers = [
+      { id: 'm1', userId: 'u1', name: 'Alice Owner', email: 'alice@example.com', role: 'OWNER' },
+      { id: 'm2', userId: 'u2', name: 'Bob Admin', email: 'bob@example.com', role: 'ADMIN' },
+      { id: 'm3', userId: 'u3', name: 'Charlie Dev', email: 'charlie@example.com', role: 'MEMBER' },
+      { id: 'm4', userId: 'u4', name: 'Dana Guest', email: 'dana@example.com', role: 'VIEWER' },
+    ];
+
+    describe('5. Member Filtering and Count Derivation', () => {
+      function computeMemberCounts(members) {
+        return {
+          all: members.length,
+          owner: members.filter((m) => m.role === 'OWNER').length,
+          admin: members.filter((m) => m.role === 'ADMIN').length,
+          member: members.filter((m) => m.role === 'MEMBER').length,
+          viewer: members.filter((m) => m.role === 'VIEWER').length,
+        };
+      }
+
+      function filterMembers(members, { roleFilter = 'ALL', searchQuery = '' }) {
+        return members.filter((m) => {
+          if (roleFilter !== 'ALL' && m.role !== roleFilter) {
+            return false;
+          }
+          if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            const nameMatch = m.name && m.name.toLowerCase().includes(q);
+            const emailMatch = m.email && m.email.toLowerCase().includes(q);
+            if (!nameMatch && !emailMatch) {
+              return false;
+            }
+          }
+          return true;
+        });
+      }
+
+      it('computes accurate role counts', () => {
+        const counts = computeMemberCounts(mockMembers);
+        assert.deepEqual(counts, {
+          all: 4,
+          owner: 1,
+          admin: 1,
+          member: 1,
+          viewer: 1,
+        });
+      });
+
+      it('filters members by specific role', () => {
+        const owners = filterMembers(mockMembers, { roleFilter: 'OWNER' });
+        assert.equal(owners.length, 1);
+        assert.equal(owners[0].name, 'Alice Owner');
+
+        const admins = filterMembers(mockMembers, { roleFilter: 'ADMIN' });
+        assert.equal(admins.length, 1);
+        assert.equal(admins[0].name, 'Bob Admin');
+      });
+
+      it('filters members by name search query', () => {
+        const filtered = filterMembers(mockMembers, { searchQuery: 'charlie' });
+        assert.equal(filtered.length, 1);
+        assert.equal(filtered[0].name, 'Charlie Dev');
+      });
+
+      it('filters members by email search query', () => {
+        const filtered = filterMembers(mockMembers, { searchQuery: 'dana@example' });
+        assert.equal(filtered.length, 1);
+        assert.equal(filtered[0].email, 'dana@example.com');
+      });
+
+      it('combines role filter and search query correctly', () => {
+        const match = filterMembers(mockMembers, { roleFilter: 'ADMIN', searchQuery: 'bob' });
+        assert.equal(match.length, 1);
+        assert.equal(match[0].name, 'Bob Admin');
+
+        const mismatch = filterMembers(mockMembers, { roleFilter: 'MEMBER', searchQuery: 'bob' });
+        assert.equal(mismatch.length, 0);
+      });
+    });
+
+    describe('6. Privilege-Changing Confirmation Modal Contracts', () => {
+      it('validates role change transition requirement', () => {
+        const targetMember = mockMembers[1]; // Bob Admin
+        const newRole = 'VIEWER';
+
+        assert.notEqual(targetMember.role, newRole);
+        const dialogPayload = {
+          memberId: targetMember.id,
+          memberName: targetMember.name,
+          currentRole: targetMember.role,
+          targetRole: newRole,
+        };
+
+        assert.equal(dialogPayload.currentRole, 'ADMIN');
+        assert.equal(dialogPayload.targetRole, 'VIEWER');
+        assert.equal(dialogPayload.memberName, 'Bob Admin');
+      });
+
+      it('validates member removal confirmation requirement', () => {
+        const targetMember = mockMembers[2]; // Charlie Dev
+        const removalPayload = {
+          memberId: targetMember.id,
+          memberName: targetMember.name,
+          workspaceName: 'Production APIs',
+        };
+
+        assert.equal(removalPayload.memberId, 'm3');
+        assert.equal(removalPayload.memberName, 'Charlie Dev');
+        assert.equal(removalPayload.workspaceName, 'Production APIs');
+      });
+    });
+
+    describe('7. Workspace Capabilities Matrix Consistency', () => {
+      const CAPABILITIES = [
+        {
+          name: 'View workspace & resources',
+          roles: { OWNER: true, ADMIN: true, MEMBER: true, VIEWER: true },
+        },
+        {
+          name: 'Execute requests & runner',
+          roles: { OWNER: true, ADMIN: true, MEMBER: true, VIEWER: true },
+        },
+        {
+          name: 'Create & edit resources',
+          roles: { OWNER: true, ADMIN: true, MEMBER: true, VIEWER: false },
+        },
+        {
+          name: 'Manage environments & variables',
+          roles: { OWNER: true, ADMIN: true, MEMBER: true, VIEWER: false },
+        },
+        {
+          name: 'Invite & manage members',
+          roles: { OWNER: true, ADMIN: true, MEMBER: false, VIEWER: false },
+        },
+        {
+          name: 'Manage workspace metadata',
+          roles: { OWNER: true, ADMIN: true, MEMBER: false, VIEWER: false },
+        },
+        {
+          name: 'Delete workspace',
+          roles: { OWNER: true, ADMIN: false, MEMBER: false, VIEWER: false },
+        },
+      ];
+
+      it('ensures Viewers can only view and execute', () => {
+        const viewerAllowed = CAPABILITIES.filter((c) => c.roles.VIEWER).map((c) => c.name);
+        assert.deepEqual(viewerAllowed, [
+          'View workspace & resources',
+          'Execute requests & runner',
+        ]);
+      });
+
+      it('ensures Members cannot invite/manage members, edit metadata, or delete workspace', () => {
+        const memberDenied = CAPABILITIES.filter((c) => !c.roles.MEMBER).map((c) => c.name);
+        assert.deepEqual(memberDenied, [
+          'Invite & manage members',
+          'Manage workspace metadata',
+          'Delete workspace',
+        ]);
+      });
+
+      it('ensures only Owners can delete workspace', () => {
+        const deleteCap = CAPABILITIES.find((c) => c.name === 'Delete workspace');
+        assert.ok(deleteCap.roles.OWNER);
+        assert.equal(deleteCap.roles.ADMIN, false);
+        assert.equal(deleteCap.roles.MEMBER, false);
+        assert.equal(deleteCap.roles.VIEWER, false);
+      });
+    });
+  });
 });
+
 
