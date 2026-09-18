@@ -7,6 +7,8 @@ import useWorkspaceStore from '../../features/workspace/store/workspaceStore';
 import ImportDialog from '../../features/import-export/components/ImportDialog';
 import ExportDialog from '../../features/import-export/components/ExportDialog';
 import WorkspaceMembersModal from '../../features/collaboration/components/WorkspaceMembersModal';
+import useRealtimeCollaboration from '../../features/collaboration/hooks/useRealtimeCollaboration';
+import WorkspacePresenceIndicator from '../../features/collaboration/components/WorkspacePresenceIndicator';
 import { cn } from '../../utils/cn';
 
 const ROLE_BADGES = {
@@ -33,6 +35,9 @@ export default function WorkspaceHeader({ workspaceId, className }) {
   const { data: workspace } = useWorkspaceQuery(workspaceId);
   const { data: collections = [] } = useCollectionsQuery(workspaceId);
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
+
+  // Real-time collaboration hook
+  useRealtimeCollaboration(workspaceId);
 
   // Global listeners for command center collaboration shortcuts
   useEffect(() => {
@@ -169,6 +174,8 @@ export default function WorkspaceHeader({ workspaceId, className }) {
       </div>
 
       <div className="flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
+        <WorkspacePresenceIndicator onOpenMembers={() => setIsMembersOpen(true)} />
+
         <button
           type="button"
           onClick={() => setIsMembersOpen(true)}

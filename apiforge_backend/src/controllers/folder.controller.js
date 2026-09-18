@@ -1,4 +1,5 @@
 import folderService from '../services/collections/folder.service.js';
+import realtimeService from '../services/realtime/realtime.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -12,6 +13,19 @@ export const create = asyncHandler(async (req, res) => {
     collectionId: req.collection.id,
     parentId,
     name,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'folder.created',
+    workspaceId: req.workspace.id,
+    resourceId: folder.id,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+      name: folder.name,
+      parentId: folder.parentId,
+    },
   });
 
   res.status(201).json({
@@ -78,6 +92,19 @@ export const update = asyncHandler(async (req, res) => {
     },
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'folder.updated',
+    workspaceId: req.workspace.id,
+    resourceId: folder.id,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+      name: folder.name,
+      parentId: folder.parentId,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: 'Folder updated successfully',
@@ -96,6 +123,17 @@ export const deleteFolder = asyncHandler(async (req, res) => {
     workspaceId: req.workspace.id,
     collectionId: req.collection.id,
     folderId: req.params.folderId,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'folder.deleted',
+    workspaceId: req.workspace.id,
+    resourceId: req.params.folderId,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+    },
   });
 
   res.status(200).json({

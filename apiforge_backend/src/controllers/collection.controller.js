@@ -1,6 +1,7 @@
 import collectionService, {
   formatCollectionResponse,
 } from '../services/collections/collection.service.js';
+import realtimeService from '../services/realtime/realtime.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -13,6 +14,17 @@ export const create = asyncHandler(async (req, res) => {
     workspaceId: req.workspace.id,
     name,
     description,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'collection.created',
+    workspaceId: req.workspace.id,
+    resourceId: collection.id,
+    actor: req.user,
+    metadata: {
+      name: collection.name,
+    },
   });
 
   res.status(201).json({
@@ -69,6 +81,17 @@ export const update = asyncHandler(async (req, res) => {
     },
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'collection.updated',
+    workspaceId: req.workspace.id,
+    resourceId: collection.id,
+    actor: req.user,
+    metadata: {
+      name: collection.name,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: 'Collection updated successfully',
@@ -86,6 +109,14 @@ export const deleteCollection = asyncHandler(async (req, res) => {
   await collectionService.deleteCollection({
     workspaceId: req.workspace.id,
     collectionId: req.collection.id,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'collection.deleted',
+    workspaceId: req.workspace.id,
+    resourceId: req.collection.id,
+    actor: req.user,
   });
 
   res.status(200).json({

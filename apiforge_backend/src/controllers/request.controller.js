@@ -1,5 +1,6 @@
 import requestService from '../services/requests/request.service.js';
 import requestExecutionService from '../services/execution/request-execution.service.js';
+import realtimeService from '../services/realtime/realtime.service.js';
 import env from '../config/env.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -12,6 +13,19 @@ export const create = asyncHandler(async (req, res) => {
     workspaceId: req.workspace.id,
     collectionId: req.collection.id,
     requestData: req.body,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'request.created',
+    workspaceId: req.workspace.id,
+    resourceId: request.id,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+      name: request.name,
+      method: request.method,
+    },
   });
 
   res.status(201).json({
@@ -74,6 +88,19 @@ export const update = asyncHandler(async (req, res) => {
     updateData: req.body,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'request.updated',
+    workspaceId: req.workspace.id,
+    resourceId: request.id,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+      name: request.name,
+      method: request.method,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: 'Request updated successfully',
@@ -94,6 +121,17 @@ export const deleteRequest = asyncHandler(async (req, res) => {
     requestId: req.params.requestId,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'request.deleted',
+    workspaceId: req.workspace.id,
+    resourceId: req.params.requestId,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: 'Request deleted successfully',
@@ -109,6 +147,19 @@ export const duplicate = asyncHandler(async (req, res) => {
     workspaceId: req.workspace.id,
     collectionId: req.collection.id,
     requestId: req.params.requestId,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'request.created',
+    workspaceId: req.workspace.id,
+    resourceId: request.id,
+    actor: req.user,
+    metadata: {
+      collectionId: req.collection.id,
+      name: request.name,
+      method: request.method,
+    },
   });
 
   res.status(201).json({

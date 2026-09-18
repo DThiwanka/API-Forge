@@ -1,4 +1,6 @@
-import { ArrowRight, Folder, Layers } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, Folder, Layers, Globe, History, Check } from 'lucide-react';
+import CommandHighlight from './CommandHighlight';
 
 const METHOD_COLORS = {
   GET: 'bg-emerald-950/60 text-emerald-400 border-emerald-800/60',
@@ -12,6 +14,7 @@ const METHOD_COLORS = {
 
 export default function CommandItem({
   command,
+  query = '',
   isSelected,
   onClick,
   onMouseEnter,
@@ -61,6 +64,22 @@ export default function CommandItem({
           >
             <Layers size={13} />
           </div>
+        ) : command.group === 'Environments' ? (
+          <div
+            className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+              isSelected ? 'bg-sky-900/60 text-sky-300' : 'bg-[#181b22] text-emerald-400/80 group-hover:text-emerald-300'
+            }`}
+          >
+            <Globe size={13} />
+          </div>
+        ) : command.group === 'History' ? (
+          <div
+            className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+              isSelected ? 'bg-sky-900/60 text-sky-300' : 'bg-[#181b22] text-slate-400 group-hover:text-slate-300'
+            }`}
+          >
+            <History size={13} />
+          </div>
         ) : Icon ? (
           <div
             className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
@@ -71,7 +90,6 @@ export default function CommandItem({
           </div>
         ) : null}
 
-        {/* Title & Description */}
         {/* Title, Path & Breadcrumb Metadata */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -80,20 +98,23 @@ export default function CommandItem({
                 isSelected ? 'text-white' : 'text-slate-200 group-hover:text-white'
               }`}
             >
-              {command.title}
+              <CommandHighlight text={command.title} query={query} />
             </span>
+
+            {/* Active Environment pill */}
+            {command.isActive && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">
+                <Check size={9} />
+                <span>active</span>
+              </span>
+            )}
           </div>
-          {command.description && (
-            <p className="text-[11px] text-slate-400 truncate leading-tight mt-0.5">
-              {command.description}
-            </p>
-          )}
 
           {/* Subtitle / Path / Breadcrumb */}
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400 truncate leading-tight mt-0.5">
             {command.path && (
-              <span className="font-mono text-[10px] text-slate-400 truncate shrink-0 max-w-[220px]">
-                {command.path}
+              <span className="font-mono text-[10px] text-slate-400 truncate shrink-0 max-w-[260px]">
+                <CommandHighlight text={command.path} query={query} />
               </span>
             )}
             {command.path && breadcrumbs && (
@@ -105,13 +126,12 @@ export default function CommandItem({
               </span>
             )}
             {!command.path && !breadcrumbs && command.description && (
-              <span className="truncate">{command.description}</span>
+              <span className="truncate text-slate-400">{command.description}</span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Trailing Shortcut Badge or Enter Icon */}
       {/* Trailing Shortcut Badge or Select Indicator */}
       <div className="flex items-center gap-1.5 shrink-0">
         {command.shortcut && (
@@ -135,4 +155,5 @@ export default function CommandItem({
     </div>
   );
 }
+
 

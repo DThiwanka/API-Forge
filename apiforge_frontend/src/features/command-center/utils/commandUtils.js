@@ -8,10 +8,12 @@ export const GROUP_ORDER = [
   'Recent Commands',
   'Recent Requests',
   'Actions',
-  'Navigation',
   'Requests',
   'Collections',
   'Folders',
+  'Environments',
+  'History',
+  'Navigation',
   'Workspace',
 ];
 
@@ -31,11 +33,13 @@ export function searchCommands(commands, query) {
 
 /**
  * Groups a flat array of commands according to standard group ordering.
+ * Limits results per group to ensure fast rendering.
  *
  * @param {Array} commands - List of command items
- * @returns {Array} - Array of { group, items }
+ * @param {number} [maxPerGroup=20] - Maximum items to show per group
+ * @returns {Array} - Array of { group, items, totalCount }
  */
-export function groupCommands(commands) {
+export function groupCommands(commands, maxPerGroup = 20) {
   if (!Array.isArray(commands)) return [];
 
   const map = new Map();
@@ -52,17 +56,25 @@ export function groupCommands(commands) {
   const result = [];
   for (const groupName of GROUP_ORDER) {
     if (map.has(groupName)) {
+      const allGroupItems = map.get(groupName);
+      const items = maxPerGroup > 0 ? allGroupItems.slice(0, maxPerGroup) : allGroupItems;
       result.push({
         group: groupName,
-        items: map.get(groupName),
+        items,
+        totalCount: allGroupItems.length,
       });
       map.delete(groupName);
     }
   }
 
   // Append any remaining custom groups
-  for (const [group, items] of map.entries()) {
-    result.push({ group, items });
+  for (const [group, allGroupItems] of map.entries()) {
+    const items = maxPerGroup > 0 ? allGroupItems.slice(0, maxPerGroup) : allGroupItems;
+    result.push({
+      group,
+      items,
+      totalCount: allGroupItems.length,
+    });
   }
 
   return result;
@@ -70,7 +82,7 @@ export function groupCommands(commands) {
 
 export default {
   GROUP_ORDER,
+  GROUP_SEARCH_ORDER,
   searchCommands,
   groupCommands,
 };
-

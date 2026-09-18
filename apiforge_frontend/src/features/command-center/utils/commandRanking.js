@@ -10,9 +10,29 @@ export const GROUP_SEARCH_ORDER = [
   'Requests',
   'Collections',
   'Folders',
+  'Environments',
+  'History',
   'Navigation',
   'Workspace',
 ];
+
+/**
+ * Normalizes text for comparison by collapsing hyphens, underscores, slashes, and whitespace.
+ * e.g. "GET /users/:id" -> "get users id"
+ */
+export function normalizeSearchText(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.toLowerCase().replace(/[-_/:#?&=.]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Strips all non-alphanumeric characters for fuzzy matching tolerance.
+ * e.g. "get-users" -> "getusers"
+ */
+export function stripPunctuation(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
 
 /**
  * Calculates a match score for a command given a query.
@@ -26,12 +46,28 @@ export function scoreCommand(cmd, query) {
   if (!cmd) return 0;
   if (!query || typeof query !== 'string' || !query.trim()) return 100;
 
-  const trimmedQuery = query.trim().toLowerCase();
-  const terms = trimmedQuery.split(/\s+/).filter(Boolean);
+  const rawQuery = query.trim().toLowerCase();
+  const normalizedQuery = normalizeSearchText(rawQuery);
+  const strippedQuery = stripPunctuation(rawQuery);
+
+  // Split query into terms on whitespace or slashes/hyphens
+  const queryTerms = rawQuery.split(/\s+/).filter(Boolean);
+  const terms = Array.from(
+    new Set([
+      ...queryTerms,
+      ...normalizedQuery.split(/\s+/).filter(Boolean),
+    ])
+  );
 
   const title = (cmd.title || '').toLowerCase();
+  const normalizedTitle = normalizeSearchText(cmd.title);
+  const strippedTitle = stripPunctuation(cmd.title);
+
   const method = (cmd.method || '').toLowerCase();
   const path = (cmd.path || '').toLowerCase();
+  const normalizedPath = normalizeSearchText(cmd.path);
+  const strippedPath = stripPunctuation(cmd.path);
+
   const collectionName = (cmd.collectionName || '').toLowerCase();
   const folderName = (cmd.folderName || '').toLowerCase();
   const description = (cmd.description || '').toLowerCase();
@@ -40,17 +76,25 @@ export function scoreCommand(cmd, query) {
   // Build combined searchable index
   const searchIndexParts = [
     title,
+    normalizedTitle,
     method,
     path,
+    normalizedPath,
     collectionName,
     folderName,
     description,
     ...keywords,
   ];
   const combinedText = searchIndexParts.join(' ');
+  const strippedCombinedText = stripPunctuation(combinedText);
 
-  // Every term in multi-term query must be present somewhere in the item
-  const allTermsMatch = terms.every((t) => combinedText.includes(t));
+  // Check if every primary query term is satisfied
+  const allTermsMatch = queryTerms.every((term) => {
+    if (combinedText.includes(term)) return true;
+    const strippedTerm = stripPunctuation(term);
+    return strippedTerm.length > 1 && strippedCombinedText.includes(strippedTerm);
+  });
+
   if (!allTermsMatch) {
     return 0;
   }
@@ -58,72 +102,89 @@ export function scoreCommand(cmd, query) {
   let score = 0;
 
   // 1. Exact title match (Highest Priority)
-  if (title === trimmedQuery) {
+  if (title === rawQuery || normalizedTitle === normalizedQuery) {
+    score += 1500;
+  } else if (strippedTitle && strippedTitle === strippedQuery) {
+    score += 1350;
+  } else if (title.startsWith(rawQuery) || normalizedTitle.startsWith(normalizedQuery)) {
+    // 3. Title starts with query
+    score += 950;
+  } else if (title.includes(rawQuery) || normalizedTitle.includes(normalizedQuery)) {
+    // 4. Title contains query
+    score += 700;
+  }
+
+  // 2. Exact path / method match
+  if (path && (path === rawQuery || normalizedPath === normalizedQuery)) {
     score += 1200;
-  } else if (title.startsWith(trimmedQuery)) {
-    // 2. Title starts with query
-    score += 800;
-  } else if (title.includes(trimmedQuery)) {
-    // 3. Title contains query
-    score += 600;
+  } else if (method && method === rawQuery) {
+    score += 1100;
   }
 
-  // 4. Request name matching (for request commands)
-  if (cmd.group === 'Requests' || cmd.group === 'Recent Requests') {
-    if (title === trimmedQuery) {
-      score += 400;
-    } else if (title.startsWith(trimmedQuery)) {
-      score += 250;
-    }
-  }
-
-  // 5. Method match (e.g. searching "POST" or "GET")
-  if (method && (method === trimmedQuery || terms.includes(method))) {
+  // 5. Method match within query terms (e.g. searching "GET /users" or "POST users")
+  if (method && (queryTerms.includes(method) || terms.includes(method))) {
     score += 450;
   }
 
-  // 6. URL/path match
+  // 6. Path contains query or path segments
   if (path) {
-    if (path.startsWith(trimmedQuery) || path.includes('/' + trimmedQuery)) {
-      score += 350;
-    } else if (path.includes(trimmedQuery)) {
+    if (path.startsWith(rawQuery) || path.includes('/' + rawQuery)) {
+      score += 550;
+    } else if (path.includes(rawQuery) || normalizedPath.includes(normalizedQuery)) {
+      score += 400;
+    } else if (strippedPath && strippedQuery.length > 2 && strippedPath.includes(strippedQuery)) {
+      score += 300;
+    }
+  }
+
+  // 7. Request specific group priority
+  if (cmd.group === 'Requests' || cmd.group === 'Recent Requests') {
+    if (title.includes(rawQuery)) {
       score += 250;
     }
   }
 
-  // 7. Collection / Folder match
+  // 8. Collection / Folder match
   if (collectionName) {
-    if (collectionName === trimmedQuery || collectionName.startsWith(trimmedQuery)) {
-      score += 220;
-    } else if (collectionName.includes(trimmedQuery)) {
-      score += 150;
+    if (collectionName === rawQuery || collectionName.startsWith(rawQuery)) {
+      score += 250;
+    } else if (collectionName.includes(rawQuery)) {
+      score += 160;
     }
   }
   if (folderName) {
-    if (folderName === trimmedQuery || folderName.startsWith(trimmedQuery)) {
-      score += 200;
-    } else if (folderName.includes(trimmedQuery)) {
-      score += 140;
+    if (folderName === rawQuery || folderName.startsWith(rawQuery)) {
+      score += 220;
+    } else if (folderName.includes(rawQuery)) {
+      score += 150;
     }
   }
 
-  // 8. Description match
-  if (description.includes(trimmedQuery)) {
-    score += 150;
+  // 9. Description match
+  if (description.includes(rawQuery)) {
+    score += 120;
   }
 
-  // 9. Keyword matches (lowest priority ranking)
+  // 10. Keyword matches
   for (const kw of keywords) {
-    if (kw === trimmedQuery) {
-      score += 80;
+    if (kw === rawQuery) {
+      score += 100;
       break;
-    } else if (kw.startsWith(trimmedQuery)) {
-      score += 60;
+    } else if (kw.startsWith(rawQuery)) {
+      score += 70;
       break;
-    } else if (kw.includes(trimmedQuery)) {
-      score += 40;
+    } else if (kw.includes(rawQuery)) {
+      score += 50;
       break;
     }
+  }
+
+  // Multi-term contribution
+  for (const term of queryTerms) {
+    if (title.includes(term)) score += 80;
+    if (path.includes(term)) score += 60;
+    if (collectionName.includes(term)) score += 40;
+    if (folderName.includes(term)) score += 30;
   }
 
   // Base score for meeting all terms criteria
@@ -185,6 +246,8 @@ export function rankCommands(commands, query) {
 
 export default {
   GROUP_SEARCH_ORDER,
+  normalizeSearchText,
+  stripPunctuation,
   scoreCommand,
   rankCommands,
 };

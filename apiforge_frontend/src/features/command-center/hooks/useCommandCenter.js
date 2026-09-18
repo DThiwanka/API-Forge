@@ -17,19 +17,29 @@ import {
   Clock,
   Users,
   UserPlus,
+  Globe,
+  Download,
+  Upload,
 } from 'lucide-react';
 import useCommandCenterStore from '../store/commandCenterStore';
 import { searchCommands, groupCommands } from '../utils/commandUtils';
 import { useCollectionsQuery, useWorkspacesQuery } from '../../workspace/hooks/useWorkspace';
+import { useEnvironmentsQuery } from '../../environments/hooks/useEnvironments';
+import { useHistoryQuery } from '../../history/hooks/useHistory';
+import { formatRelativeTime } from '../../history/utils/historyHelpers';
+import useResourceNavigation from '../../../hooks/useResourceNavigation';
 import useRequestTabStore from '../../requests/store/requestTabStore';
 import useRequestStore from '../../requests/store/requestStore';
+import useCollectionStore from '../../collections/store/collectionStore';
 import useBrowserStore from '../../browser/store/browserStore';
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { useUpdateRequestMutation, useDuplicateRequestMutation } from '../../requests/hooks/useRequest';
+import { toast } from '../../../stores/toastStore';
 
 export function useCommandCenter(workspaceId) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { openRequest } = useResourceNavigation(workspaceId);
 
   const isOpen = useCommandCenterStore((s) => s.isOpen);
   const query = useCommandCenterStore((s) => s.query);
@@ -52,9 +62,16 @@ export function useCommandCenter(workspaceId) {
   // Collections for this workspace
   const { data: collections = [] } = useCollectionsQuery(workspaceId);
 
+  // Environments for this workspace (safe metadata only)
+  const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
+
+  // Execution History for this workspace
+  const { data: historyData } = useHistoryQuery(workspaceId, { limit: 20 });
+
   // Open tabs & active tab for this workspace
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
   const history = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || []);
+  const mruHistory = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || []);
   const closeTab = useRequestTabStore((s) => s.closeTab);
   const openTab = useRequestTabStore((s) => s.openTab);
 
@@ -143,6 +160,7 @@ export function useCommandCenter(workspaceId) {
   }, [workspaceId, collections, queryClient]);
 
   // Construct flat command catalogue
+  // Construct flat command and resource catalogue
   const allCommands = useMemo(() => {
     if (!workspaceId) return [];
 
@@ -154,7 +172,7 @@ export function useCommandCenter(workspaceId) {
     const folderMap = new Map(cachedData.folders.map((f) => [f.id, f]));
 
     // 1. RECENT REQUESTS (from tabs and MRU history stack)
-    const recentIds = Array.from(new Set([...history].reverse()));
+    const recentIds = Array.from(new Set([...mruHistory].reverse()));
     const recentTabs = recentIds
       .map((reqId) => {
         const t = tabs.find((tab) => tab.requestId === reqId);
@@ -170,12 +188,14 @@ export function useCommandCenter(workspaceId) {
         };
       })
       .filter(Boolean)
-      .slice(0, 5);
+      .slice(0, 7);
 
     // Show "Recent Requests"
     for (const tab of recentTabs) {
       list.push({
         id: `recent-req-${tab.requestId}`,
+        resourceType: 'request',
+        resourceId: tab.requestId,
         title: tab.title || 'Untitled Request',
         description: tab.collectionName ? `in ${tab.collectionName}` : 'Recent request',
         group: isSearching ? 'Requests' : 'Recent Requests',
@@ -186,9 +206,13 @@ export function useCommandCenter(workspaceId) {
         icon: Clock,
         keywords: ['recent', tab.title, tab.method, tab.path || '', tab.collectionName || ''],
         execute: () => {
-          navigate(
-            `/workspace/${workspaceId}/collections/${tab.collectionId}/requests/${tab.requestId}`
-          );
+          openRequest(tab.requestId, {
+            collectionId: tab.collectionId,
+            folderId: tab.folderId,
+            title: tab.title,
+            method: tab.method,
+            url: tab.path,
+          });
         },
       });
     }
@@ -219,7 +243,31 @@ export function useCommandCenter(workspaceId) {
           openCreateCollection();
         },
       });
+
+      list.push({
+        id: 'action-import-request',
+        title: 'Import Request / Specification',
+        description: 'Import cURL command, OpenAPI, or API collection',
+        group: 'Actions',
+        icon: Download,
+        keywords: ['import', 'curl', 'openapi', 'swagger', 'load'],
+        execute: () => {
+          window.dispatchEvent(new CustomEvent('apiforge:open-import-dialog'));
+        },
+      });
     }
+
+    list.push({
+      id: 'action-export-collection',
+      title: 'Export Collection',
+      description: 'Export collection as OpenAPI specification or cURL commands',
+      group: 'Actions',
+      icon: Upload,
+      keywords: ['export', 'openapi', 'swagger', 'curl', 'download'],
+      execute: () => {
+        window.dispatchEvent(new CustomEvent('apiforge:open-export-dialog'));
+      },
+    });
 
     const canManageCollaboration = currentWs?.role === 'OWNER' || currentWs?.role === 'ADMIN';
 
@@ -284,16 +332,12 @@ export function useCommandCenter(workspaceId) {
           execute: async () => {
             const duplicated = await duplicateMutation.mutateAsync(currentRequestId);
             if (duplicated?.id) {
-              openTab({
-                workspaceId,
+              openRequest(duplicated.id, {
                 collectionId: currentCollectionId,
-                requestId: duplicated.id,
                 title: duplicated.name || `${currentRequestName} (Copy)`,
                 method: duplicated.method || 'GET',
+                url: duplicated.url || '',
               });
-              navigate(
-                `/workspace/${workspaceId}/collections/${currentCollectionId}/requests/${duplicated.id}`
-              );
             }
           },
         });
@@ -464,6 +508,8 @@ export function useCommandCenter(workspaceId) {
         const folder = cached?.folderId ? folderMap.get(cached.folderId) : null;
         list.push({
           id: `req-${tab.requestId}`,
+          resourceType: 'request',
+          resourceId: tab.requestId,
           title: tab.title || 'Untitled Request',
           description: col ? `in ${col.name}` : 'Request',
           group: 'Requests',
@@ -473,9 +519,13 @@ export function useCommandCenter(workspaceId) {
           folderName: folder ? folder.name : undefined,
           keywords: [tab.title, tab.method, cached?.url || tab.url || '', col ? col.name : ''],
           execute: () => {
-            navigate(
-              `/workspace/${workspaceId}/collections/${tab.collectionId}/requests/${tab.requestId}`
-            );
+            openRequest(tab.requestId, {
+              collectionId: tab.collectionId,
+              folderId: tab.folderId,
+              title: tab.title,
+              method: tab.method,
+              url: tab.url,
+            });
           },
         });
       }
@@ -489,6 +539,8 @@ export function useCommandCenter(workspaceId) {
         const folder = req.folderId ? folderMap.get(req.folderId) : null;
         list.push({
           id: `req-${req.id}`,
+          resourceType: 'request',
+          resourceId: req.id,
           title: req.name || 'Untitled Request',
           description: `in ${col ? col.name : req.collectionName || 'Collection'}${req.url ? ` • ${req.url}` : ''}`,
           group: 'Requests',
@@ -498,9 +550,13 @@ export function useCommandCenter(workspaceId) {
           folderName: folder ? folder.name : undefined,
           keywords: [req.name, req.method, req.url || '', req.collectionName || ''],
           execute: () => {
-            navigate(
-              `/workspace/${workspaceId}/collections/${req.collectionId}/requests/${req.id}`
-            );
+            openRequest(req.id, {
+              collectionId: req.collectionId,
+              folderId: req.folderId,
+              title: req.name,
+              method: req.method,
+              url: req.url,
+            });
           },
         });
       }
@@ -510,12 +566,15 @@ export function useCommandCenter(workspaceId) {
     for (const col of collections) {
       list.push({
         id: `col-${col.id}`,
+        resourceType: 'collection',
+        resourceId: col.id,
         title: col.name,
         description: col.description || `${col.requestsCount || 0} requests`,
         group: 'Collections',
         keywords: [col.name, col.description || '', 'collection'],
         execute: () => {
-          navigate(`/workspace/${workspaceId}`);
+          useCollectionStore.getState().expandCollection(col.id);
+          navigate(`/workspace/${workspaceId}/collections/${col.id}`);
         },
       });
 
@@ -554,6 +613,8 @@ export function useCommandCenter(workspaceId) {
     for (const f of cachedData.folders) {
       list.push({
         id: `folder-${f.id}`,
+        resourceType: 'folder',
+        resourceId: f.id,
         title: f.name,
         description: f.collectionName ? `Folder in ${f.collectionName}` : 'Folder',
         group: 'Folders',
@@ -562,12 +623,70 @@ export function useCommandCenter(workspaceId) {
         icon: Folder,
         keywords: [f.name, f.collectionName || '', 'folder'],
         execute: () => {
+          if (f.collectionId) {
+            useCollectionStore.getState().expandCollection(f.collectionId);
+          }
+          useCollectionStore.getState().expandFolder(f.id);
           navigate(`/workspace/${workspaceId}`);
         },
       });
     }
 
-    // 7. RECENT COMMANDS (When empty query, surface recently executed commands)
+    // 7. ENVIRONMENTS (Safe metadata only: never expose secrets or variable values)
+    if (Array.isArray(environments)) {
+      for (const env of environments) {
+        list.push({
+          id: `env-${env.id}`,
+          resourceType: 'environment',
+          resourceId: env.id,
+          title: env.name,
+          description: env.description || (env.isActive ? 'Active Environment' : 'Environment'),
+          group: 'Environments',
+          icon: Globe,
+          isActive: env.isActive,
+          keywords: ['environment', 'env', env.name, env.description || '', env.isActive ? 'active' : ''],
+          execute: () => {
+            navigate(`/workspace/${workspaceId}/environments`);
+          },
+        });
+      }
+    }
+
+    // 8. HISTORY ENTRIES (If history records exist)
+    const historyList = historyData?.history;
+    if (Array.isArray(historyList) && historyList.length > 0) {
+      for (const h of historyList) {
+        const histTitle = h.request?.name || h.url || 'History Entry';
+        const timeAgo = formatRelativeTime(h.createdAt);
+        list.push({
+          id: `hist-${h.id}`,
+          resourceType: 'history',
+          resourceId: h.id,
+          title: histTitle,
+          method: h.method || 'GET',
+          path: h.url || '',
+          status: h.status,
+          description: `${h.status || 'ERR'} • ${timeAgo}`,
+          group: 'History',
+          icon: History,
+          keywords: ['history', h.method || '', h.url || '', String(h.status || ''), histTitle],
+          execute: () => {
+            if (h.requestId && h.collectionId) {
+              openRequest(h.requestId, {
+                collectionId: h.collectionId,
+                title: histTitle,
+                method: h.method,
+                url: h.url,
+              });
+            } else {
+              navigate(`/workspace/${workspaceId}/history`);
+            }
+          },
+        });
+      }
+    }
+
+    // 9. RECENT COMMANDS (When empty query, surface recently executed commands)
     if (!isSearching && Array.isArray(recentCommandIds) && recentCommandIds.length > 0) {
       const recentCommandsList = [];
       for (const recId of recentCommandIds) {
@@ -588,9 +707,12 @@ export function useCommandCenter(workspaceId) {
     workspaceId,
     query,
     collections,
+    environments,
+    historyData,
     cachedData,
     tabs,
     history,
+    mruHistory,
     currentRequestId,
     currentCollectionId,
     currentRequestName,
@@ -604,6 +726,7 @@ export function useCommandCenter(workspaceId) {
     updateMutation,
     duplicateMutation,
     getCleanPayload,
+    openRequest,
     closeTab,
     openTab,
     openCreateRequest,
@@ -619,13 +742,54 @@ export function useCommandCenter(workspaceId) {
   }, [allCommands, query]);
 
   // Group commands
+  // Group commands bounded to max 20 per group for high performance
   const groupedCommands = useMemo(() => {
     return groupCommands(filteredCommands);
+    return groupCommands(filteredCommands, 20);
   }, [filteredCommands]);
 
   const executeCommand = useCallback(
     (cmd) => {
       if (!cmd) return;
+
+      // Validate stale/deleted resource safety before execution
+      if (cmd.resourceType && cmd.resourceId) {
+        if (cmd.resourceType === 'request') {
+          const stillExists = cachedData.requests.some((r) => r.id === cmd.resourceId);
+          const tabExists = tabs.some((t) => t.requestId === cmd.resourceId);
+          if (!stillExists && !tabExists) {
+            toast.error('This request is no longer available.');
+            queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+            close();
+            return;
+          }
+        } else if (cmd.resourceType === 'collection') {
+          const stillExists = collections.some((c) => c.id === cmd.resourceId);
+          if (!stillExists) {
+            toast.error('This collection is no longer available.');
+            queryClient.invalidateQueries({ queryKey: ['collections', workspaceId] });
+            close();
+            return;
+          }
+        } else if (cmd.resourceType === 'folder') {
+          const stillExists = cachedData.folders.some((f) => f.id === cmd.resourceId);
+          if (!stillExists) {
+            toast.error('This folder is no longer available.');
+            queryClient.invalidateQueries({ queryKey: ['folders', workspaceId] });
+            close();
+            return;
+          }
+        } else if (cmd.resourceType === 'environment') {
+          const stillExists = environments.some((e) => e.id === cmd.resourceId);
+          if (!stillExists) {
+            toast.error('This environment is no longer available.');
+            queryClient.invalidateQueries({ queryKey: ['environments', workspaceId] });
+            close();
+            return;
+          }
+        }
+      }
+
       const originalId = cmd.id.startsWith('rec-') ? cmd.id.replace('rec-', '') : cmd.id;
       recordCommandExecution(workspaceId, originalId);
 
@@ -633,6 +797,16 @@ export function useCommandCenter(workspaceId) {
       cmd.execute?.();
     },
     [workspaceId, recordCommandExecution, close]
+    [
+      workspaceId,
+      recordCommandExecution,
+      close,
+      cachedData,
+      tabs,
+      collections,
+      environments,
+      queryClient,
+    ]
   );
 
   return {

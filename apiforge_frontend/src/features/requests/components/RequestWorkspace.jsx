@@ -31,6 +31,8 @@ import RequestSaveButton from './RequestSaveButton';
 import { checkMethodBodyCompatibility } from '../utils/requestMethods';
 import useResponseStore from '../../response/store/responseStore';
 import { useToastStore } from '../../../stores/toastStore';
+import RemoteUpdateBanner from '../../collaboration/components/RemoteUpdateBanner';
+import wsClient from '../../../lib/websocket';
 import { Loader2, AlertCircle, Globe, AlertTriangle, Eye, Info, Columns2, PanelLeft, PanelRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -127,6 +129,18 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     updateSetting,
     getCleanPayload,
   } = useRequestStore();
+
+  // Announce active request presence to workspace members
+  useEffect(() => {
+    if (workspaceId && requestId) {
+      wsClient.openRequest(workspaceId, requestId, name);
+    }
+    return () => {
+      if (workspaceId && requestId) {
+        wsClient.closeRequest(workspaceId, requestId);
+      }
+    };
+  }, [workspaceId, requestId, name]);
 
   // Extract all variables referenced anywhere in the request
   const allReferencedVariables = useMemo(() => {
@@ -432,6 +446,12 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
         {/* LEFT PANE: REQUEST CONFIGURATION */}
         <div className="w-full lg:w-[var(--split-left)] flex flex-col min-w-0 border-b lg:border-b-0 border-[#232732] overflow-hidden shrink-0">
+          <RemoteUpdateBanner
+            workspaceId={workspaceId}
+            collectionId={collectionId}
+            requestId={requestId}
+          />
+
           {/* Method + URL + Send Input Bar */}
           <div className="p-4 bg-[#111318] border-b border-[#232732]">
             <div className="flex items-stretch rounded-md shadow-sm">

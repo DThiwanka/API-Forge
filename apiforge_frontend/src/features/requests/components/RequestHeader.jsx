@@ -17,6 +17,7 @@ import RequestSaveButton from './RequestSaveButton';
 import ExportDialog from '../../import-export/components/ExportDialog';
 import OpenInBrowserModal from './OpenInBrowserModal';
 import { useVariableSuggestions } from '../hooks/useVariableSuggestions';
+import RequestViewersBadge from '../../collaboration/components/RequestViewersBadge';
 import { toast, useToastStore } from '../../../stores/toastStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
@@ -274,6 +275,7 @@ export default function RequestHeader({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        {requestId && <RequestViewersBadge requestId={requestId} />}
         {requestId && (
           <>
             <button

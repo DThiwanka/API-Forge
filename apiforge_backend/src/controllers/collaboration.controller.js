@@ -1,5 +1,6 @@
 import memberService from '../services/collaboration/member.service.js';
 import invitationService from '../services/collaboration/invitation.service.js';
+import realtimeService from '../services/realtime/realtime.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -30,6 +31,18 @@ export const updateMemberRole = asyncHandler(async (req, res) => {
     actorRole: req.workspaceMember.role,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(workspaceId, {
+    type: 'member.updated',
+    workspaceId,
+    resourceId: member.id,
+    actor: req.user,
+    metadata: {
+      userId: member.userId,
+      newRole: member.role,
+    },
+  });
+
   res.status(200).json({
     status: 'success',
     data: { member },
@@ -47,6 +60,17 @@ export const removeMember = asyncHandler(async (req, res) => {
     memberId,
     actorUserId: req.user.id,
     actorRole: req.workspaceMember.role,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(workspaceId, {
+    type: 'member.removed',
+    workspaceId,
+    resourceId: memberId,
+    actor: req.user,
+    metadata: {
+      userId: result.removedUserId,
+    },
   });
 
   res.status(200).json({
@@ -83,6 +107,18 @@ export const createInvitation = asyncHandler(async (req, res) => {
     inviterRole: req.workspaceMember.role,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(workspaceId, {
+    type: 'invitation.created',
+    workspaceId,
+    resourceId: result.invitation?.id,
+    actor: req.user,
+    metadata: {
+      email: result.invitation?.email,
+      role: result.invitation?.role,
+    },
+  });
+
   res.status(201).json({
     status: 'success',
     data: result,
@@ -98,6 +134,14 @@ export const revokeInvitation = asyncHandler(async (req, res) => {
   const invitation = await invitationService.revokeInvitation({
     workspaceId,
     invitationId,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(workspaceId, {
+    type: 'invitation.revoked',
+    workspaceId,
+    resourceId: invitationId,
+    actor: req.user,
   });
 
   res.status(200).json({
@@ -129,6 +173,20 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
     rawToken: token,
     currentUser: req.user,
   });
+
+  // Broadcast realtime event to workspace
+  if (result.workspaceId) {
+    realtimeService.broadcastToWorkspace(result.workspaceId, {
+      type: 'member.added',
+      workspaceId: result.workspaceId,
+      resourceId: result.membership?.id,
+      actor: req.user,
+      metadata: {
+        userId: req.user.id,
+        role: result.membership?.role,
+      },
+    });
+  }
 
   res.status(200).json({
     status: 'success',

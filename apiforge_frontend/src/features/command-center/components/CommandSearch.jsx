@@ -1,3 +1,4 @@
+import React from 'react';
 import { Search, X } from 'lucide-react';
 
 export default function CommandSearch({
@@ -17,6 +18,10 @@ export default function CommandSearch({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         placeholder="Search requests, collections, commands..."
+        placeholder="Search requests, collections, environments, history, commands..."
+        role="combobox"
+        aria-expanded={true}
+        aria-haspopup="listbox"
         aria-autocomplete="list"
         aria-controls="command-center-results"
         className="w-full bg-transparent text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none font-sans"
@@ -27,6 +32,8 @@ export default function CommandSearch({
           onClick={onClear}
           title="Clear search"
           className="p-1 text-slate-500 hover:text-slate-300 rounded hover:bg-[#1f2430] transition-colors focus:outline-none"
+          aria-label="Clear search"
+          className="p-1 text-slate-500 hover:text-slate-300 rounded hover:bg-[#1f2430] transition-colors focus:outline-none cursor-pointer"
         >
           <X size={13} />
         </button>

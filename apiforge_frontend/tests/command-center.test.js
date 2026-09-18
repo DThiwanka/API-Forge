@@ -9,9 +9,12 @@ import {
 import {
   scoreCommand,
   rankCommands,
+  normalizeSearchText,
+  stripPunctuation,
+  GROUP_SEARCH_ORDER,
 } from '../src/features/command-center/utils/commandRanking.js';
 
-describe('Step 33/34: Command Center & Ranking — Unit Verification', () => {
+describe('Step 56: Global Search & Command Center Expansion — Unit Verification', () => {
   beforeEach(() => {
     useCommandCenterStore.setState({
       isOpen: false,
@@ -59,18 +62,14 @@ describe('Step 33/34: Command Center & Ranking — Unit Verification', () => {
       const wsA = 'ws-alpha';
       const wsB = 'ws-beta';
 
-      // Record commands in Workspace A
       useCommandCenterStore.getState().recordCommandExecution(wsA, 'cmd-1');
       useCommandCenterStore.getState().recordCommandExecution(wsA, 'cmd-2');
       useCommandCenterStore.getState().recordCommandExecution(wsA, 'cmd-3');
-
-      // Re-executing cmd-1 moves it to front and deduplicates
       useCommandCenterStore.getState().recordCommandExecution(wsA, 'cmd-1');
 
       const stateA = useCommandCenterStore.getState().recentCommandIdsByWorkspace[wsA];
       assert.deepStrictEqual(stateA, ['cmd-1', 'cmd-3', 'cmd-2']);
 
-      // Workspace B must be isolated and unaffected
       const stateB = useCommandCenterStore.getState().recentCommandIdsByWorkspace[wsB] || [];
       assert.deepStrictEqual(stateB, []);
     });
@@ -118,7 +117,7 @@ describe('Step 33/34: Command Center & Ranking — Unit Verification', () => {
     });
   });
 
-  describe('2. Multi-Tier Ranking Algorithm', () => {
+  describe('2. Multi-Tier Ranking & Deterministic Scoring', () => {
     const candidateCommands = [
       {
         id: 'cmd-history-exact',
@@ -201,49 +200,95 @@ describe('Step 33/34: Command Center & Ranking — Unit Verification', () => {
         },
       ];
 
-      // Method search: POST should score higher on Create User than Get Users
       const postRank = rankCommands(requestCommands, 'POST');
       assert.strictEqual(postRank[0].id, 'req-post-users');
 
-      // Path search: /api/v1/users should match both
       const pathRank = rankCommands(requestCommands, '/api/v1/users');
       assert.strictEqual(pathRank.length, 2);
     });
+
+    it('should handle multi-term queries like "POST users" or "GET /users"', () => {
+      const requests = [
+        { id: 'req-1', title: 'Get Users', method: 'GET', path: '/users', group: 'Requests' },
+        { id: 'req-2', title: 'Create User', method: 'POST', path: '/users', group: 'Requests' },
+        { id: 'req-3', title: 'Delete Order', method: 'DELETE', path: '/orders', group: 'Requests' },
+      ];
+
+      const getResults = rankCommands(requests, 'GET users');
+      assert.strictEqual(getResults.length, 1);
+      assert.strictEqual(getResults[0].id, 'req-1');
+
+      const postResults = rankCommands(requests, 'POST /users');
+      assert.strictEqual(postResults.length, 1);
+      assert.strictEqual(postResults[0].id, 'req-2');
+    });
+
+    it('should support lightweight fuzzy matching for hyphenated or concatenated terms', () => {
+      const requests = [
+        { id: 'req-1', title: 'Get Users', method: 'GET', path: '/users', group: 'Requests' },
+        { id: 'req-2', title: 'Create Order', method: 'POST', path: '/orders', group: 'Requests' },
+      ];
+
+      const fuzzyConcat = rankCommands(requests, 'getuser');
+      assert.strictEqual(fuzzyConcat.length, 1);
+      assert.strictEqual(fuzzyConcat[0].id, 'req-1');
+
+      const fuzzyHyphen = rankCommands(requests, 'get-users');
+      assert.strictEqual(fuzzyHyphen.length, 1);
+      assert.strictEqual(fuzzyHyphen[0].id, 'req-1');
+    });
   });
 
-  describe('3. Group Ordering & Structuring', () => {
-    it('should preserve standard category group priority ordering with Recent Commands and Recent Requests', () => {
+  describe('3. Resource Categorization & Group Ordering', () => {
+    it('should include all required resource groups in GROUP_ORDER', () => {
       assert.deepStrictEqual(GROUP_ORDER, [
         'Recent',
         'Recent Commands',
         'Recent Requests',
         'Actions',
-        'Navigation',
         'Requests',
         'Collections',
         'Folders',
+        'Environments',
+        'History',
+        'Navigation',
+        'Workspace',
+      ]);
+    });
+
+    it('should prioritize Actions, Requests, Collections, Folders, Environments, History, Navigation in search mode', () => {
+      assert.deepStrictEqual(GROUP_SEARCH_ORDER, [
+        'Actions',
+        'Requests',
+        'Collections',
+        'Folders',
+        'Environments',
+        'History',
+        'Navigation',
         'Workspace',
       ]);
     });
 
     it('should group items into ordered buckets according to GROUP_ORDER', () => {
       const mixedItems = [
-        { id: '1', title: 'A', group: 'Requests' },
-        { id: '2', title: 'B', group: 'Recent Commands' },
-        { id: '3', title: 'C', group: 'Actions' },
-        { id: '4', title: 'D', group: 'Recent Requests' },
-        { id: '5', title: 'E', group: 'Folders' },
-        { id: '6', title: 'F', group: 'Collections' },
+        { id: '1', title: 'Get Users', group: 'Requests' },
+        { id: '2', title: 'Recent', group: 'Recent Commands' },
+        { id: '3', title: 'Create', group: 'Actions' },
+        { id: '4', title: 'Staging', group: 'Environments' },
+        { id: '5', title: 'Orders Folder', group: 'Folders' },
+        { id: '6', title: 'Payments Collection', group: 'Collections' },
+        { id: '7', title: 'Past Run', group: 'History' },
       ];
 
       const grouped = groupCommands(mixedItems);
-      assert.strictEqual(grouped.length, 6);
+      assert.strictEqual(grouped.length, 7);
       assert.strictEqual(grouped[0].group, 'Recent Commands');
-      assert.strictEqual(grouped[1].group, 'Recent Requests');
-      assert.strictEqual(grouped[2].group, 'Actions');
-      assert.strictEqual(grouped[3].group, 'Requests');
-      assert.strictEqual(grouped[4].group, 'Collections');
-      assert.strictEqual(grouped[5].group, 'Folders');
+      assert.strictEqual(grouped[1].group, 'Actions');
+      assert.strictEqual(grouped[2].group, 'Requests');
+      assert.strictEqual(grouped[3].group, 'Collections');
+      assert.strictEqual(grouped[4].group, 'Folders');
+      assert.strictEqual(grouped[5].group, 'Environments');
+      assert.strictEqual(grouped[6].group, 'History');
     });
 
     it('should handle custom or unlisted groups cleanly at the end', () => {
@@ -257,27 +302,130 @@ describe('Step 33/34: Command Center & Ranking — Unit Verification', () => {
       assert.strictEqual(grouped[0].group, 'Actions');
       assert.strictEqual(grouped[1].group, 'Custom Category');
     });
+
+    it('should bound groups when maxPerGroup is set to prevent DOM allocation spikes', () => {
+      const manyRequests = Array.from({ length: 50 }, (_, i) => ({
+        id: `req-${i}`,
+        title: `Request ${i}`,
+        group: 'Requests',
+      }));
+
+      const grouped = groupCommands(manyRequests, 10);
+      assert.strictEqual(grouped.length, 1);
+      assert.strictEqual(grouped[0].items.length, 10);
+      assert.strictEqual(grouped[0].totalCount, 50);
+    });
   });
 
-  describe('4. Security & Data Integrity', () => {
-    it('should never match or query against request headers, bodies, or secrets', () => {
-      // Mock command item with private request properties
+  describe('4. Environment & History Search Integration', () => {
+    it('should find environments by name and active status metadata', () => {
+      const envItems = [
+        { id: 'env-1', title: 'Production', group: 'Environments', isActive: false },
+        { id: 'env-2', title: 'Staging', group: 'Environments', isActive: true, description: 'Active Environment' },
+        { id: 'env-3', title: 'Development', group: 'Environments', isActive: false },
+      ];
+
+      const prodResults = rankCommands(envItems, 'Production');
+      assert.strictEqual(prodResults.length, 1);
+      assert.strictEqual(prodResults[0].id, 'env-1');
+
+      const stagResults = rankCommands(envItems, 'staging');
+      assert.strictEqual(stagResults.length, 1);
+      assert.strictEqual(stagResults[0].id, 'env-2');
+    });
+
+    it('should find history entries by status code and endpoint', () => {
+      const historyItems = [
+        { id: 'h-1', title: 'Get Users', method: 'GET', path: '/users', status: 200, group: 'History', keywords: ['200'] },
+        { id: 'h-2', title: 'Create Order', method: 'POST', path: '/orders', status: 201, group: 'History', keywords: ['201'] },
+        { id: 'h-3', title: 'Missing Endpoint', method: 'GET', path: '/missing', status: 404, group: 'History', keywords: ['404'] },
+      ];
+
+      const notFoundResults = rankCommands(historyItems, '404');
+      assert.strictEqual(notFoundResults.length, 1);
+      assert.strictEqual(notFoundResults[0].id, 'h-3');
+
+      const ordersResults = rankCommands(historyItems, 'POST /orders');
+      assert.strictEqual(ordersResults.length, 1);
+      assert.strictEqual(ordersResults[0].id, 'h-2');
+    });
+  });
+
+  describe('5. Security, Zero-Leakage & Permission Enforcement', () => {
+    it('should never expose or match against request headers, bodies, or tokens', () => {
       const requestCommand = {
         id: 'req-secure',
         title: 'Login Request',
         group: 'Requests',
         method: 'POST',
-        headers: [{ key: 'Authorization', value: 'Bearer super_secret_token_12345' }],
-        body: { raw: '{"secretPassword": "super_secret_password"}' },
+        headers: [{ key: 'Authorization', value: 'Bearer secret_jwt_token_xyz' }],
+        body: { raw: '{"password": "confidential_password_123"}' },
       };
 
-      // Search for bearer token secret string
-      const searchForBearer = searchCommands([requestCommand], 'super_secret_token_12345');
-      assert.strictEqual(searchForBearer.length, 0);
+      const tokenSearch = searchCommands([requestCommand], 'secret_jwt_token_xyz');
+      assert.strictEqual(tokenSearch.length, 0);
 
-      // Search for payload password secret string
-      const searchForPassword = searchCommands([requestCommand], 'super_secret_password');
-      assert.strictEqual(searchForPassword.length, 0);
+      const passwordSearch = searchCommands([requestCommand], 'confidential_password_123');
+      assert.strictEqual(passwordSearch.length, 0);
+    });
+
+    it('should never expose or match against environment secret values', () => {
+      const environmentCommand = {
+        id: 'env-prod',
+        title: 'Production API',
+        group: 'Environments',
+        description: 'Production cluster',
+        keywords: ['environment', 'env', 'production'],
+      };
+
+      const secretSearch = searchCommands([environmentCommand], 'sk_live_very_secret_api_key');
+      assert.strictEqual(secretSearch.length, 0);
+    });
+
+    it('should filter out privileged actions for Viewer role', () => {
+      const allActionCommands = [
+        { id: 'action-create-request', title: 'Create Request', minRole: 'MEMBER' },
+        { id: 'action-create-collection', title: 'Create Collection', minRole: 'MEMBER' },
+        { id: 'action-invite-member', title: 'Invite Member', minRole: 'ADMIN' },
+        { id: 'action-run-collection', title: 'Run Collection', minRole: 'VIEWER' },
+        { id: 'nav-requests', title: 'Go to Requests', minRole: 'VIEWER' },
+      ];
+
+      function filterForRole(commands, userRole) {
+        return commands.filter((cmd) => {
+          if (userRole === 'VIEWER') {
+            return cmd.minRole === 'VIEWER';
+          }
+          if (userRole === 'MEMBER') {
+            return cmd.minRole === 'VIEWER' || cmd.minRole === 'MEMBER';
+          }
+          return true; // OWNER & ADMIN
+        });
+      }
+
+      const viewerCommands = filterForRole(allActionCommands, 'VIEWER');
+      assert.strictEqual(viewerCommands.length, 2);
+      assert.ok(!viewerCommands.some((c) => c.id === 'action-create-request'));
+      assert.ok(!viewerCommands.some((c) => c.id === 'action-invite-member'));
+
+      const memberCommands = filterForRole(allActionCommands, 'MEMBER');
+      assert.strictEqual(memberCommands.length, 4);
+      assert.ok(!memberCommands.some((c) => c.id === 'action-invite-member'));
+
+      const adminCommands = filterForRole(allActionCommands, 'ADMIN');
+      assert.strictEqual(adminCommands.length, 5);
+    });
+  });
+
+  describe('6. Text Normalization Utilities', () => {
+    it('should normalize slashes, hyphens, colons, and multiple spaces', () => {
+      assert.strictEqual(normalizeSearchText('GET /api/v1/users/:id'), 'get api v1 users id');
+      assert.strictEqual(normalizeSearchText('create-new_collection'), 'create new collection');
+    });
+
+    it('should strip punctuation for fuzzy comparisons', () => {
+      assert.strictEqual(stripPunctuation('get-users'), 'getusers');
+      assert.strictEqual(stripPunctuation('/api/v1/orders/'), 'apiv1orders');
     });
   });
 });

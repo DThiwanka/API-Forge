@@ -1,5 +1,6 @@
 import environmentService from '../services/environments/environment.service.js';
 import variableService from '../services/environments/variable.service.js';
+import realtimeService from '../services/realtime/realtime.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 /**
@@ -11,6 +12,17 @@ export const create = asyncHandler(async (req, res) => {
     workspaceId: req.workspace.id,
     name: req.body.name,
     description: req.body.description,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.created',
+    workspaceId: req.workspace.id,
+    resourceId: environment.id,
+    actor: req.user,
+    metadata: {
+      name: environment.name,
+    },
   });
 
   res.status(201).json({
@@ -66,6 +78,17 @@ export const update = asyncHandler(async (req, res) => {
     updateData: req.body,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.updated',
+    workspaceId: req.workspace.id,
+    resourceId: environment.id,
+    actor: req.user,
+    metadata: {
+      name: environment.name,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: 'Environment updated successfully',
@@ -85,6 +108,14 @@ export const deleteEnvironment = asyncHandler(async (req, res) => {
     environmentId: req.params.environmentId,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.deleted',
+    workspaceId: req.workspace.id,
+    resourceId: req.params.environmentId,
+    actor: req.user,
+  });
+
   res.status(200).json({
     success: true,
     message: 'Environment deleted successfully',
@@ -99,6 +130,17 @@ export const activate = asyncHandler(async (req, res) => {
   const environment = await environmentService.activateEnvironment({
     workspaceId: req.workspace.id,
     environmentId: req.params.environmentId,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.activated',
+    workspaceId: req.workspace.id,
+    resourceId: environment.id,
+    actor: req.user,
+    metadata: {
+      name: environment.name,
+    },
   });
 
   res.status(200).json({
@@ -125,6 +167,18 @@ export const createVariable = asyncHandler(async (req, res) => {
     key: req.body.key,
     value: req.body.value,
     isSecret: req.body.isSecret,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.updated',
+    workspaceId: req.workspace.id,
+    resourceId: req.params.environmentId,
+    actor: req.user,
+    metadata: {
+      action: 'variable.created',
+      variableKey: variable.key,
+    },
   });
 
   res.status(201).json({
@@ -185,6 +239,18 @@ export const updateVariable = asyncHandler(async (req, res) => {
     updateData: req.body,
   });
 
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.updated',
+    workspaceId: req.workspace.id,
+    resourceId: req.params.environmentId,
+    actor: req.user,
+    metadata: {
+      action: 'variable.updated',
+      variableKey: variable.key,
+    },
+  });
+
   res.status(200).json({
     success: true,
     message: 'Variable updated successfully',
@@ -203,6 +269,17 @@ export const deleteVariable = asyncHandler(async (req, res) => {
     workspaceId: req.workspace.id,
     environmentId: req.params.environmentId,
     variableId: req.params.variableId,
+  });
+
+  // Broadcast realtime event
+  realtimeService.broadcastToWorkspace(req.workspace.id, {
+    type: 'environment.updated',
+    workspaceId: req.workspace.id,
+    resourceId: req.params.environmentId,
+    actor: req.user,
+    metadata: {
+      action: 'variable.deleted',
+    },
   });
 
   res.status(200).json({
