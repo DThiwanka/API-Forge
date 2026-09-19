@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
-import useCanvasStore from '../store/canvasStore';
+import useCanvasStore from '../store/canvasStore.js';
+import { isEditableElement, isMac } from '../../shortcuts/utils/shortcutUtils.js';
+import useShortcutStore from '../../shortcuts/store/shortcutStore.js';
+import { SHORTCUT_SCOPES } from '../../shortcuts/constants/shortcutRegistry.js';
 
 export default function useCanvasShortcuts({ fitView, setCenter }) {
   const selectedNodeId = useCanvasStore((s) => s.selectedNodeId);
@@ -9,19 +12,24 @@ export default function useCanvasShortcuts({ fitView, setCenter }) {
   const selectAllNodes = useCanvasStore((s) => s.selectAllNodes);
   const closeRequestPicker = useCanvasStore((s) => s.closeRequestPicker);
 
+  // Manage CANVAS scope lifecycle
+  useEffect(() => {
+    useShortcutStore.getState().pushScope(SHORTCUT_SCOPES.CANVAS);
+    return () => {
+      useShortcutStore.getState().popScope(SHORTCUT_SCOPES.CANVAS);
+    };
+  }, []);
+
   useEffect(() => {
     function handleKeyDown(e) {
-      // Don't intercept if user is typing in an input or textarea
-      const target = e.target;
-      const isInput =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable;
+      // Do not intercept if active scope is higher priority (e.g., DIALOG)
+      const currentScope = useShortcutStore.getState().getCurrentScope();
+      if (currentScope === SHORTCUT_SCOPES.DIALOG) return;
 
-      if (isInput) return;
+      // Don't intercept if user is typing in an input, textarea, contenteditable, or code editor
+      if (isEditableElement(e.target)) return;
 
-      const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-      const isCmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      const isCmdOrCtrl = isMac() ? e.metaKey : e.ctrlKey;
 
       // Ctrl/Cmd + A: Select all nodes
       if (isCmdOrCtrl && (e.key === 'a' || e.key === 'A')) {
@@ -30,7 +38,7 @@ export default function useCanvasShortcuts({ fitView, setCenter }) {
         return;
       }
 
-      // Delete / Backspace: Remove selected node(s) from canvas
+      // Delete / Backspace: Remove selected node(s) from canvas store ONLY (never deletes from backend)
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const hasSelection = Boolean(selectedNodeId) || nodes.some((n) => n.selected);
         if (hasSelection) {

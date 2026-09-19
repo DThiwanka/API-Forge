@@ -1,17 +1,21 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Terminal, Search, LogOut, ChevronDown } from 'lucide-react';
+import { Terminal, Search, LogOut, ChevronDown, Keyboard } from 'lucide-react';
 import WorkspaceSwitcher from '../../features/workspace/components/WorkspaceSwitcher';
 import EnvironmentSwitcher from '../../features/environments/components/EnvironmentSwitcher';
 import { useCurrentUser, useLogoutMutation } from '../../features/auth/hooks/useAuth';
 import useCommandCenterStore from '../../features/command-center/store/commandCenterStore';
+import useShortcutStore from '../../features/shortcuts/store/shortcutStore.js';
+import { isMac } from '../../features/shortcuts/utils/shortcutUtils.js';
 
 export default function TopBar({ workspaceId }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
+  const isMacOS = useMemo(() => isMac(), []);
 
   const { data: currentUser } = useCurrentUser();
   const logoutMutation = useLogoutMutation();
+  const openShortcutsHelp = useShortcutStore((s) => s.openHelpModal);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -73,7 +77,7 @@ export default function TopBar({ workspaceId }) {
             </span>
           </div>
           <kbd className="px-1.5 py-0.2 rounded bg-[#1c212c] border border-[#2b313e] font-mono text-[10px] text-slate-400">
-            Ctrl+K
+            {isMacOS ? '⌘K' : 'Ctrl K'}
           </kbd>
         </button>
       </div>
@@ -100,6 +104,25 @@ export default function TopBar({ workspaceId }) {
                 <div className="px-3 py-2 border-b border-[#232732]">
                   <div className="font-semibold text-slate-100 truncate">{currentUser.name}</div>
                   <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
+                </div>
+
+                <div className="py-1 border-b border-[#232732]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      openShortcutsHelp();
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center justify-between transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Keyboard size={13} className="text-slate-400" />
+                      <span>Keyboard Shortcuts</span>
+                    </div>
+                    <kbd className="text-[10px] font-mono text-slate-500">
+                      {isMacOS ? '⌘/' : 'Ctrl+/'}
+                    </kbd>
+                  </button>
                 </div>
 
                 <div className="py-1">

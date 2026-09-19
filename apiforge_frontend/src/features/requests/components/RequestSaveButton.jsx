@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { Save, Loader2, Check, AlertCircle } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { isMac } from '../../shortcuts/utils/shortcutUtils';
 
 export default function RequestSaveButton({
   isSaving = false,
@@ -8,12 +10,15 @@ export default function RequestSaveButton({
   onSave,
   className,
 }) {
+  const isMacOS = useMemo(() => isMac(), []);
+  const shortcutHint = isMacOS ? '⌘S' : 'Ctrl+S';
   return (
     <button
       type="button"
       onClick={onSave}
       disabled={isSaving || !isDirty}
       title={isDirty ? 'Save Changes (Ctrl+S)' : 'All changes saved to server'}
+      title={isDirty ? `Save Changes (${shortcutHint})` : 'All changes saved to server'}
       className={cn(
         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all focus:outline-none select-none border',
         // Saving state
@@ -44,6 +49,7 @@ export default function RequestSaveButton({
           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
           <kbd className="hidden sm:inline-block ml-1 px-1 py-0.2 rounded bg-amber-950/50 border border-amber-700/50 font-mono text-[10px] text-amber-300">
             Ctrl+S
+            {shortcutHint}
           </kbd>
         </>
       ) : (

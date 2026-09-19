@@ -23,7 +23,7 @@ import {
 } from '../hooks/useRequest';
 import { useRequestExecution } from '../hooks/useRequestExecution';
 import { useApiTestsQuery } from '../../testing/hooks/useApiTests';
-import { useCollectionsQuery } from '../../workspace/hooks/useWorkspace';
+import { useCollectionsQuery, useWorkspacesQuery } from '../../workspace/hooks/useWorkspace';
 import { useVariableSuggestions, extractVariableNames } from '../hooks/useVariableSuggestions';
 import { validateRequestBeforeSend } from '../utils/executionUtils';
 import useRequestStore from '../store/requestStore';
@@ -33,6 +33,9 @@ import useResponseStore from '../../response/store/responseStore';
 import { useToastStore } from '../../../stores/toastStore';
 import RemoteUpdateBanner from '../../collaboration/components/RemoteUpdateBanner';
 import wsClient from '../../../lib/websocket';
+import { SHORTCUT_SCOPES } from '../../shortcuts/constants/shortcutRegistry';
+import useShortcutStore from '../../shortcuts/store/shortcutStore';
+import { isEditableElement } from '../../shortcuts/utils/shortcutUtils';
 import { Loader2, AlertCircle, Globe, AlertTriangle, Eye, Info, Columns2, PanelLeft, PanelRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
@@ -49,6 +52,10 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
   const { isLoading, error } = useRequestQuery(workspaceId, collectionId, requestId);
   const { data: tests = [] } = useApiTestsQuery(workspaceId, requestId);
+  const { data: workspaces = [] } = useWorkspacesQuery();
+  const currentWs = workspaces.find((w) => w.id === workspaceId);
+  const isViewer = currentWs?.role?.toUpperCase() === 'VIEWER';
+
   const updateMutation = useUpdateRequestMutation(workspaceId, collectionId, requestId);
   const duplicateMutation = useDuplicateRequestMutation(workspaceId, collectionId);
   const deleteMutation = useDeleteRequestMutation(workspaceId, collectionId);
@@ -216,13 +223,21 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
   // Save handler
   const handleSave = useCallback(() => {
     if (!workspaceId || !collectionId || !requestId) return;
+    if (isViewer) {
+      useToastStore.getState().toast.error('Viewers have read-only access and cannot modify requests');
+      return;
+    }
     const payload = getCleanPayload();
     updateMutation.mutate(payload);
-  }, [workspaceId, collectionId, requestId, getCleanPayload, updateMutation]);
+  }, [workspaceId, collectionId, requestId, getCleanPayload, updateMutation, isViewer]);
 
   // Duplicate handler
   const handleDuplicate = useCallback(() => {
     if (!workspaceId || !collectionId || !requestId) return;
+    if (isViewer) {
+      useToastStore.getState().toast.error('Viewers have read-only access and cannot duplicate requests');
+      return;
+    }
     duplicateMutation.mutate(requestId, {
       onSuccess: (newReq) => {
         useToastStore.getState().toast.success(`Duplicated "${name || 'Request'}"`);
@@ -234,7 +249,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
         useToastStore.getState().toast.error(`Failed to duplicate request: ${err.message}`);
       },
     });
-  }, [workspaceId, collectionId, requestId, name, duplicateMutation, navigate]);
+  }, [workspaceId, collectionId, requestId, name, duplicateMutation, navigate, isViewer]);
 
   // Delete handler
   const handleDelete = useCallback(() => {
@@ -338,23 +353,51 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
     }
   };
 
-  // Global keyboard shortcuts: Ctrl+S to Save, Ctrl+Enter to Send
-  // Global keyboard shortcuts: Ctrl+S to Save, Ctrl+Enter to Send, Alt+1..6 for Config Tabs
+  // Push REQUEST scope on mount and pop on unmount
+  useEffect(() => {
+    useShortcutStore.getState().pushScope(SHORTCUT_SCOPES.REQUEST);
+    return () => {
+      useShortcutStore.getState().popScope(SHORTCUT_SCOPES.REQUEST);
+    };
+  }, []);
+
+  // Request Workspace shortcuts: Ctrl+S to Save, Ctrl+Shift+S to Duplicate, Ctrl+Enter to Send, Alt+1..6 for subtabs
   useEffect(() => {
     const handleKeyDown = (e) => {
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const isInput = isEditableElement(e.target);
 
-      if (isCtrlOrCmd && e.key.toLowerCase() === 's') {
+      // Ctrl/Cmd + Shift + S: Duplicate request
+      if (isCtrlOrCmd && e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleDuplicate();
+        return;
+      }
+
+      // Ctrl/Cmd + S: Save request
+      if (isCtrlOrCmd && !e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleSave();
-      } else if (isCtrlOrCmd && e.key === 'Enter') {
+        return;
+      }
+
+      // Ctrl/Cmd + Enter: Send request
+      if (isCtrlOrCmd && e.key === 'Enter') {
         e.preventDefault();
         e.stopPropagation();
         handleExecute();
-      } else if ((isCtrlOrCmd && e.key.toLowerCase() === 'l') || (e.altKey && e.key.toLowerCase() === 'd')) {
+        return;
+      }
+
+      // Ctrl/Cmd + L or Alt + D: Focus URL
+      if ((isCtrlOrCmd && e.key.toLowerCase() === 'l') || (e.altKey && e.key.toLowerCase() === 'd')) {
         e.preventDefault();
         window.dispatchEvent(new CustomEvent('apiforge:focus-url'));
-      } else if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        return;
+      }
+
+      // Alt + 1..6: Switch subtabs (only when not typing in text fields)
+      if (e.altKey && !isCtrlOrCmd && !e.shiftKey && !isInput) {
         if (e.key === '1') {
           e.preventDefault();
           setActiveTab('params');
@@ -379,7 +422,7 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave, handleExecute, setActiveTab]);
+  }, [handleSave, handleDuplicate, handleExecute, setActiveTab]);
 
   if (isLoading) {
     return (

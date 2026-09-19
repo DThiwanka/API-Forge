@@ -7,6 +7,9 @@ import RequestTabBar from '../features/requests/components/RequestTabBar';
 import UnsavedTabDialog from '../features/requests/components/UnsavedTabDialog';
 import CreateRequestDialog from '../features/collections/components/CreateRequestDialog';
 import OpenInBrowserModal from '../features/requests/components/OpenInBrowserModal';
+import KeyboardShortcutsModal from '../features/shortcuts/components/KeyboardShortcutsModal';
+import useShortcutStore from '../features/shortcuts/store/shortcutStore';
+import { isEditableElement } from '../features/shortcuts/utils/shortcutUtils';
 import { useVariableSuggestions } from '../features/requests/hooks/useVariableSuggestions';
 import { useWorkspacesQuery } from '../features/workspace/hooks/useWorkspace';
 import useWorkspaceStore from '../features/workspace/store/workspaceStore';
@@ -254,29 +257,83 @@ export default function Workspace() {
   }, []);
 
   // Keyboard shortcuts: Ctrl+W to close active tab, Ctrl+Shift+[/] to cycle tabs
+  // Custom event listener to open New Request dialog
+  useEffect(() => {
+    const handleNewReqEvent = () => {
+      const currentWs = workspaces.find((w) => w.id === currentWorkspaceId);
+      if (currentWs?.role?.toUpperCase() === 'VIEWER') {
+        toast.error('Viewers cannot create new requests');
+        return;
+      }
+      setIsNewRequestOpen(true);
+    };
+    window.addEventListener('apiforge:new-request', handleNewReqEvent);
+    return () => window.removeEventListener('apiforge:new-request', handleNewReqEvent);
+  }, [workspaces, currentWorkspaceId]);
+
+  // Keyboard shortcuts: Ctrl+W to close active tab, tab cycling, Alt+N, ? for help
   useEffect(() => {
     const handleKeyDown = (e) => {
       const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+      const isInput = isEditableElement(e.target);
 
+      // Ctrl/Cmd + W: close active tab (prompts if dirty)
       if (isCtrlOrCmd && e.key.toLowerCase() === 'w' && requestId) {
         e.preventDefault();
         handleRequestCloseTab(requestId);
       } else if (isCtrlOrCmd && e.shiftKey && (e.key === '[' || e.key === '{') && tabs.length > 1) {
+        return;
+      }
+
+      // Alt + N or Ctrl/Cmd + Alt + N: New Request
+      if (e.altKey && e.key.toLowerCase() === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        const currentWs = workspaces.find((w) => w.id === currentWorkspaceId);
+        if (currentWs?.role?.toUpperCase() === 'VIEWER') {
+          toast.error('Viewers cannot create new requests');
+          return;
+        }
+        setIsNewRequestOpen(true);
+        return;
+      }
+
+      // ? (outside inputs) or Ctrl/Cmd + / : Open Keyboard Shortcuts Cheat Sheet
+      if ((e.key === '?' && !isInput) || (isCtrlOrCmd && e.key === '/')) {
+        e.preventDefault();
+        useShortcutStore.getState().openHelpModal();
+        return;
+      }
+
+      // Tab cycling: Ctrl/Cmd + [ / ] (with or without Shift)
+      if (isCtrlOrCmd && (e.key === '[' || e.key === '{') && tabs.length > 1) {
         e.preventDefault();
         const currentIndex = tabs.findIndex((t) => t.requestId === (requestId || activeTabId));
         const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
         handleSelectTab(tabs[prevIndex].requestId);
       } else if (isCtrlOrCmd && e.shiftKey && (e.key === ']' || e.key === '}') && tabs.length > 1) {
+        return;
+      } else if (isCtrlOrCmd && (e.key === ']' || e.key === '}') && tabs.length > 1) {
         e.preventDefault();
         const currentIndex = tabs.findIndex((t) => t.requestId === (requestId || activeTabId));
         const nextIndex = (currentIndex + 1) % tabs.length;
         handleSelectTab(tabs[nextIndex].requestId);
+        return;
+      }
+
+      // Alt + 1..9: switch to tab index (when not typing in inputs)
+      if (e.altKey && !isCtrlOrCmd && !e.shiftKey && !isInput && /^[1-9]$/.test(e.key)) {
+        const tabIdx = parseInt(e.key, 10) - 1;
+        if (tabs[tabIdx]) {
+          e.preventDefault();
+          handleSelectTab(tabs[tabIdx].requestId);
+          return;
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [requestId, activeTabId, tabs, handleRequestCloseTab, handleSelectTab]);
+  }, [requestId, activeTabId, tabs, handleRequestCloseTab, handleSelectTab, workspaces, currentWorkspaceId]);
 
   // Handle unauthorized or not logged in
   if (workspaceError?.response?.status === 401) {
@@ -388,6 +445,9 @@ export default function Workspace() {
         variableMap={variableMap}
         activeEnv={activeEnv}
       />
+
+      {/* Keyboard Shortcuts Cheat Sheet Modal */}
+      <KeyboardShortcutsModal />
     </AppShell>
   );
 }

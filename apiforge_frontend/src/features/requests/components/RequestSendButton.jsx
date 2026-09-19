@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { Send, Loader2 } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { cn } from '../../../utils/cn.js';
+import { isMac } from '../../shortcuts/utils/shortcutUtils.js';
 
 /**
  * Request Execution Send Button
@@ -14,6 +16,7 @@ export default function RequestSendButton({
   disabled = false,
   className,
 }) {
+  const isMacOS = useMemo(() => isMac(), []);
   const isBusy = isExecuting || isValidating;
   const isButtonDisabled = isBusy || disabled;
 
@@ -25,11 +28,12 @@ export default function RequestSendButton({
     onSend?.(e);
   };
 
+  const shortcutHint = isMacOS ? '⌘↵' : 'Ctrl+↵';
   const buttonLabel = isExecuting
     ? 'Sending request...'
     : isValidating
     ? 'Validating request...'
-    : 'Send Request (Ctrl+Enter)';
+    : `Send Request (${isMacOS ? 'Cmd+Enter' : 'Ctrl+Enter'})`;
 
   return (
     <button
@@ -59,7 +63,7 @@ export default function RequestSendButton({
           <Send size={13} />
           <span className="font-semibold">Send</span>
           <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.2 rounded bg-sky-700/60 border border-sky-400/30 text-[10px] font-mono text-sky-200">
-            Ctrl+↵
+            {shortcutHint}
           </kbd>
         </>
       )}

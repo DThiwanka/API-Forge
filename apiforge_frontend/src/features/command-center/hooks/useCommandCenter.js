@@ -20,6 +20,8 @@ import {
   Globe,
   Download,
   Upload,
+  Keyboard,
+  Plus,
 } from 'lucide-react';
 import useCommandCenterStore from '../store/commandCenterStore';
 import { searchCommands, groupCommands } from '../utils/commandUtils';
@@ -35,6 +37,8 @@ import useBrowserStore from '../../browser/store/browserStore';
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { useUpdateRequestMutation, useDuplicateRequestMutation } from '../../requests/hooks/useRequest';
 import { toast } from '../../../stores/toastStore';
+import { isMac } from '../../shortcuts/utils/shortcutUtils';
+import useShortcutStore from '../../shortcuts/store/shortcutStore';
 
 export function useCommandCenter(workspaceId) {
   const navigate = useNavigate();
@@ -58,6 +62,7 @@ export function useCommandCenter(workspaceId) {
   const { data: workspaces = [] } = useWorkspacesQuery();
   const currentWs = workspaces.find((w) => w.id === workspaceId);
   const isViewer = currentWs?.role === 'VIEWER';
+  const isMacOS = useMemo(() => isMac(), []);
 
   // Collections for this workspace
   const { data: collections = [] } = useCollectionsQuery(workspaceId);
@@ -70,10 +75,8 @@ export function useCommandCenter(workspaceId) {
 
   // Open tabs & active tab for this workspace
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
-  const history = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || []);
   const mruHistory = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || []);
   const closeTab = useRequestTabStore((s) => s.closeTab);
-  const openTab = useRequestTabStore((s) => s.openTab);
 
   // Canvas store
   const addRequestNode = useCanvasStore((s) => s.addRequestNode);
@@ -285,6 +288,34 @@ export function useCommandCenter(workspaceId) {
       });
     }
 
+    list.push({
+      id: 'action-keyboard-shortcuts',
+      title: 'Keyboard Shortcuts',
+      description: 'View all keyboard shortcuts and power-user cheat sheet',
+      group: 'Actions',
+      icon: Keyboard,
+      shortcut: isMacOS ? '⌘/' : 'Ctrl+/',
+      keywords: ['shortcuts', 'hotkeys', 'cheat sheet', 'keybindings', 'keys', 'help'],
+      execute: () => {
+        useShortcutStore.getState().openHelpModal();
+      },
+    });
+
+    if (!isViewer) {
+      list.push({
+        id: 'action-new-request',
+        title: 'New Request',
+        description: 'Create a new API request in current workspace',
+        group: 'Actions',
+        icon: Plus,
+        shortcut: 'Alt+N',
+        keywords: ['new', 'create', 'request', 'add'],
+        execute: () => {
+          window.dispatchEvent(new CustomEvent('apiforge:new-request'));
+        },
+      });
+    }
+
     // Contextual Actions for active request workspace
     if (currentRequestId && currentCollectionId) {
       const activeCol = collectionMap.get(currentCollectionId);
@@ -296,10 +327,10 @@ export function useCommandCenter(workspaceId) {
         description: 'Send the currently open API request',
         group: 'Actions',
         icon: Send,
-        shortcut: 'Ctrl+Enter',
+        shortcut: isMacOS ? '⌘↵' : 'Ctrl+Enter',
         keywords: ['send', 'execute', 'run', 'test', currentRequestName],
         execute: () => {
-          const sendBtn = document.querySelector('button[title*="Send (Ctrl+Enter)"]');
+          const sendBtn = document.querySelector('button[title*="Send"]');
           if (sendBtn) {
             sendBtn.click();
           }
@@ -313,7 +344,7 @@ export function useCommandCenter(workspaceId) {
           description: isDirty ? 'Save changes to the current request' : 'Current request is saved',
           group: 'Actions',
           icon: Save,
-          shortcut: 'Ctrl+S',
+          shortcut: isMacOS ? '⌘S' : 'Ctrl+S',
           keywords: ['save', 'update', 'dirty', currentRequestName],
           execute: () => {
             if (!isSaving) {
@@ -328,6 +359,7 @@ export function useCommandCenter(workspaceId) {
           description: 'Duplicate current request and open in new tab',
           group: 'Actions',
           icon: Copy,
+          shortcut: isMacOS ? '⇧⌘S' : 'Ctrl+Shift+S',
           keywords: ['duplicate', 'clone', 'copy', currentRequestName],
           execute: async () => {
             const duplicated = await duplicateMutation.mutateAsync(currentRequestId);
@@ -368,7 +400,7 @@ export function useCommandCenter(workspaceId) {
         description: 'Close the currently open request tab',
         group: 'Actions',
         icon: XSquare,
-        shortcut: 'Ctrl+W',
+        shortcut: isMacOS ? '⌘W' : 'Ctrl+W',
         keywords: ['close tab', 'remove tab', currentRequestName],
         execute: () => {
           const { nextTab } = closeTab(workspaceId, currentRequestId);
@@ -711,7 +743,6 @@ export function useCommandCenter(workspaceId) {
     historyData,
     cachedData,
     tabs,
-    history,
     mruHistory,
     currentRequestId,
     currentCollectionId,
@@ -728,12 +759,12 @@ export function useCommandCenter(workspaceId) {
     getCleanPayload,
     openRequest,
     closeTab,
-    openTab,
     openCreateRequest,
     openCreateCollection,
     addRequestNode,
     addCollectionNodes,
     navigate,
+    isMacOS,
   ]);
 
   // Filtered and ranked commands
@@ -741,10 +772,8 @@ export function useCommandCenter(workspaceId) {
     return searchCommands(allCommands, query);
   }, [allCommands, query]);
 
-  // Group commands
   // Group commands bounded to max 20 per group for high performance
   const groupedCommands = useMemo(() => {
-    return groupCommands(filteredCommands);
     return groupCommands(filteredCommands, 20);
   }, [filteredCommands]);
 
@@ -796,7 +825,6 @@ export function useCommandCenter(workspaceId) {
       close();
       cmd.execute?.();
     },
-    [workspaceId, recordCommandExecution, close]
     [
       workspaceId,
       recordCommandExecution,
