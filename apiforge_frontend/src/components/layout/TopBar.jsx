@@ -1,21 +1,25 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Terminal, Search, LogOut, ChevronDown, Keyboard } from 'lucide-react';
+﻿import { useState, useRef, useEffect, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Terminal, Search, LogOut, ChevronDown, Keyboard, User, Briefcase, Settings } from 'lucide-react';
 import WorkspaceSwitcher from '../../features/workspace/components/WorkspaceSwitcher';
 import EnvironmentSwitcher from '../../features/environments/components/EnvironmentSwitcher';
 import { useCurrentUser, useLogoutMutation } from '../../features/auth/hooks/useAuth';
 import useCommandCenterStore from '../../features/command-center/store/commandCenterStore';
 import useShortcutStore from '../../features/shortcuts/store/shortcutStore.js';
 import { isMac } from '../../features/shortcuts/utils/shortcutUtils.js';
+import useCollaborationStore from '../../features/collaboration/store/collaborationStore.js';
+import { cn } from '../../utils/cn';
 
 export default function TopBar({ workspaceId }) {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef(null);
   const isMacOS = useMemo(() => isMac(), []);
+  const navigate = useNavigate();
 
   const { data: currentUser } = useCurrentUser();
   const logoutMutation = useLogoutMutation();
   const openShortcutsHelp = useShortcutStore((s) => s.openHelpModal);
+  const connectionStatus = useCollaborationStore((s) => s.connectionStatus);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -42,6 +46,11 @@ export default function TopBar({ workspaceId }) {
   const handleLogout = () => {
     setIsUserMenuOpen(false);
     logoutMutation.mutate();
+  };
+
+  const handleNavigate = (path) => {
+    setIsUserMenuOpen(false);
+    navigate(path);
   };
 
   return (
@@ -82,8 +91,30 @@ export default function TopBar({ workspaceId }) {
         </button>
       </div>
 
-      {/* Right Controls: Environment, User & Sign Out */}
+      {/* Right Controls: Realtime Status, Environment, User & Sign Out */}
       <div className="flex items-center gap-2">
+        {/* Subtle Realtime Connection State */}
+        {workspaceId && (
+          <div
+            className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#14171f] border border-[#232732] text-[10px] font-mono select-none"
+            title={`Realtime Status: ${connectionStatus}`}
+            aria-label={`Realtime Connection: ${connectionStatus}`}
+          >
+            <span
+              className={cn(
+                'w-1.5 h-1.5 rounded-full',
+                connectionStatus === 'connected' && 'bg-emerald-400',
+                connectionStatus === 'connecting' && 'bg-sky-400 animate-pulse',
+                connectionStatus === 'reconnecting' && 'bg-amber-400 animate-pulse',
+                connectionStatus === 'offline' && 'bg-slate-500'
+              )}
+            />
+            <span className="text-slate-400 capitalize">
+              {connectionStatus === 'connected' ? 'Live' : connectionStatus}
+            </span>
+          </div>
+        )}
+
         {workspaceId && <EnvironmentSwitcher workspaceId={workspaceId} />}
 
         {currentUser ? (
@@ -109,43 +140,82 @@ export default function TopBar({ workspaceId }) {
                 <div className="py-1 border-b border-[#232732]">
                   <button
                     type="button"
+                    onClick={() => handleNavigate(workspaceId ? `/workspace/${workspaceId}/settings/account` : '/settings/account')}
+                    className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <User size={13} className="text-slate-400" />
+                    <span>Account Settings</span>
+                  </button>
+
+                  {workspaceId && (
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate(`/workspace/${workspaceId}/settings/workspace`)}
+                      className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Briefcase size={13} className="text-slate-400" />
+                      <span>Workspace Settings</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate(workspaceId ? `/workspace/${workspaceId}/settings/appearance` : '/settings/appearance')}
+                    className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Settings size={13} className="text-slate-400" />
+                    <span>Preferences</span>
+                  </button>
+                </div>
+
+                <div className="py-1 border-b border-[#232732]">
+                  <button
+                    type="button"
                     onClick={() => {
                       setIsUserMenuOpen(false);
                       openShortcutsHelp();
                     }}
-                    className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center justify-between transition-colors"
+                    className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       <Keyboard size={13} className="text-slate-400" />
                       <span>Keyboard Shortcuts</span>
                     </div>
-                    <kbd className="text-[10px] font-mono text-slate-500">
-                      {isMacOS ? '⌘/' : 'Ctrl+/'}
+                    <kbd className="px-1 py-0.2 rounded bg-[#13161f] border border-[#2b313e] font-mono text-[10px] text-slate-400">
+                      ?
                     </kbd>
                   </button>
                 </div>
 
-                <div className="py-1">
+                <div className="p-1">
                   <button
                     type="button"
                     onClick={handleLogout}
                     disabled={logoutMutation.isPending}
-                    className="w-full px-3 py-1.5 text-left text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 flex items-center gap-2 transition-colors"
+                    className="w-full px-3 py-1.5 text-left text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <LogOut size={13} />
-                    <span>{logoutMutation.isPending ? 'Signing out...' : 'Sign Out'}</span>
+                    <span>{logoutMutation.isPending ? 'Signing out...' : 'Sign out'}</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <Link
-            to="/login"
-            className="px-2.5 py-1 text-xs text-slate-300 hover:text-white rounded hover:bg-[#181b22] transition-colors"
-          >
-            Sign In
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="px-2.5 py-1 text-xs text-slate-300 hover:text-white transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/register"
+              className="px-2.5 py-1 text-xs bg-sky-600 hover:bg-sky-500 text-white rounded transition-colors"
+            >
+              Register
+            </Link>
+          </div>
         )}
       </div>
     </header>

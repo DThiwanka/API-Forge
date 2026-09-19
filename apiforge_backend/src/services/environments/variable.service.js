@@ -172,7 +172,17 @@ export async function updateVariable({
   }
 
   if (updateData.value !== undefined) {
-    dataToUpdate.value = String(updateData.value);
+    const stringVal = String(updateData.value);
+    const isMaskedValue =
+      stringVal === MASKED_SECRET_VALUE ||
+      stringVal === '••••••••••••' ||
+      stringVal === '[REDACTED]';
+
+    if (existingVar.isSecret && (isMaskedValue || stringVal === '')) {
+      // Preserve existing secret value if user left masked dots or blank to indicate unchanged
+    } else {
+      dataToUpdate.value = stringVal;
+    }
   }
 
   if (updateData.isSecret !== undefined) {

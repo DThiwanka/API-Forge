@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import tokenService, { COOKIE_NAMES } from '../auth/token.service.js';
 import userRepository from '../../repositories/user.repository.js';
 import workspaceRepository from '../../repositories/workspace.repository.js';
+import { redactUrl, isSensitiveKey } from '../../utils/redaction.js';
 
 class RealtimeService {
   constructor() {
@@ -430,10 +431,22 @@ class RealtimeService {
         'raw',
         'response',
         'headers',
+        'api_key',
+        'apikey',
+        'x-api-key',
+        'client_secret',
+        'refresh_token',
+        'invite_token',
+        'invitation_token',
+        'token_hash',
       ];
       for (const [k, v] of Object.entries(metadata)) {
-        if (!forbiddenKeys.includes(k.toLowerCase())) {
-          sanitizedMetadata[k] = v;
+        if (!forbiddenKeys.includes(k.toLowerCase()) && !isSensitiveKey(k)) {
+          if (k.toLowerCase() === 'url' && typeof v === 'string') {
+            sanitizedMetadata[k] = redactUrl(v);
+          } else {
+            sanitizedMetadata[k] = v;
+          }
         }
       }
     }

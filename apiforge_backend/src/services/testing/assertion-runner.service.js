@@ -1,4 +1,5 @@
 import { resolveJsonPath } from './json-path.service.js';
+import { sanitizeAssertionResult } from '../../utils/redaction.js';
 
 /**
  * Supported assertion types
@@ -273,7 +274,7 @@ export function evaluateAssertion(response, assertion) {
       message = `Unsupported operator: '${operator}'`;
   }
 
-  return {
+  return sanitizeAssertionResult({
     assertionId: id,
     type,
     path: path || null,
@@ -282,7 +283,7 @@ export function evaluateAssertion(response, assertion) {
     actualValue: actualValue !== undefined ? actualValue : null,
     expectedValue: expectedValue !== undefined ? expectedValue : null,
     message,
-  };
+  });
 }
 
 /**

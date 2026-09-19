@@ -1,48 +1,18 @@
 import historyRepository from '../../repositories/history.repository.js';
 import { AppError } from '../../utils/appError.js';
+import { redactUrl, redactErrorMessage, MASKED_TEXT } from '../../utils/redaction.js';
 
-const MASKED_PLACEHOLDER = '••••••••';
+const MASKED_PLACEHOLDER = MASKED_TEXT;
 
 /**
- * Sanitize a target URL by masking passwords and secret environment variable values
+ * Sanitize a target URL by masking passwords, sensitive query params, and secret environment variable values
  * 
  * @param {string} url - Raw or interpolated URL
  * @param {Array<string>} [secretValues=[]] - Raw secret values to mask
  * @returns {string} Sanitized URL
  */
 export function sanitizeUrl(url, secretValues = []) {
-  if (!url || typeof url !== 'string') return '';
-  let sanitized = url;
-
-  // 1. Mask user credentials in URL (e.g., https://user:secret@api.com)
-  try {
-    const parsed = new URL(sanitized);
-    if (parsed.password) {
-      parsed.password = MASKED_PLACEHOLDER;
-      sanitized = parsed.toString();
-    }
-  } catch {
-    // Non-standard or relative URL regex replacement
-    sanitized = sanitized.replace(/(\/\/[^:]+:)([^@]+)(@)/, `$1${MASKED_PLACEHOLDER}$3`);
-  }
-
-  // 2. Mask secret environment variable values
-  if (Array.isArray(secretValues)) {
-    for (const secret of secretValues) {
-      if (!secret || typeof secret !== 'string' || secret.trim().length === 0) continue;
-      
-      // Mask raw value
-      sanitized = sanitized.split(secret).join(MASKED_PLACEHOLDER);
-
-      // Mask URL-encoded variant
-      const encoded = encodeURIComponent(secret);
-      if (encoded !== secret) {
-        sanitized = sanitized.split(encoded).join(MASKED_PLACEHOLDER);
-      }
-    }
-  }
-
-  return sanitized;
+  return redactUrl(url, secretValues, MASKED_PLACEHOLDER);
 }
 
 /**
@@ -182,6 +152,9 @@ export async function recordExecution({
 }) {
   try {
     const sanitizedUrl = sanitizeUrl(url, secretValues);
+    const sanitizedErrorMessage = errorMessage
+      ? redactErrorMessage(errorMessage, secretValues, MASKED_PLACEHOLDER)
+      : null;
 
     const record = await historyRepository.createExecution({
       workspaceId,
@@ -197,7 +170,7 @@ export async function recordExecution({
       contentType: contentType !== undefined ? contentType : null,
       success: Boolean(success),
       errorType: errorType || null,
-      errorMessage: errorMessage || null,
+      errorMessage: sanitizedErrorMessage,
     });
 
     return formatExecutionRecord(record);

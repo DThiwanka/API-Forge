@@ -1,11 +1,10 @@
-const notificationStore = {
-  notifications: [],
-  addNotification(notification) {
-    this.notifications.push({ id: Date.now(), ...notification });
-  },
-  removeNotification(id) {
-    this.notifications = this.notifications.filter((n) => n.id !== id);
-  },
-};
+﻿/**
+ * Notification Store (Re-exports unified toastStore)
+ * 
+ * Provides backward compatibility and a single source of truth
+ * for ephemeral application notifications.
+ */
+import { useToastStore, toast, TOAST_DURATIONS } from './toastStore.js';
 
-export default notificationStore;
+export { useToastStore, toast, TOAST_DURATIONS };
+export default useToastStore;

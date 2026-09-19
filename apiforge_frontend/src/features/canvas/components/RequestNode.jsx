@@ -7,6 +7,7 @@ import useCanvasStore from '../store/canvasStore';
 import useRequestTabStore from '../../requests/store/requestTabStore';
 import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
+import { redactUrl } from '../../../utils/redaction.js';
 
 function RequestNodeComponent({ id, data, selected }) {
   const navigate = useNavigate();
@@ -90,6 +91,8 @@ function RequestNodeComponent({ id, data, selected }) {
     });
   };
 
+  const displayUrl = url ? redactUrl(url) : '';
+
   return (
     <div
       onDoubleClick={handleOpenRequest}
@@ -172,9 +175,9 @@ function RequestNodeComponent({ id, data, selected }) {
         </div>
         <div
           className="text-[11px] font-mono text-slate-400 truncate bg-[#0d0f14] px-1.5 py-0.5 rounded border border-[#1d222d]"
-          title={url || 'No URL specified'}
+          title={displayUrl || 'No URL specified'}
         >
-          {url || <span className="italic text-slate-600">No URL configured</span>}
+          {displayUrl || <span className="italic text-slate-600">No URL configured</span>}
         </div>
       </div>
 

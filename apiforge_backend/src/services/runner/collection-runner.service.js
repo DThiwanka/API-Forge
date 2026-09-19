@@ -6,37 +6,11 @@ import { classifyExecutionError } from '../history/history.service.js';
 import { extractVariablesFromResponse } from './variable-extraction.service.js';
 import assertionRunnerService from '../testing/assertion-runner.service.js';
 import { AppError } from '../../utils/appError.js';
-
-const SENSITIVE_KEY_REGEX =
-  /(authorization|cookie|set-cookie|x[_-]?api[_-]?key|api[_-]?key|apikey|x[_-]?auth[_-]?token|token|secret|password|client[_-]?secret)/i;
-
-/**
- * Sanitize assertion result so sensitive values and headers are not leaked
- * @param {object} result - Single assertion evaluation result
- * @returns {object} Sanitized assertion result
- */
-function sanitizeAssertionResult(result) {
-  if (!result || typeof result !== 'object') return result;
-
-  const isSensitive =
-    (result.type === 'header' && SENSITIVE_KEY_REGEX.test(result.path || '')) ||
-    (result.type === 'json_path' && SENSITIVE_KEY_REGEX.test(result.path || ''));
-
-  if (!isSensitive) return result;
-
-  return {
-    ...result,
-    actualValue: result.actualValue !== null && result.actualValue !== undefined ? '[REDACTED]' : null,
-    expectedValue: result.expectedValue !== null && result.expectedValue !== undefined ? '[REDACTED]' : null,
-    message: result.message
-      ? result.message
-          .replace(/to equal ".*?"/, 'to equal "[REDACTED]"')
-          .replace(/got ".*?"/, 'got "[REDACTED]"')
-          .replace(/value: ".*?"/, 'value: "[REDACTED]"')
-          .replace(/Expected '.*?' not to exist, but found value: .*/, 'Expected sensitive field not to exist, but it was found')
-      : null,
-  };
-}
+import {
+  sanitizeAssertionResult,
+  redactUrl,
+  redactErrorMessage,
+} from '../../utils/redaction.js';
 
 /**
  * Determine deterministic execution order of requests across collection and folders
@@ -251,6 +225,15 @@ export async function runCollection({
     targetEnv = await environmentRepository.getActiveEnvironment(workspaceId);
   }
 
+  const secretValues = [];
+  if (targetEnv && Array.isArray(targetEnv.variables)) {
+    for (const v of targetEnv.variables) {
+      if (v.isSecret && v.value) {
+        secretValues.push(v.value);
+      }
+    }
+  }
+
   // 5. Determine which requests to include
   const hasFolderFilter = Array.isArray(folderIds) && folderIds.length > 0;
   const hasRequestFilter = Array.isArray(requestIds) && requestIds.length > 0;
@@ -318,7 +301,7 @@ export async function runCollection({
         name: reqDef.name,
         requestName: reqDef.name,
         method: reqDef.method,
-        url: reqDef.url,
+        url: redactUrl(reqDef.url, secretValues),
         status: null,
         statusText: null,
         duration: 0,
@@ -384,7 +367,9 @@ export async function runCollection({
           itemPassedAssertions += assertionSummary.passedCount;
           itemFailedAssertions += assertionSummary.failedCount;
 
-          const sanitizedResults = (assertionSummary.results || []).map(sanitizeAssertionResult);
+          const sanitizedResults = (assertionSummary.results || []).map((r) =>
+            sanitizeAssertionResult(r)
+          );
 
           testResultsList.push({
             id: test.id,
@@ -475,7 +460,7 @@ export async function runCollection({
         name: reqDef.name,
         requestName: reqDef.name,
         method: execResult.request.method,
-        url: execResult.request.url,
+        url: redactUrl(execResult.request.url || reqDef.url, secretValues),
         status: execResult.response.status,
         statusText: execResult.response.statusText,
         duration,
@@ -507,6 +492,7 @@ export async function runCollection({
     } catch (err) {
       const duration = Math.round(performance.now() - reqStart);
       const errorType = classifyExecutionError(err);
+      const safeErrorMessage = redactErrorMessage(err.message, secretValues);
       failedCount++;
       if (stopOnError) {
         stoppedEarly = true;
@@ -518,7 +504,7 @@ export async function runCollection({
         name: reqDef.name,
         requestName: reqDef.name,
         method: reqDef.method,
-        url: reqDef.url,
+        url: redactUrl(reqDef.url, secretValues),
         status: null,
         statusText: null,
         duration,
@@ -528,13 +514,13 @@ export async function runCollection({
         success: false,
         execution: {
           success: false,
-          error: err.message,
+          error: safeErrorMessage,
         },
         errorType,
-        errorMessage: err.message,
+        errorMessage: safeErrorMessage,
         error: {
           type: errorType,
-          message: err.message,
+          message: safeErrorMessage,
         },
         tests: {
           total: 0,

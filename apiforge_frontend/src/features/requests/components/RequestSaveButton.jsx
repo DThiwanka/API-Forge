@@ -12,6 +12,7 @@ export default function RequestSaveButton({
 }) {
   const isMacOS = useMemo(() => isMac(), []);
   const shortcutHint = isMacOS ? '⌘S' : 'Ctrl+S';
+
   return (
     <button
       type="button"
@@ -19,6 +20,7 @@ export default function RequestSaveButton({
       disabled={isSaving || !isDirty}
       title={isDirty ? 'Save Changes (Ctrl+S)' : 'All changes saved to server'}
       title={isDirty ? `Save Changes (${shortcutHint})` : 'All changes saved to server'}
+      aria-label={isSaving ? 'Saving changes' : isError ? 'Save failed' : isDirty ? 'Save unsaved changes' : 'All changes saved'}
       className={cn(
         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-all focus:outline-none select-none border',
         // Saving state

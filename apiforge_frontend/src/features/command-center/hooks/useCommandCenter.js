@@ -22,6 +22,12 @@ import {
   Upload,
   Keyboard,
   Plus,
+  Settings,
+  User,
+  Briefcase,
+  Palette,
+  Sliders,
+  Shield,
 } from 'lucide-react';
 import useCommandCenterStore from '../store/commandCenterStore';
 import { searchCommands, groupCommands } from '../utils/commandUtils';
@@ -37,6 +43,7 @@ import useBrowserStore from '../../browser/store/browserStore';
 import useCanvasStore from '../../canvas/store/canvasStore';
 import { useUpdateRequestMutation, useDuplicateRequestMutation } from '../../requests/hooks/useRequest';
 import { toast } from '../../../stores/toastStore';
+import { redactUrl } from '../../../utils/redaction.js';
 import { isMac } from '../../shortcuts/utils/shortcutUtils';
 import useShortcutStore from '../../shortcuts/store/shortcutStore';
 
@@ -528,6 +535,90 @@ export function useCommandCenter(workspaceId) {
       },
     });
 
+    list.push({
+      id: 'nav-settings',
+      title: 'Open Settings',
+      description: 'Configure account, workspace, appearance, and developer preferences',
+      group: 'Navigation',
+      icon: Settings,
+      keywords: ['settings', 'preferences', 'configuration', 'account', 'options'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings`);
+      },
+    });
+
+    list.push({
+      id: 'nav-account-settings',
+      title: 'Open Account Settings',
+      description: 'View user profile, identity, and session details',
+      group: 'Navigation',
+      icon: User,
+      keywords: ['account', 'profile', 'user', 'email', 'settings', 'sign out'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings/account`);
+      },
+    });
+
+    list.push({
+      id: 'nav-workspace-settings',
+      title: 'Open Workspace Settings',
+      description: 'Configure workspace name, description, and manage workspace settings',
+      group: 'Navigation',
+      icon: Briefcase,
+      keywords: ['workspace settings', 'workspace', 'rename', 'delete workspace'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings/workspace`);
+      },
+    });
+
+    list.push({
+      id: 'nav-appearance-settings',
+      title: 'Open Appearance Settings',
+      description: 'Configure theme, display density, and reduced motion',
+      group: 'Navigation',
+      icon: Palette,
+      keywords: ['appearance', 'theme', 'dark', 'light', 'density', 'compact', 'motion'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings/appearance`);
+      },
+    });
+
+    list.push({
+      id: 'nav-editor-settings',
+      title: 'Open Editor Settings',
+      description: 'Configure code font size, word wrap, and response formatting',
+      group: 'Navigation',
+      icon: Sliders,
+      keywords: ['editor', 'font size', 'word wrap', 'json', 'formatting', 'developer'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings/editor`);
+      },
+    });
+
+    list.push({
+      id: 'nav-security-settings',
+      title: 'Open Security Settings',
+      description: 'Review authentication architecture, cookie security, and session management',
+      group: 'Navigation',
+      icon: Shield,
+      keywords: ['security', 'auth', 'sessions', 'cookies', 'encryption', 'logout'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings/security`);
+      },
+    });
+
+    list.push({
+      id: 'nav-shortcuts-settings',
+      title: 'Open Keyboard Shortcuts Settings',
+      description: 'View and search keyboard shortcuts in Settings',
+      group: 'Navigation',
+      icon: Keyboard,
+      keywords: ['shortcuts', 'hotkeys', 'cheat sheet', 'keybindings', 'settings'],
+      execute: () => {
+        navigate(`/workspace/${workspaceId}/settings/shortcuts`);
+      },
+    });
+
     // 4. REQUESTS (From Open Tabs & Cache)
     const registeredRequestIds = new Set(recentTabs.map((t) => t.requestId));
 
@@ -538,6 +629,8 @@ export function useCommandCenter(workspaceId) {
         const col = collectionMap.get(tab.collectionId);
         const cached = cachedData.requests.find((r) => r.id === tab.requestId);
         const folder = cached?.folderId ? folderMap.get(cached.folderId) : null;
+        const rawTabUrl = cached?.url || tab.url || '';
+        const safeTabUrl = redactUrl(rawTabUrl);
         list.push({
           id: `req-${tab.requestId}`,
           resourceType: 'request',
@@ -546,10 +639,10 @@ export function useCommandCenter(workspaceId) {
           description: col ? `in ${col.name}` : 'Request',
           group: 'Requests',
           method: tab.method || 'GET',
-          path: cached?.url || tab.url || '',
+          path: safeTabUrl,
           collectionName: col ? col.name : '',
           folderName: folder ? folder.name : undefined,
-          keywords: [tab.title, tab.method, cached?.url || tab.url || '', col ? col.name : ''],
+          keywords: [tab.title, tab.method, safeTabUrl, col ? col.name : ''],
           execute: () => {
             openRequest(tab.requestId, {
               collectionId: tab.collectionId,
@@ -569,18 +662,19 @@ export function useCommandCenter(workspaceId) {
         registeredRequestIds.add(req.id);
         const col = collectionMap.get(req.collectionId);
         const folder = req.folderId ? folderMap.get(req.folderId) : null;
+        const safeReqUrl = redactUrl(req.url || '');
         list.push({
           id: `req-${req.id}`,
           resourceType: 'request',
           resourceId: req.id,
           title: req.name || 'Untitled Request',
-          description: `in ${col ? col.name : req.collectionName || 'Collection'}${req.url ? ` • ${req.url}` : ''}`,
+          description: `in ${col ? col.name : req.collectionName || 'Collection'}${safeReqUrl ? ` • ${safeReqUrl}` : ''}`,
           group: 'Requests',
           method: req.method || 'GET',
-          path: req.url || '',
+          path: safeReqUrl,
           collectionName: col ? col.name : req.collectionName || '',
           folderName: folder ? folder.name : undefined,
-          keywords: [req.name, req.method, req.url || '', req.collectionName || ''],
+          keywords: [req.name, req.method, safeReqUrl, req.collectionName || ''],
           execute: () => {
             openRequest(req.id, {
               collectionId: req.collectionId,
@@ -688,7 +782,8 @@ export function useCommandCenter(workspaceId) {
     const historyList = historyData?.history;
     if (Array.isArray(historyList) && historyList.length > 0) {
       for (const h of historyList) {
-        const histTitle = h.request?.name || h.url || 'History Entry';
+        const safeHistUrl = redactUrl(h.url || '');
+        const histTitle = h.request?.name || safeHistUrl || 'History Entry';
         const timeAgo = formatRelativeTime(h.createdAt);
         list.push({
           id: `hist-${h.id}`,
@@ -696,12 +791,12 @@ export function useCommandCenter(workspaceId) {
           resourceId: h.id,
           title: histTitle,
           method: h.method || 'GET',
-          path: h.url || '',
+          path: safeHistUrl,
           status: h.status,
           description: `${h.status || 'ERR'} • ${timeAgo}`,
           group: 'History',
           icon: History,
-          keywords: ['history', h.method || '', h.url || '', String(h.status || ''), histTitle],
+          keywords: ['history', h.method || '', safeHistUrl, String(h.status || ''), histTitle],
           execute: () => {
             if (h.requestId && h.collectionId) {
               openRequest(h.requestId, {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+﻿import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
@@ -10,6 +10,7 @@ import CollectionRunnerPage from '../pages/runner/CollectionRunnerPage';
 import BrowserPage from '../pages/browser/BrowserPage';
 import WorkspaceMembersPage from '../pages/workspace/WorkspaceMembersPage';
 import InvitationAcceptancePage from '../pages/collaboration/InvitationAcceptancePage';
+import SettingsLayout from '../pages/settings/SettingsLayout';
 import NotFound from '../pages/NotFound';
 
 export function AppRouter() {
@@ -26,7 +27,10 @@ export function AppRouter() {
         <Route path="/workspace/:workspaceId/browser" element={<BrowserPage />} />
         <Route path="/workspace/:workspaceId/environments" element={<EnvironmentSettingsPage />} />
         <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
-        <Route path="/workspace/:workspaceId/settings" element={<WorkspaceMembersPage />} />
+        <Route path="/workspace/:workspaceId/settings" element={<SettingsLayout />} />
+        <Route path="/workspace/:workspaceId/settings/:section" element={<SettingsLayout />} />
+        <Route path="/settings" element={<SettingsLayout />} />
+        <Route path="/settings/:section" element={<SettingsLayout />} />
         <Route path="/workspace/:workspaceId/history" element={<HistoryPage />} />
         <Route path="/workspace/:workspaceId/runner" element={<CollectionRunnerPage />} />
         <Route

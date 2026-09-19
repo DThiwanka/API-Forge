@@ -7,6 +7,7 @@ import { prepareExecutableRequest } from '../requests/request-transform.service.
 import { resolveTimeout } from './timeout.service.js';
 import httpClientService from './http-client.service.js';
 import { AppError } from '../../utils/appError.js';
+import { redactUrl, redactErrorMessage } from '../../utils/redaction.js';
 
 /**
  * Execute a stored API request definition with optional runtime variables
@@ -139,21 +140,22 @@ export async function executeRequest({
         id: request.id,
         name: request.name,
         method: prepared.method,
-        url: prepared.url,
+        url: redactUrl(prepared.url, secretValues),
       },
       response,
     };
   } catch (err) {
     const elapsed = Math.round(performance.now() - startTime);
     const errorType = classifyExecutionError(err);
+    const safeErrorMessage = redactErrorMessage(err.message, secretValues);
 
     await historyService.recordExecution({
       workspaceId,
       collectionId,
       requestId,
       environmentId: targetEnv?.id || null,
-      method: prepared.method,
-      url: prepared.url,
+      method: preparedMethod,
+      url: preparedUrl,
       status: null,
       statusText: null,
       duration: elapsed,
@@ -161,10 +163,11 @@ export async function executeRequest({
       contentType: null,
       success: false,
       errorType,
-      errorMessage: err.message,
+      errorMessage: safeErrorMessage,
       secretValues,
     });
 
+    err.message = safeErrorMessage;
     throw err;
   }
 }

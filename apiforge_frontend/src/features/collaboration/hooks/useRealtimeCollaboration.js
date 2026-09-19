@@ -151,6 +151,9 @@ export function useRealtimeCollaboration(workspaceId) {
     // 5. Member & Permission events
     const unsubMemberUpdated = wsClient.on('member.updated', (event) => {
       if (event.workspaceId === workspaceId) {
+        if (event.metadata?.userId === currentUser?.id) {
+          toast.warning('Your workspace permissions have changed.');
+        }
         queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
         queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] });
       }

@@ -1,21 +1,12 @@
 import crypto from 'node:crypto';
 import env from '../../config/env.js';
+import {
+  redactHeaders as centralizedRedactHeaders,
+  isSensitiveQueryParam,
+  MASKED_TEXT,
+} from '../../utils/redaction.js';
 
-/**
- * Sensitive headers that must be redacted in captured network traffic.
- */
-const SENSITIVE_HEADER_NAMES = new Set([
-  'authorization',
-  'cookie',
-  'set-cookie',
-  'proxy-authorization',
-  'x-api-key',
-  'apikey',
-  'token',
-  'secret',
-  'x-auth-token',
-  'x-access-token',
-]);
+export const REDACTED_PLACEHOLDER = MASKED_TEXT;
 
 /**
  * In-memory tab network event buffers: tabId -> Array<NetworkEvent>
@@ -29,37 +20,25 @@ const tabNetworkEvents = new Map();
 const tabSubscribers = new Map();
 
 /**
- * Redacts sensitive header values with ••••••••
+ * Redacts sensitive header values
  */
 export function redactHeaders(headers) {
-  if (!headers || typeof headers !== 'object') return {};
-  const redacted = {};
-  for (const [key, value] of Object.entries(headers)) {
-    const lower = key.toLowerCase();
-    if (
-      SENSITIVE_HEADER_NAMES.has(lower) ||
-      lower.includes('secret') ||
-      lower.includes('token') ||
-      lower.includes('api-key') ||
-      lower.includes('apikey')
-    ) {
-      redacted[key] = '••••••••';
-    } else {
-      redacted[key] = typeof value === 'string' ? value : String(value);
-    }
-  }
-  return redacted;
+  return centralizedRedactHeaders(headers, REDACTED_PLACEHOLDER);
 }
 
 /**
- * Parse URL components safely
+ * Parse URL components safely with sensitive query parameters redacted
  */
 function parseUrlDetails(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
     const queryParams = [];
     parsed.searchParams.forEach((value, key) => {
-      queryParams.push({ key, value });
+      const safeVal = isSensitiveQueryParam(key) ? REDACTED_PLACEHOLDER : value;
+      queryParams.push({ key, value: safeVal });
+      if (safeVal !== value) {
+        parsed.searchParams.set(key, safeVal);
+      }
     });
     return {
       pathname: parsed.pathname || '/',
