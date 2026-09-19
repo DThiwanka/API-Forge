@@ -17,8 +17,8 @@ export default function CommandSearch({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Search requests, collections, commands..."
         placeholder="Search requests, collections, environments, history, commands..."
+        aria-label="Search requests, collections, environments, history, and commands"
         role="combobox"
         aria-expanded={true}
         aria-haspopup="listbox"
@@ -31,7 +31,6 @@ export default function CommandSearch({
           type="button"
           onClick={onClear}
           title="Clear search"
-          className="p-1 text-slate-500 hover:text-slate-300 rounded hover:bg-[#1f2430] transition-colors focus:outline-none"
           aria-label="Clear search"
           className="p-1 text-slate-500 hover:text-slate-300 rounded hover:bg-[#1f2430] transition-colors focus:outline-none cursor-pointer"
         >

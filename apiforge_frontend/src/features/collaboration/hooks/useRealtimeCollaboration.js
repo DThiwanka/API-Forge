@@ -54,9 +54,15 @@ export function useRealtimeCollaboration(workspaceId) {
     });
 
     // 2. Request events
+    // 2. Request events (Targeted Invalidation - Step 61)
     const unsubReqCreated = wsClient.on('request.created', (event) => {
       if (event.workspaceId === workspaceId) {
         queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+        if (event.metadata?.collectionId) {
+          queryClient.invalidateQueries({ queryKey: ['requests', workspaceId, event.metadata.collectionId] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+        }
       }
     });
 
@@ -83,6 +89,11 @@ export function useRealtimeCollaboration(workspaceId) {
       }
 
       queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+      if (event.metadata?.collectionId) {
+        queryClient.invalidateQueries({ queryKey: ['requests', workspaceId, event.metadata.collectionId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+      }
     });
 
     const unsubReqDeleted = wsClient.on('request.deleted', (event) => {
@@ -97,6 +108,11 @@ export function useRealtimeCollaboration(workspaceId) {
       }
 
       queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+      if (event.metadata?.collectionId) {
+        queryClient.invalidateQueries({ queryKey: ['requests', workspaceId, event.metadata.collectionId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['requests', workspaceId] });
+      }
     });
 
     // 3. Collection & Folder events

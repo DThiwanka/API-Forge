@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppShell from '../../components/layout/AppShell';
 import SettingsSidebar, { SETTINGS_SECTIONS } from './SettingsSidebar';
@@ -91,12 +91,13 @@ export default function SettingsLayout() {
         </header>
 
         {/* Small Screen Section Selector Dropdown / Pills */}
-        <div className="lg:hidden p-3 bg-[#111318] border-b border-[#232732] flex items-center gap-2 overflow-x-auto select-none">
+        <nav aria-label="Settings sections" className="lg:hidden p-3 bg-[#111318] border-b border-[#232732] flex items-center gap-2 overflow-x-auto select-none">
           {SETTINGS_SECTIONS.map((sec) => (
             <button
               key={sec.id}
               type="button"
               onClick={() => handleSelectSection(sec.id)}
+              aria-current={activeSection === sec.id ? 'true' : undefined}
               className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition-all ${
                 activeSection === sec.id
                   ? 'bg-sky-600 text-white font-medium'
@@ -106,7 +107,7 @@ export default function SettingsLayout() {
               {sec.label}
             </button>
           ))}
-        </div>
+        </nav>
 
         {/* Main Settings Body */}
         <div className="flex-1 flex overflow-hidden">
@@ -123,7 +124,7 @@ export default function SettingsLayout() {
           </aside>
 
           {/* Right Main Content */}
-          <main className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-4xl">
+          <main id="settings-main" className="flex-1 p-6 lg:p-8 overflow-y-auto max-w-4xl">
             {renderActiveSection()}
           </main>
         </div>

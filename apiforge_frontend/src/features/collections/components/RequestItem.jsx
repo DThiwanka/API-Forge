@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CollectionContextMenu from './CollectionContextMenu';
 import RenameDialog from './RenameDialog';
@@ -7,7 +7,6 @@ import DuplicateRequestDialog from '../../requests/components/DuplicateRequestDi
 import ExportDialog from '../../import-export/components/ExportDialog';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 import OpenInBrowserModal from '../../requests/components/OpenInBrowserModal';
-import { useVariableSuggestions } from '../../requests/hooks/useVariableSuggestions';
 import {
   useUpdateRequestMutation,
   useDeleteRequestMutation,
@@ -30,7 +29,7 @@ const METHOD_COLORS = {
   OPTIONS: 'text-indigo-400',
 };
 
-export default function RequestItem({
+function RequestItemComponent({
   request,
   workspaceId,
   collectionId,
@@ -50,7 +49,6 @@ export default function RequestItem({
   const [isBrowserModalOpen, setIsBrowserModalOpen] = useState(false);
   const [contextCoords, setContextCoords] = useState(null);
 
-  const { variableMap, activeEnv } = useVariableSuggestions(workspaceId);
   const itemRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
@@ -59,7 +57,7 @@ export default function RequestItem({
   const isSelected = Boolean(useCollectionStore((s) => s.selectedRequests[request.id]));
   const toggleRequestSelected = useCollectionStore((s) => s.toggleRequestSelected);
   const selectedMethodFilter = useCollectionStore((s) => s.selectedMethodFilter);
-  const hasAnySelection = Object.keys(useCollectionStore((s) => s.selectedRequests)).length > 0;
+  const hasAnySelection = useCollectionStore((s) => Object.keys(s.selectedRequests).length > 0);
 
   const isActive = activeRequestId === request.id;
   const methodColor = METHOD_COLORS[request.method] || 'text-slate-400';
@@ -214,6 +212,11 @@ export default function RequestItem({
     <>
       <div
         ref={itemRef}
+        role="treeitem"
+        aria-selected={isSelected}
+        aria-current={isActive ? 'page' : undefined}
+        aria-level={depth + 2}
+        aria-label={`Request: ${request.method} ${request.name}`}
         data-tree-item="request"
         data-request-id={request.id}
         onClick={handleRowClick}
@@ -379,15 +382,18 @@ export default function RequestItem({
         />
       )}
 
-      <OpenInBrowserModal
-        isOpen={isBrowserModalOpen}
-        onClose={() => setIsBrowserModalOpen(false)}
-        workspaceId={workspaceId}
-        url={request.url || ''}
-        method={request.method || 'GET'}
-        variableMap={variableMap}
-        activeEnv={activeEnv}
-      />
+      {isBrowserModalOpen && (
+        <OpenInBrowserModal
+          isOpen={isBrowserModalOpen}
+          onClose={() => setIsBrowserModalOpen(false)}
+          workspaceId={workspaceId}
+          url={request.url || ''}
+          method={request.method || 'GET'}
+        />
+      )}
     </>
   );
 }
+
+export const RequestItem = memo(RequestItemComponent);
+export default RequestItem;

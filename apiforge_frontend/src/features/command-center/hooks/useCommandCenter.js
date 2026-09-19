@@ -171,11 +171,11 @@ export function useCommandCenter(workspaceId) {
 
   // Construct flat command catalogue
   // Construct flat command and resource catalogue
+  // Construct flat command catalogue (Stable Resource Index - Step 61)
   const allCommands = useMemo(() => {
     if (!workspaceId) return [];
 
     const list = [];
-    const isSearching = Boolean(query && query.trim());
 
     // Helper maps for folders and collections
     const collectionMap = new Map(collections.map((c) => [c.id, c]));
@@ -208,7 +208,7 @@ export function useCommandCenter(workspaceId) {
         resourceId: tab.requestId,
         title: tab.title || 'Untitled Request',
         description: tab.collectionName ? `in ${tab.collectionName}` : 'Recent request',
-        group: isSearching ? 'Requests' : 'Recent Requests',
+        group: 'Recent Requests',
         method: tab.method || 'GET',
         path: tab.path || '',
         collectionName: tab.collectionName || '',
@@ -813,8 +813,8 @@ export function useCommandCenter(workspaceId) {
       }
     }
 
-    // 9. RECENT COMMANDS (When empty query, surface recently executed commands)
-    if (!isSearching && Array.isArray(recentCommandIds) && recentCommandIds.length > 0) {
+    // 9. RECENT COMMANDS (Surface recently executed commands in index)
+    if (Array.isArray(recentCommandIds) && recentCommandIds.length > 0) {
       const recentCommandsList = [];
       for (const recId of recentCommandIds) {
         const targetCmd = list.find((c) => c.id === recId);
@@ -832,7 +832,6 @@ export function useCommandCenter(workspaceId) {
     return list;
   }, [
     workspaceId,
-    query,
     collections,
     environments,
     historyData,

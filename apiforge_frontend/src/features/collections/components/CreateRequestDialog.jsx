@@ -112,7 +112,7 @@ export default function CreateRequestDialog({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-2.5 rounded bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300">
+          <div role="alert" className="p-2.5 rounded bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300">
             {error}
           </div>
         )}
@@ -120,10 +120,11 @@ export default function CreateRequestDialog({
         {/* Collection Selector if triggered from workspace/tab bar without explicit collection */}
         {!collectionId && collections.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label htmlFor="create-req-col" className="block text-xs font-medium text-slate-300 mb-1">
               Target Collection <span className="text-rose-400">*</span>
             </label>
             <select
+              id="create-req-col"
               value={effectiveCollectionId || ''}
               onChange={(e) => setSelectedCollectionId(e.target.value)}
               className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-sans cursor-pointer"
@@ -138,10 +139,11 @@ export default function CreateRequestDialog({
         )}
 
         <div>
-          <label className="block text-xs font-medium text-slate-300 mb-1">
+          <label htmlFor="create-req-name" className="block text-xs font-medium text-slate-300 mb-1">
             Request Name <span className="text-rose-400">*</span>
           </label>
           <input
+            id="create-req-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -155,10 +157,11 @@ export default function CreateRequestDialog({
 
         <div className="grid grid-cols-4 gap-2">
           <div className="col-span-1">
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label htmlFor="create-req-method" className="block text-xs font-medium text-slate-300 mb-1">
               Method
             </label>
             <select
+              id="create-req-method"
               value={method}
               onChange={(e) => setMethod(e.target.value)}
               className="w-full bg-[#181b22] border border-[#2b313e] rounded px-2 py-2 text-xs font-mono font-bold text-slate-100 focus:outline-none focus:border-sky-500 cursor-pointer"
@@ -172,10 +175,11 @@ export default function CreateRequestDialog({
           </div>
 
           <div className="col-span-3">
-            <label className="block text-xs font-medium text-slate-300 mb-1">
+            <label htmlFor="create-req-url" className="block text-xs font-medium text-slate-300 mb-1">
               URL <span className="text-rose-400">*</span>
             </label>
             <input
+              id="create-req-url"
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}

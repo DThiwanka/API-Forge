@@ -255,16 +255,22 @@ export default function CollectionTree({
         </div>
 
         {/* HTTP Method Filter Chips */}
-        <div className="flex items-center gap-1 overflow-x-auto pt-0.5 scrollbar-none text-[10px]">
+        <div
+          role="radiogroup"
+          aria-label="Filter by HTTP method"
+          className="flex items-center gap-1 overflow-x-auto pt-0.5 scrollbar-none text-[10px]"
+        >
           {METHOD_FILTERS.map((m) => {
             const isChipActive = selectedMethodFilter === m;
             return (
               <button
                 key={m}
                 type="button"
+                role="radio"
+                aria-checked={isChipActive}
                 onClick={() => setSelectedMethodFilter(m)}
                 className={cn(
-                  'px-1.5 py-0.5 rounded font-mono font-semibold transition-colors cursor-pointer shrink-0',
+                  'px-1.5 py-0.5 rounded font-mono font-semibold transition-colors cursor-pointer shrink-0 focus:outline-none',
                   isChipActive
                     ? 'bg-sky-500/25 text-sky-300 border border-sky-500/40'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-[#181b22] border border-transparent'

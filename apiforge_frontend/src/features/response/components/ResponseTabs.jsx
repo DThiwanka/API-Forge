@@ -33,16 +33,21 @@ export default function ResponseTabs({
         className
       )}
     >
-      <div className="flex items-center gap-1 shrink-0">
+      <div role="tablist" aria-label="Response sections" className="flex items-center gap-1 shrink-0">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               type="button"
+              role="tab"
+              id={`response-tab-${tab.id}`}
+              aria-selected={isActive}
+              aria-controls={`response-panel-${tab.id}`}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                'relative py-2 px-3 text-xs font-medium transition-colors flex items-center gap-1.5 focus:outline-none border-b-2',
+                'relative py-2 px-3 text-xs font-medium transition-colors flex items-center gap-1.5 focus:outline-none border-b-2 cursor-pointer',
                 isActive
                   ? 'border-sky-500 text-sky-400 font-semibold'
                   : 'border-transparent text-slate-400 hover:text-slate-200'

@@ -87,6 +87,8 @@ function BrowserToolbarComponent({
         <button
           type="button"
           onClick={toggleNetworkPanel}
+          aria-label="Toggle live browser network activity panel"
+          aria-expanded={isNetworkPanelOpen}
           className={cn(
             'flex items-center gap-1.5 px-2.5 py-1 rounded-md border transition-all cursor-pointer text-xs shrink-0',
             isNetworkPanelOpen
@@ -103,6 +105,7 @@ function BrowserToolbarComponent({
           <button
             type="button"
             onClick={onOpenInApiClient}
+            aria-label="Open current URL in API Client"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#181b24] border border-[#2b313e] hover:border-sky-500/60 text-slate-200 hover:text-white transition-all cursor-pointer text-xs shrink-0 shadow-xs group"
             title="Create or open API request from current browser URL"
           >

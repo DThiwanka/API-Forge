@@ -95,10 +95,19 @@ function RequestNodeComponent({ id, data, selected }) {
 
   return (
     <div
+      tabIndex={0}
+      role="article"
+      aria-label={`API Request Node: ${method} ${name || 'Untitled Request'} ${displayUrl}`}
       onDoubleClick={handleOpenRequest}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleOpenRequest(e);
+        }
+      }}
       onContextMenu={handleContextMenu}
       className={cn(
-        'group relative w-64 rounded-xl bg-[#12141c] border transition-all duration-150 select-none shadow-lg',
+        'group relative w-64 rounded-xl bg-[#12141c] border transition-all duration-150 select-none shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400',
         selected
           ? 'border-sky-500 shadow-sky-500/15 ring-2 ring-sky-500/60 z-10'
           : isConnectedToSelected
@@ -160,8 +169,9 @@ function RequestNodeComponent({ id, data, selected }) {
           <button
             type="button"
             onClick={handleOpenRequest}
-            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-white hover:bg-[#232732] rounded transition-all"
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-400 hover:text-white hover:bg-[#232732] rounded transition-all cursor-pointer"
             title="Open in Request Workspace"
+            aria-label={`Open request ${name || 'Untitled Request'} in editor`}
           >
             <ExternalLink size={12} />
           </button>

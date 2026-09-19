@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Terminal, Search, LogOut, ChevronDown, Keyboard, User, Briefcase, Settings } from 'lucide-react';
 import WorkspaceSwitcher from '../../features/workspace/components/WorkspaceSwitcher';
@@ -77,6 +77,7 @@ export default function TopBar({ workspaceId }) {
         <button
           type="button"
           onClick={() => useCommandCenterStore.getState().open()}
+          aria-label={`Search requests or commands (${isMacOS ? 'Cmd+K' : 'Ctrl+K'})`}
           className="w-full flex items-center justify-between px-2.5 py-1 bg-[#14171f] hover:bg-[#181b22] border border-[#2b313e] hover:border-slate-600 rounded text-xs text-slate-400 transition-colors cursor-pointer group text-left"
         >
           <div className="flex items-center gap-2">
@@ -91,8 +92,19 @@ export default function TopBar({ workspaceId }) {
         </button>
       </div>
 
-      {/* Right Controls: Realtime Status, Environment, User & Sign Out */}
+      {/* Right Controls: Mobile Search, Realtime Status, Environment, User & Sign Out */}
       <div className="flex items-center gap-2">
+        {/* Mobile / Tablet search button */}
+        <button
+          type="button"
+          onClick={() => useCommandCenterStore.getState().open()}
+          className="flex md:hidden p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#181b22] transition-colors cursor-pointer"
+          aria-label={`Open Command Center (${isMacOS ? 'Cmd+K' : 'Ctrl+K'})`}
+          title={`Search requests and commands (${isMacOS ? 'Cmd+K' : 'Ctrl+K'})`}
+        >
+          <Search size={14} />
+        </button>
+
         {/* Subtle Realtime Connection State */}
         {workspaceId && (
           <div
@@ -122,6 +134,9 @@ export default function TopBar({ workspaceId }) {
             <button
               type="button"
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              aria-haspopup="menu"
+              aria-expanded={isUserMenuOpen}
+              aria-label="User account menu"
               className="flex items-center gap-1.5 p-1 rounded hover:bg-[#181b22] border border-transparent hover:border-[#2b313e] text-xs text-slate-200 transition-colors focus:outline-none"
             >
               <div className="w-6 h-6 rounded-full bg-sky-900 border border-sky-600/40 flex items-center justify-center text-sky-300 font-bold text-[10px]">
@@ -131,15 +146,20 @@ export default function TopBar({ workspaceId }) {
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-1 w-52 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+              <div
+                role="menu"
+                aria-label="User menu"
+                className="absolute right-0 mt-1 w-52 bg-[#181b22] border border-[#2b313e] rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs"
+              >
                 <div className="px-3 py-2 border-b border-[#232732]">
                   <div className="font-semibold text-slate-100 truncate">{currentUser.name}</div>
                   <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
                 </div>
 
-                <div className="py-1 border-b border-[#232732]">
+                <div className="py-1 border-b border-[#232732]" role="none">
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => handleNavigate(workspaceId ? `/workspace/${workspaceId}/settings/account` : '/settings/account')}
                     className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center gap-2 transition-colors cursor-pointer"
                   >
@@ -150,6 +170,7 @@ export default function TopBar({ workspaceId }) {
                   {workspaceId && (
                     <button
                       type="button"
+                      role="menuitem"
                       onClick={() => handleNavigate(`/workspace/${workspaceId}/settings/workspace`)}
                       className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center gap-2 transition-colors cursor-pointer"
                     >
@@ -160,6 +181,7 @@ export default function TopBar({ workspaceId }) {
 
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => handleNavigate(workspaceId ? `/workspace/${workspaceId}/settings/appearance` : '/settings/appearance')}
                     className="w-full px-3 py-1.5 text-left text-slate-300 hover:text-slate-100 hover:bg-[#1f2433] flex items-center gap-2 transition-colors cursor-pointer"
                   >

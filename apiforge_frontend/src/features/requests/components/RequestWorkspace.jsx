@@ -761,8 +761,6 @@ export default function RequestWorkspace({ workspaceId: propWId, collectionId: p
           tabIndex={0}
           aria-orientation="vertical"
           aria-valuenow={Math.round(splitPercent)}
-          aria-valuemin={25}
-          aria-valuemax={75}
           aria-valuemin={20}
           aria-valuemax={80}
           aria-label="Resize request and response panels"

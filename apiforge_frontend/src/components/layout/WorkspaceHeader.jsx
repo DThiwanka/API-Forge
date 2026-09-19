@@ -69,6 +69,8 @@ export default function WorkspaceHeader({ workspaceId, className }) {
           onClick={toggleSidebar}
           className="p-1 rounded text-slate-400 hover:text-white hover:bg-[#181b22] transition-colors"
           title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!sidebarCollapsed}
         >
           {sidebarCollapsed ? <PanelLeft size={14} /> : <PanelLeftClose size={14} />}
         </button>
@@ -100,9 +102,13 @@ export default function WorkspaceHeader({ workspaceId, className }) {
         <div className="h-3 w-px bg-[#232732]" />
 
         {/* View Mode Switcher: Editor vs Canvas vs Environments */}
-        <div className="flex items-center p-0.5 rounded-md bg-[#0d0f14] border border-[#232732]">
+        <nav
+          aria-label="Workspace views"
+          className="flex items-center p-0.5 rounded-md bg-[#0d0f14] border border-[#232732]"
+        >
           <Link
             to={`/workspace/${workspaceId}`}
+            aria-current={isEditor ? 'page' : undefined}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
               isEditor
@@ -117,6 +123,7 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
           <Link
             to={`/workspace/${workspaceId}/canvas`}
+            aria-current={isCanvas ? 'page' : undefined}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
               isCanvas
@@ -131,6 +138,7 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
           <Link
             to={`/workspace/${workspaceId}/browser`}
+            aria-current={isBrowser ? 'page' : undefined}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
               isBrowser
@@ -145,6 +153,7 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
           <Link
             to={`/workspace/${workspaceId}/environments`}
+            aria-current={isEnvironments ? 'page' : undefined}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
               isEnvironments
@@ -159,6 +168,7 @@ export default function WorkspaceHeader({ workspaceId, className }) {
 
           <Link
             to={`/workspace/${workspaceId}/history`}
+            aria-current={isHistory ? 'page' : undefined}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors',
               isHistory
@@ -170,7 +180,7 @@ export default function WorkspaceHeader({ workspaceId, className }) {
             <History size={12} />
             <span>History</span>
           </Link>
-        </div>
+        </nav>
       </div>
 
       <div className="flex items-center gap-2.5 text-[11px] text-slate-400 font-mono">
@@ -179,6 +189,8 @@ export default function WorkspaceHeader({ workspaceId, className }) {
         <button
           type="button"
           onClick={() => setIsMembersOpen(true)}
+          aria-haspopup="dialog"
+          aria-label="Manage workspace members and invitations"
           className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
           title="Manage workspace members and invitations"
         >
@@ -190,8 +202,9 @@ export default function WorkspaceHeader({ workspaceId, className }) {
           <button
             type="button"
             onClick={() => setIsImportOpen(true)}
+            aria-haspopup="dialog"
+            aria-label="Import API requests"
             className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 text-sky-300 text-xs font-medium transition-colors cursor-pointer"
-            title="Import API request from cURL command"
             title="Import API requests"
           >
             <Download size={12} />
@@ -202,6 +215,8 @@ export default function WorkspaceHeader({ workspaceId, className }) {
         <button
           type="button"
           onClick={() => setIsExportOpen(true)}
+          aria-haspopup="dialog"
+          aria-label="Export collection"
           className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#181b22] hover:bg-[#232732] border border-[#2b313e] text-slate-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
           title="Export collection as OpenAPI specification"
         >

@@ -135,6 +135,8 @@ export default function RequestTabBar({
         ref={scrollContainerRef}
         onScroll={updateScrollBounds}
         onWheel={handleWheel}
+        role="tablist"
+        aria-label="Open request tabs"
         className="flex-1 flex items-stretch overflow-x-auto no-scrollbar"
       >
         {tabs.map((tab) => {
@@ -185,6 +187,9 @@ export default function RequestTabBar({
                 {tab.title || 'Untitled Request'}
               </span>
 
+              {/* Accessible unsaved notice for screen readers */}
+              {tab.isDirty && <span className="sr-only">(unsaved changes)</span>}
+
               {/* Dirty status or Close button */}
               <div className="shrink-0 flex items-center justify-center w-4 h-4 ml-1">
                 {tab.isDirty ? (
@@ -202,7 +207,7 @@ export default function RequestTabBar({
                         onCloseTab(tab.requestId);
                       }}
                       className="hidden group-hover:flex items-center justify-center p-0.5 rounded hover:bg-[#252c3c] text-slate-400 hover:text-slate-200 transition-colors"
-                      aria-label={`Close ${tab.title || 'request'}`}
+                      aria-label={`Close ${tab.title || 'request'} tab`}
                     >
                       <X size={11} />
                     </button>
@@ -215,7 +220,7 @@ export default function RequestTabBar({
                       onCloseTab(tab.requestId);
                     }}
                     className="opacity-0 group-hover:opacity-100 flex items-center justify-center p-0.5 rounded hover:bg-[#252c3c] text-slate-400 hover:text-slate-200 transition-colors"
-                    aria-label={`Close ${tab.title || 'request'}`}
+                    aria-label={`Close ${tab.title || 'request'} tab`}
                   >
                     <X size={11} />
                   </button>

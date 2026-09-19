@@ -38,7 +38,12 @@ export default function Login() {
         </div>
 
         {error && (
-          <div className="mb-4 p-2.5 rounded bg-rose-950/40 border border-rose-800/50 flex items-center gap-2 text-xs text-rose-300">
+          <div
+            role="alert"
+            id="login-error"
+            aria-live="assertive"
+            className="mb-4 p-2.5 rounded bg-rose-950/40 border border-rose-800/50 flex items-center gap-2 text-xs text-rose-300"
+          >
             <AlertCircle size={14} className="flex-shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
@@ -46,14 +51,19 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1 font-medium">Email</label>
+            <label htmlFor="login-email" className="block text-xs text-slate-400 mb-1 font-medium">
+              Email <span className="text-rose-400" aria-hidden="true">*</span>
+            </label>
             <div className="relative">
               <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="developer@apiforge.local"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'login-error' : undefined}
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 pl-9 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
               />
@@ -61,14 +71,19 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1 font-medium">Password</label>
+            <label htmlFor="login-password" className="block text-xs text-slate-400 mb-1 font-medium">
+              Password <span className="text-rose-400" aria-hidden="true">*</span>
+            </label>
             <div className="relative">
               <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'login-error' : undefined}
                 className="w-full bg-[#181b22] border border-[#2b313e] rounded px-3 py-2 pl-9 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
               />
@@ -78,7 +93,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            className="w-full py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
           >
             {loading ? (
               <>

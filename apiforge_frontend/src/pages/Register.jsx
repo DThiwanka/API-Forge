@@ -39,7 +39,12 @@ export default function Register() {
         </div>
 
         {error && (
-          <div className="mb-4 p-2.5 rounded bg-rose-950/40 border border-rose-800/50 flex items-center gap-2 text-xs text-rose-300">
+          <div
+            role="alert"
+            id="register-error"
+            aria-live="assertive"
+            className="mb-4 p-2.5 rounded bg-rose-950/40 border border-rose-800/50 flex items-center gap-2 text-xs text-rose-300"
+          >
             <AlertCircle size={14} className="flex-shrink-0 text-rose-400" />
             <span>{error}</span>
           </div>
@@ -47,14 +52,19 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1 font-medium">Name</label>
+            <label htmlFor="register-name" className="block text-xs text-slate-400 mb-1 font-medium">
+              Name <span className="text-rose-400" aria-hidden="true">*</span>
+            </label>
             <div className="relative">
               <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
+                id="register-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ada Lovelace"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'register-error' : undefined}
                 className="w-full bg-[#181b22] border border-[#232732] rounded px-3 py-2 pl-9 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
               />
@@ -62,14 +72,19 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1 font-medium">Email</label>
+            <label htmlFor="register-email" className="block text-xs text-slate-400 mb-1 font-medium">
+              Email <span className="text-rose-400" aria-hidden="true">*</span>
+            </label>
             <div className="relative">
               <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
+                id="register-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="developer@apiforge.local"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'register-error' : undefined}
                 className="w-full bg-[#181b22] border border-[#232732] rounded px-3 py-2 pl-9 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
               />
@@ -77,15 +92,20 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-xs text-slate-400 mb-1 font-medium">Password</label>
+            <label htmlFor="register-password" className="block text-xs text-slate-400 mb-1 font-medium">
+              Password <span className="text-rose-400" aria-hidden="true">*</span>
+            </label>
             <div className="relative">
               <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
+                id="register-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimum 8 characters"
                 minLength={8}
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'register-error' : undefined}
                 className="w-full bg-[#181b22] border border-[#232732] rounded px-3 py-2 pl-9 text-xs text-slate-100 placeholder-slate-600 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                 required
               />
@@ -95,7 +115,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+            className="w-full py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
           >
             {loading ? (
               <>

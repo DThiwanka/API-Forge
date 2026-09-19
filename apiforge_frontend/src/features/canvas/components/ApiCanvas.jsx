@@ -72,12 +72,20 @@ function ApiCanvasInternal({ workspaceId }) {
   const setSelectedRelationship = useCanvasStore((s) => s.setSelectedRelationship);
 
   // Infer relationships dynamically from existing canvas nodes
+  // Step 48 & 61: Infer relationships dynamically based only on metadata, ignoring position/drag coordinates
+  const nodesMetadataKey = useMemo(() => {
+    return (nodes || [])
+      .map((n) => `${n.id}:${n.data?.url || ''}:${n.data?.method || ''}:${n.data?.name || ''}`)
+      .join('|');
+  }, [nodes]);
+
   const inferredEdges = useMemo(() => {
     if (relationshipFilter === 'none' || relationshipFilter === 'explicit') {
       return [];
     }
     return inferRelationships(nodes);
-  }, [nodes, relationshipFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodesMetadataKey, relationshipFilter]);
 
   // Combine explicit edges with inferred edges
   const combinedEdges = useMemo(() => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Folder,
@@ -24,7 +24,7 @@ import { useQuery } from '@tanstack/react-query';
 import { doesCollectionMatchFilters, findAncestorFolderIds } from '../utils/collectionTreeUtils';
 import CollectionOverviewDialog from './CollectionOverviewDialog';
 
-export default function CollectionItem({
+function CollectionItemComponent({
   collection,
   workspaceId,
   activeRequestId,
@@ -164,6 +164,10 @@ export default function CollectionItem({
       <div className="text-xs select-none">
         {/* Collection Header Row */}
         <div
+          role="treeitem"
+          aria-expanded={effectiveExpanded}
+          aria-level={1}
+          aria-label={`Collection: ${collection.name}`}
           data-tree-item="collection"
           data-collection-id={collection.id}
           onContextMenu={handleContextMenu}
@@ -193,7 +197,9 @@ export default function CollectionItem({
             <button
               type="button"
               onClick={() => toggleCollection(collection.id)}
-              className="flex items-center gap-1.5 flex-1 min-w-0 text-left truncate font-semibold py-0.5 cursor-pointer"
+              aria-expanded={effectiveExpanded}
+              aria-label={`${effectiveExpanded ? 'Collapse' : 'Expand'} collection ${collection.name}`}
+              className="flex items-center gap-1.5 flex-1 min-w-0 text-left truncate font-semibold py-0.5 cursor-pointer focus:outline-none"
             >
               {effectiveExpanded ? (
                 <ChevronDown size={13} className="text-slate-500 flex-shrink-0" />
@@ -221,6 +227,7 @@ export default function CollectionItem({
                 type="button"
                 onClick={() => setIsNewRequestOpen(true)}
                 title="Add request to collection"
+                aria-label={`Add request to collection ${collection.name}`}
                 className="p-1 text-slate-500 hover:text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity rounded cursor-pointer"
               >
                 <Plus size={12} />
@@ -373,3 +380,6 @@ export default function CollectionItem({
     </>
   );
 }
+
+export const CollectionItem = memo(CollectionItemComponent);
+export default CollectionItem;

@@ -6,6 +6,7 @@ import {
   resolveRequestUrlForBrowser,
   validateBrowserNavigationTarget,
 } from '../../browser/utils/browserClientIntegration';
+import { useVariableSuggestions } from '../../requests/hooks/useVariableSuggestions';
 import {
   AlertTriangle,
   ShieldAlert,
@@ -19,19 +20,22 @@ export default function OpenInBrowserModal({
   workspaceId,
   url = '',
   method = 'GET',
-  variableMap = new Map(),
-  activeEnv = null,
+  variableMap: propVariableMap,
+  activeEnv: propActiveEnv,
   onConfirmSuccess = null,
 }) {
   const navigate = useNavigate();
+  const suggestions = useVariableSuggestions(isOpen ? workspaceId : null);
+  const effectiveVariableMap = propVariableMap || suggestions.variableMap;
+  const effectiveActiveEnv = propActiveEnv !== undefined ? propActiveEnv : suggestions.activeEnv;
 
   // 1. Variable Resolution
   const { resolvedUrl, unresolvedVariables, hasUnresolved } = useMemo(() => {
     if (!isOpen || !url) {
       return { resolvedUrl: '', unresolvedVariables: [], hasUnresolved: false };
     }
-    return resolveRequestUrlForBrowser(url, variableMap, activeEnv);
-  }, [isOpen, url, variableMap, activeEnv]);
+    return resolveRequestUrlForBrowser(url, effectiveVariableMap || new Map(), effectiveActiveEnv);
+  }, [isOpen, url, effectiveVariableMap, effectiveActiveEnv]);
 
   // 2. Security & SSRF Validation
   const validation = useMemo(() => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Folder,
@@ -20,7 +20,7 @@ import {
 import { toast } from '../../../stores/toastStore';
 import { doesFolderMatchFilters, countTotalFolderRequests } from '../utils/collectionTreeUtils';
 
-export default function FolderItem({
+function FolderItemComponent({
   folder,
   allRequests = [],
   workspaceId,
@@ -140,6 +140,10 @@ export default function FolderItem({
       <div className="text-xs select-none">
         {/* Folder Header Row */}
         <div
+          role="treeitem"
+          aria-expanded={effectiveExpanded}
+          aria-level={depth + 1}
+          aria-label={`Folder: ${folder.name}`}
           data-tree-item="folder"
           data-folder-id={folder.id}
           onContextMenu={handleContextMenu}
@@ -170,7 +174,9 @@ export default function FolderItem({
             <button
               type="button"
               onClick={() => toggleFolder(folder.id)}
-              className="flex items-center gap-1.5 flex-1 min-w-0 text-left truncate font-medium py-0.5 cursor-pointer"
+              aria-expanded={effectiveExpanded}
+              aria-label={`${effectiveExpanded ? 'Collapse' : 'Expand'} folder ${folder.name}`}
+              className="flex items-center gap-1.5 flex-1 min-w-0 text-left truncate font-medium py-0.5 cursor-pointer focus:outline-none"
             >
               {effectiveExpanded ? (
                 <ChevronDown size={12} className="text-slate-500 shrink-0" />
@@ -310,3 +316,6 @@ export default function FolderItem({
     </>
   );
 }
+
+export const FolderItem = memo(FolderItemComponent);
+export default FolderItem;

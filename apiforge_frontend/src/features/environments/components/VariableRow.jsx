@@ -34,8 +34,9 @@ export default function VariableRow({
             <button
               type="button"
               onClick={() => setIsRevealed(!isRevealed)}
-              className="p-1 rounded text-slate-500 hover:text-slate-300 hover:bg-[#1f242e] transition-colors"
+              className="p-1 rounded text-slate-500 hover:text-slate-300 hover:bg-[#1f242e] transition-colors cursor-pointer"
               title={isRevealed ? 'Hide secret representation' : 'Reveal masked representation'}
+              aria-label={isRevealed ? `Hide secret representation for ${variable.key}` : `Reveal masked representation for ${variable.key}`}
             >
               {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
             </button>
@@ -64,16 +65,18 @@ export default function VariableRow({
             <button
               type="button"
               onClick={() => onEdit(variable)}
-              className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#1f242e] transition-colors"
+              className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-[#1f242e] transition-colors cursor-pointer"
               title="Edit variable"
+              aria-label={`Edit variable ${variable.key}`}
             >
               <Edit2 size={13} />
             </button>
             <button
               type="button"
               onClick={() => onDelete(variable)}
-              className="p-1.5 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
+              className="p-1.5 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors cursor-pointer"
               title="Delete variable"
+              aria-label={`Delete variable ${variable.key}`}
             >
               <Trash2 size={13} />
             </button>

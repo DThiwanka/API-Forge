@@ -56,6 +56,7 @@ function BrowserAddressBarComponent({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         placeholder="Enter URL (e.g. https://httpbin.org/get or jsonplaceholder.typicode.com)..."
+        aria-label="Browser address URL"
         className="w-full bg-transparent text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none font-mono"
         spellCheck={false}
         autoCapitalize="off"
@@ -69,6 +70,7 @@ function BrowserAddressBarComponent({
           onClick={() => onChange('')}
           className="p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors cursor-pointer mr-1"
           title="Clear address bar"
+          aria-label="Clear address bar"
         >
           <X size={11} />
         </button>
