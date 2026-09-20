@@ -22,6 +22,7 @@ import CreateCollectionDialog from '../../features/collections/components/Create
 import ImportDialog from '../../features/import-export/components/ImportDialog';
 import WorkspaceMembersModal from '../../features/collaboration/components/WorkspaceMembersModal';
 import FirstWorkspaceOnboarding from '../../features/workspace/components/FirstWorkspaceOnboarding';
+import { toast } from '../../stores/toastStore';
 
 export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequest }) {
   const queryClient = useQueryClient();
@@ -30,6 +31,8 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
   // Local dialog states
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
+  const [pendingCreateRequest, setPendingCreateRequest] = useState(false);
+  const [collectionModalSubtitle, setCollectionModalSubtitle] = useState(null);
   const [importModal, setImportModal] = useState({ isOpen: false, tab: 'curl' });
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
@@ -62,6 +65,13 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
   }, [environments]);
 
   const handleOpenNewRequest = () => {
+    if (collections.length === 0) {
+      toast.info('Please create a collection first to organize your requests');
+      setCollectionModalSubtitle('Requests belong to collections. Create your first collection to hold this request.');
+      setPendingCreateRequest(true);
+      setIsNewCollectionOpen(true);
+      return;
+    }
     if (propOnNewRequest) {
       propOnNewRequest();
     } else {
@@ -112,31 +122,31 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
               <Layers size={28} />
             </div>
 
-            <h2 className="text-lg font-bold text-slate-100 mb-2">Your workspace is empty</h2>
+            <h2 className="text-lg font-bold text-slate-100 mb-2">Create your first collection</h2>
             <p className="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
-              Start building your API library by creating a request, setting up a collection, or importing existing OpenAPI and cURL specifications.
+              Requests in APIForge are organized inside collections. Start by creating your first collection to group, configure, and test your API endpoints.
             </p>
 
             <div className="flex items-center gap-3 flex-wrap justify-center">
               {!isViewer && (
                 <button
                   type="button"
-                  onClick={handleOpenNewRequest}
+                  onClick={() => setIsNewCollectionOpen(true)}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold shadow-md transition-colors cursor-pointer"
                 >
                   <Plus size={14} />
-                  <span>Create Request</span>
+                  <span>Create Collection</span>
                 </button>
               )}
 
               {!isViewer && (
                 <button
                   type="button"
-                  onClick={() => setIsNewCollectionOpen(true)}
+                  onClick={handleOpenNewRequest}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#181c28] hover:bg-[#202536] border border-[#2d3447] text-slate-200 text-xs font-medium shadow-sm transition-all cursor-pointer"
                 >
                   <Plus size={14} className="text-sky-400" />
-                  <span>Create Collection</span>
+                  <span>Create Request</span>
                 </button>
               )}
 
@@ -264,12 +274,28 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
         isOpen={isNewRequestOpen}
         onClose={() => setIsNewRequestOpen(false)}
         workspaceId={workspaceId}
+        onOpenCreateCollection={() => {
+          setIsNewRequestOpen(false);
+          setIsNewCollectionOpen(true);
+        }}
       />
 
       <CreateCollectionDialog
         isOpen={isNewCollectionOpen}
-        onClose={() => setIsNewCollectionOpen(false)}
+        onClose={() => {
+          setIsNewCollectionOpen(false);
+          setPendingCreateRequest(false);
+          setCollectionModalSubtitle(null);
+        }}
         workspaceId={workspaceId}
+        subtitle={collectionModalSubtitle}
+        onSuccess={(created) => {
+          if (pendingCreateRequest) {
+            setPendingCreateRequest(false);
+            setCollectionModalSubtitle(null);
+            setIsNewRequestOpen(true);
+          }
+        }}
       />
 
       <ImportDialog

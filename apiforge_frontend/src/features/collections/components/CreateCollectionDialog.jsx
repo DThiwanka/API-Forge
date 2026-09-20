@@ -4,7 +4,7 @@ import Button from '../../../components/ui/Button';
 import { useCreateCollectionMutation } from '../hooks/useCollections';
 import useCollectionStore from '../store/collectionStore';
 
-export default function CreateCollectionDialog({ isOpen, onClose, workspaceId }) {
+export default function CreateCollectionDialog({ isOpen, onClose, workspaceId, onSuccess, subtitle }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState(null);
@@ -36,6 +36,9 @@ export default function CreateCollectionDialog({ isOpen, onClose, workspaceId })
       setDescription('');
       setError(null);
       onClose();
+      if (onSuccess && created) {
+        onSuccess(created);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create collection');
     }
@@ -50,6 +53,11 @@ export default function CreateCollectionDialog({ isOpen, onClose, workspaceId })
 
   return (
     <Dialog isOpen={isOpen} onClose={handleClose} title="Create New Collection">
+      {subtitle && (
+        <p className="text-xs text-slate-400 -mt-2 mb-3 leading-relaxed">
+          {subtitle}
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div role="alert" className="p-2.5 rounded bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300">

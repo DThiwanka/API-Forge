@@ -19,6 +19,7 @@ export default function CreateRequestDialog({
   initialUrl = null,
   initialMethod = 'GET',
   initialName = null,
+  onOpenCreateCollection = null,
 }) {
   const [name, setName] = useState(initialName || 'New Request');
   const [method, setMethod] = useState(initialMethod || 'GET');
@@ -121,6 +122,33 @@ export default function CreateRequestDialog({
           </div>
         )}
 
+        {/* If workspace has no collections, show clear guidance */}
+        {!collectionId && collections.length === 0 && (
+          <div className="p-3.5 rounded-lg bg-amber-950/30 border border-amber-800/40 text-xs text-slate-300 space-y-2">
+            <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+              <span>Collection Required</span>
+            </div>
+            <p className="text-slate-400 leading-relaxed">
+              API requests belong to collections. Please create a collection first before creating requests in this workspace.
+            </p>
+            {onOpenCreateCollection && (
+              <div>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="mt-1"
+                  onClick={() => {
+                    handleClose();
+                    onOpenCreateCollection();
+                  }}
+                >
+                  Create Collection First
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Collection Selector if triggered from workspace/tab bar without explicit collection */}
         {!collectionId && collections.length > 0 && (
           <div>
@@ -203,7 +231,11 @@ export default function CreateRequestDialog({
             variant="primary"
             disabled={createMutation.isPending || !name.trim() || !url.trim() || !effectiveCollectionId}
           >
-            {createMutation.isPending ? 'Creating...' : 'Create Request'}
+            {createMutation.isPending
+              ? 'Creating...'
+              : !effectiveCollectionId
+              ? 'Collection Required'
+              : 'Create Request'}
           </Button>
         </div>
       </form>
