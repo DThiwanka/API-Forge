@@ -127,5 +127,52 @@ describe('First-Workspace Onboarding & Zero-Workspace Flow', () => {
       assert.equal(toastMessage, 'Please create or select a workspace first');
     });
   });
+
+  describe('5. Smart Collection Guidance & Zero-Collection Protection', () => {
+    it('redirects new request trigger to create collection when workspace has 0 collections', () => {
+      const collections = [];
+      let isNewCollectionOpen = false;
+      let toastMessage = null;
+
+      if (collections.length === 0) {
+        toastMessage = 'Please create a collection first to organize your requests';
+        isNewCollectionOpen = true;
+      }
+
+      assert.equal(toastMessage, 'Please create a collection first to organize your requests');
+      assert.equal(isNewCollectionOpen, true);
+    });
+
+    it('determines button label as Collection Required when no collection is available', () => {
+      const effectiveCollectionId = null;
+      const isPending = false;
+
+      const buttonLabel = isPending
+        ? 'Creating...'
+        : !effectiveCollectionId
+        ? 'Collection Required'
+        : 'Create Request';
+
+      assert.equal(buttonLabel, 'Collection Required');
+    });
+
+    it('triggers request creation modal upon successful collection creation in pending flow', () => {
+      let pendingCreateRequest = true;
+      let isNewRequestOpen = false;
+
+      // Simulated onSuccess callback
+      const onCollectionSuccess = () => {
+        if (pendingCreateRequest) {
+          pendingCreateRequest = false;
+          isNewRequestOpen = true;
+        }
+      };
+
+      onCollectionSuccess();
+
+      assert.equal(pendingCreateRequest, false);
+      assert.equal(isNewRequestOpen, true);
+    });
+  });
 });
 

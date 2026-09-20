@@ -6,12 +6,13 @@ import RequestWorkspace from '../features/requests/components/RequestWorkspace';
 import RequestTabBar from '../features/requests/components/RequestTabBar';
 import UnsavedTabDialog from '../features/requests/components/UnsavedTabDialog';
 import CreateRequestDialog from '../features/collections/components/CreateRequestDialog';
+import CreateCollectionDialog from '../features/collections/components/CreateCollectionDialog';
 import OpenInBrowserModal from '../features/requests/components/OpenInBrowserModal';
 import KeyboardShortcutsModal from '../features/shortcuts/components/KeyboardShortcutsModal';
 import useShortcutStore from '../features/shortcuts/store/shortcutStore';
 import { isEditableElement } from '../features/shortcuts/utils/shortcutUtils';
 import { useVariableSuggestions } from '../features/requests/hooks/useVariableSuggestions';
-import { useWorkspacesQuery } from '../features/workspace/hooks/useWorkspace';
+import { useWorkspacesQuery, useCollectionsQuery } from '../features/workspace/hooks/useWorkspace';
 import useWorkspaceStore from '../features/workspace/store/workspaceStore';
 import useRequestTabStore from '../features/requests/store/requestTabStore';
 import useRequestStore from '../features/requests/store/requestStore';
@@ -29,6 +30,7 @@ export default function Workspace() {
 
   const [confirmCloseTab, setConfirmCloseTab] = useState(null);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+  const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
 
   const {
     data: workspaces = [],
@@ -42,6 +44,8 @@ export default function Workspace() {
   // Match workspace if routeWorkspaceId exists, otherwise fall back to first workspace or null if zero workspaces
   const matchedWorkspace = workspaces.find((w) => w.id === routeWorkspaceId);
   const currentWorkspaceId = matchedWorkspace?.id || (workspaces.length > 0 ? workspaces[0].id : null);
+
+  const { data: collections = [] } = useCollectionsQuery(currentWorkspaceId);
 
   // Tab Store
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[currentWorkspaceId] || EMPTY_TABS);
@@ -282,11 +286,16 @@ export default function Workspace() {
         toast.error('Viewers cannot create new requests');
         return;
       }
+      if (collections.length === 0) {
+        toast.info('Please create a collection first to organize your requests');
+        setIsNewCollectionOpen(true);
+        return;
+      }
       setIsNewRequestOpen(true);
     };
     window.addEventListener('apiforge:new-request', handleNewReqEvent);
     return () => window.removeEventListener('apiforge:new-request', handleNewReqEvent);
-  }, [workspaces, currentWorkspaceId]);
+  }, [workspaces, currentWorkspaceId, collections]);
 
   // Keyboard shortcuts: Ctrl+W to close active tab, tab cycling, Alt+N, ? for help
   useEffect(() => {
@@ -312,6 +321,11 @@ export default function Workspace() {
         const currentWs = workspaces.find((w) => w.id === currentWorkspaceId);
         if (currentWs?.role?.toUpperCase() === 'VIEWER') {
           toast.error('Viewers cannot create new requests');
+          return;
+        }
+        if (collections.length === 0) {
+          toast.info('Please create a collection first to organize your requests');
+          setIsNewCollectionOpen(true);
           return;
         }
         setIsNewRequestOpen(true);
@@ -456,6 +470,17 @@ export default function Workspace() {
         onClose={() => setIsNewRequestOpen(false)}
         workspaceId={currentWorkspaceId}
         collectionId={collectionId || null}
+        onOpenCreateCollection={() => {
+          setIsNewRequestOpen(false);
+          setIsNewCollectionOpen(true);
+        }}
+      />
+
+      {/* New Collection Dialog */}
+      <CreateCollectionDialog
+        isOpen={isNewCollectionOpen}
+        onClose={() => setIsNewCollectionOpen(false)}
+        workspaceId={currentWorkspaceId}
       />
 
       {/* Open in Browser Dialog */}
