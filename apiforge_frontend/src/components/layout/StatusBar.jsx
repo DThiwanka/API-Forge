@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, Wifi, WifiOff, Globe, Layers } from 'lucide-react';
 import { useWorkspaceQuery } from '../../features/workspace/hooks/useWorkspace';
 import { useEnvironmentsQuery } from '../../features/environments/hooks/useEnvironments';
@@ -10,6 +10,15 @@ export default function StatusBar({ workspaceId }) {
   const { data: environments = [] } = useEnvironmentsQuery(workspaceId);
 
   const activeEnv = environments.find((e) => e.isActive);
+
+  const apiHost = useMemo(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+    try {
+      return new URL(apiBase, typeof window !== 'undefined' ? window.location.href : undefined).host;
+    } catch {
+      return 'localhost:5000';
+    }
+  }, []);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -61,9 +70,9 @@ export default function StatusBar({ workspaceId }) {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
           <Wifi size={11} className="text-slate-500" />
-          <span>http://localhost:5000</span>
+          <span>{apiHost}</span>
         </div>
-        <span>APIForge v0.1.0</span>
+        <span className="text-slate-400">APIForge v1.0.0</span>
       </div>
     </footer>
   );

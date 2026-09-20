@@ -29,7 +29,6 @@ import { useRequestTabStore } from '../src/features/requests/store/requestTabSto
 import { useRequestStore } from '../src/features/requests/store/requestStore.js';
 import { useCanvasStore } from '../src/features/canvas/store/canvasStore.js';
 import { useCollectionStore } from '../src/features/collections/store/collectionStore.js';
-import { useRunnerStore } from '../src/features/runner/store/runnerStore.js';
 import { useResponseStore } from '../src/features/response/store/responseStore.js';
 import { useCommandCenterStore } from '../src/features/command-center/store/commandCenterStore.js';
 
@@ -64,7 +63,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
 
     it('should keep tabs completely isolated between two workspace contexts', () => {
       // Open a tab in workspace A
-      useRequestTabStore.getState().openTab(wsA, {
       useRequestTabStore.getState().openTab({
         workspaceId: wsA,
         requestId: 'req-ws-a-1',
@@ -74,7 +72,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
       });
 
       // Open a different tab in workspace B
-      useRequestTabStore.getState().openTab(wsB, {
       useRequestTabStore.getState().openTab({
         workspaceId: wsB,
         requestId: 'req-ws-b-1',
@@ -83,8 +80,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
         isDirty: false,
       });
 
-      const tabsA = useRequestTabStore.getState().getWorkspaceTabs(wsA);
-      const tabsB = useRequestTabStore.getState().getWorkspaceTabs(wsB);
       const tabsA = useRequestTabStore.getState().getTabs(wsA);
       const tabsB = useRequestTabStore.getState().getTabs(wsB);
 
@@ -95,8 +90,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
 
       // Closing workspace A tab should not affect workspace B
       useRequestTabStore.getState().closeTab(wsA, 'req-ws-a-1');
-      const tabsAAfter = useRequestTabStore.getState().getWorkspaceTabs(wsA);
-      const tabsBAfter = useRequestTabStore.getState().getWorkspaceTabs(wsB);
       const tabsAAfter = useRequestTabStore.getState().getTabs(wsA);
       const tabsBAfter = useRequestTabStore.getState().getTabs(wsB);
 
@@ -105,7 +98,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
     });
 
     it('should not leak dirty state between workspace tabs', () => {
-      useRequestTabStore.getState().openTab(wsA, {
       useRequestTabStore.getState().openTab({
         workspaceId: wsA,
         requestId: 'req-dirty-a',
@@ -113,7 +105,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
         method: 'GET',
         isDirty: false,
       });
-      useRequestTabStore.getState().openTab(wsB, {
       useRequestTabStore.getState().openTab({
         workspaceId: wsB,
         requestId: 'req-clean-b',
@@ -123,11 +114,8 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
       });
 
       // Mark A as dirty
-      useRequestTabStore.getState().markDirty(wsA, 'req-dirty-a');
       useRequestTabStore.getState().setTabDirty(wsA, 'req-dirty-a', true);
 
-      const tabsA = useRequestTabStore.getState().getWorkspaceTabs(wsA);
-      const tabsB = useRequestTabStore.getState().getWorkspaceTabs(wsB);
       const tabsA = useRequestTabStore.getState().getTabs(wsA);
       const tabsB = useRequestTabStore.getState().getTabs(wsB);
 
@@ -202,7 +190,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
   // ══════════════════════════════════════════════════════════════════
   describe('3. Collection Store Expansion State Isolation', () => {
     beforeEach(() => {
-      useCollectionStore.setState({ expandedCollections: new Set(), expandedFolders: new Set() });
       useCollectionStore.setState({ expandedCollectionIds: {}, expandedFolderIds: {} });
     });
 
@@ -211,9 +198,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
       useCollectionStore.getState().expandCollection('coll-b');
       useCollectionStore.getState().collapseCollection('coll-a');
 
-      const { expandedCollections } = useCollectionStore.getState();
-      assert.equal(expandedCollections.has('coll-a'), false, 'coll-a should be collapsed');
-      assert.equal(expandedCollections.has('coll-b'), true, 'coll-b should remain expanded');
       const { expandedCollectionIds } = useCollectionStore.getState();
       assert.equal(expandedCollectionIds['coll-a'], false, 'coll-a should be collapsed');
       assert.equal(expandedCollectionIds['coll-b'], true, 'coll-b should remain expanded');
@@ -230,21 +214,10 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
   });
 
   // ══════════════════════════════════════════════════════════════════
-  // 4. RUNNER STORE ISOLATION
   // 4. RESPONSE STORE ISOLATION ACROSS REQUESTS
   // ══════════════════════════════════════════════════════════════════
-  describe('4. Runner Store Result Isolation', () => {
   describe('4. Response Store Result Isolation Across Requests', () => {
     beforeEach(() => {
-      useRunnerStore.setState({
-        results: [],
-        isRunning: false,
-        summary: null,
-        selectedCollectionId: null,
-        selectedEnvironmentId: null,
-        selectedRequestIds: [],
-        selectedFolderIds: [],
-        stopOnError: false,
       useResponseStore.setState({
         status: 'idle',
         response: null,
@@ -254,11 +227,6 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
       });
     });
 
-    it('should start with empty results and non-running state', () => {
-      const state = useRunnerStore.getState();
-      assert.deepEqual(state.results, []);
-      assert.equal(state.isRunning, false);
-      assert.equal(state.summary, null);
     it('should isolate response state between different request IDs', () => {
       // Set response for req-1
       useResponseStore.getState().setResponse('req-1', { status: 200, data: { ok: true } });
@@ -276,18 +244,10 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
       assert.equal(stateReq2.response.status, 404);
     });
 
-    it('should update results without affecting other state slices', () => {
-      useRunnerStore.getState().setResults([
-        { requestId: 'r1', name: 'Test Request', status: 'passed', timeMs: 45 },
-      ]);
     it('switching active request should scope active view cleanly', () => {
       useResponseStore.getState().setResponse('req-alpha', { status: 201 });
       useResponseStore.getState().setActiveRequestId('req-alpha');
 
-      const state = useRunnerStore.getState();
-      assert.equal(state.results.length, 1);
-      assert.equal(state.isRunning, false); // should not have changed
-      assert.equal(state.summary, null);    // should not have changed
       let current = useResponseStore.getState();
       assert.equal(current.activeRequestId, 'req-alpha');
       assert.equal(current.status, 'success');
@@ -526,25 +486,17 @@ describe('Step 63: Frontend Regression Smoke Suite', () => {
       useCanvasStore.setState({ nodes: [], edges: [], selectedNodeId: null });
     });
 
-    it('modifying runner results should not change collection expansion state', () => {
     it('modifying response results should not change collection expansion state', () => {
       useCollectionStore.getState().expandCollection('coll-isolation-test');
 
-      useRunnerStore.getState().setResults([
-        { requestId: 'r1', name: 'Run Result', status: 'passed', timeMs: 10 },
-      ]);
       useResponseStore.getState().setResponse('req-isolation', { status: 200 });
 
-      const { expandedCollections } = useCollectionStore.getState();
-      assert.ok(expandedCollections.has('coll-isolation-test'),
-        'Collection expansion state must not be affected by runner results');
       const { expandedCollectionIds } = useCollectionStore.getState();
       assert.equal(expandedCollectionIds['coll-isolation-test'], true,
         'Collection expansion state must not be affected by response results');
 
       // Cleanup
       useCollectionStore.getState().collapseCollection('coll-isolation-test');
-      useRunnerStore.setState({ results: [] });
       useResponseStore.setState({ responsesByRequest: {} });
     });
   });

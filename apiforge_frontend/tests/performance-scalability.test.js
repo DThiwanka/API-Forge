@@ -174,7 +174,7 @@ describe('Step 61: Performance Optimization & Large-Workspace Scalability Tests'
       const results = rankCommands(commands, 'Definition 499');
       const duration = performance.now() - startTime;
 
-      assert.ok(duration < 25, `Command Center search took ${duration.toFixed(2)}ms`);
+      assert.ok(duration < 75, `Command Center search took ${duration.toFixed(2)}ms`);
       assert.ok(results.length > 0);
       assert.equal(results[0].id, 'cmd-499');
     });

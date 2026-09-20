@@ -23,7 +23,6 @@ model User {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   memberships WorkspaceMember[]
-  memberships     WorkspaceMember[]
   invitationsSent WorkspaceInvitation[] @relation("InvitationsSent")
 
   @@map("users")
