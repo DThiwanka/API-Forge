@@ -41,6 +41,10 @@ export default function CreateRequestDialog({
     const trimmedName = name.trim();
     const trimmedUrl = url.trim();
 
+    if (!workspaceId) {
+      setError('A workspace is required to create a request');
+      return;
+    }
     if (!effectiveCollectionId) {
       setError('A collection is required to create a request. Please create a collection first.');
       return;

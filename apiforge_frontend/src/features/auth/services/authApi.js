@@ -10,6 +10,15 @@ export async function getCurrentUser() {
 }
 
 /**
+ * Refresh access and refresh tokens using HTTP-only cookies
+ * POST /api/auth/refresh
+ */
+export async function refreshTokens() {
+  const response = await apiClient.post('/auth/refresh');
+  return response.data.data;
+}
+
+/**
  * Logout current user and clear auth cookies
  * POST /api/auth/logout
  */
@@ -20,6 +29,6 @@ export async function logout() {
 
 export default {
   getCurrentUser,
+  refreshTokens,
   logout,
 };
-

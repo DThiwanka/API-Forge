@@ -1,11 +1,12 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Workspace from '../pages/Workspace';
 import NotFound from '../pages/NotFound';
 import LoadingScreen from '../components/common/LoadingScreen';
+import { useAuthStore } from '../features/auth/store/authStore';
 
 // Route-level code splitting for heavy, secondary workspaces
 const ApiCanvasPage = lazy(() => import('../pages/canvas/ApiCanvasPage'));
@@ -17,14 +18,44 @@ const WorkspaceMembersPage = lazy(() => import('../pages/workspace/WorkspaceMemb
 const InvitationAcceptancePage = lazy(() => import('../pages/collaboration/InvitationAcceptancePage'));
 const SettingsLayout = lazy(() => import('../pages/settings/SettingsLayout'));
 
+function RootRoute() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  if (isAuthenticated) {
+    return <Navigate to="/workspace" replace />;
+  }
+  return <Home />;
+}
+
+function GuestRoute({ children }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  if (isAuthenticated) {
+    return <Navigate to="/workspace" replace />;
+  }
+  return children;
+}
+
 export function AppRouter() {
   return (
     <BrowserRouter>
       <Suspense fallback={<LoadingScreen message="Loading page..." />}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/" element={<RootRoute />} />
+          <Route
+            path="/login"
+            element={
+              <GuestRoute>
+                <Login />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <GuestRoute>
+                <Register />
+              </GuestRoute>
+            }
+          />
           <Route path="/invite/:token" element={<InvitationAcceptancePage />} />
           <Route path="/workspace" element={<Workspace />} />
           <Route path="/workspace/:workspaceId" element={<Workspace />} />

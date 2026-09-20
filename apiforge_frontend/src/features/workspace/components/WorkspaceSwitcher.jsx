@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layers, ChevronDown, Check } from 'lucide-react';
+import { Layers, ChevronDown, Check, Plus } from 'lucide-react';
 import { useWorkspacesQuery } from '../hooks/useWorkspace';
 import useResponseStore from '../../response/store/responseStore';
+import CreateWorkspaceDialog from './CreateWorkspaceDialog';
 import { cn } from '../../../utils/cn';
 
 const ROLE_COLORS = {
@@ -14,6 +15,7 @@ const ROLE_COLORS = {
 
 export default function WorkspaceSwitcher({ currentWorkspaceId, className }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const containerRef = useRef(null);
   const navigate = useNavigate();
 
@@ -62,7 +64,7 @@ export default function WorkspaceSwitcher({ currentWorkspaceId, className }) {
       >
         <Layers size={13} className="text-sky-400" />
         <span className="font-semibold truncate max-w-[150px]">
-          {isLoading ? 'Loading...' : activeWorkspace ? activeWorkspace.name : 'Select Workspace'}
+          {isLoading ? 'Loading...' : activeWorkspace ? activeWorkspace.name : (workspaces.length === 0 ? 'No Workspace' : 'Select Workspace')}
         </span>
         <ChevronDown size={12} className="text-slate-400 ml-0.5" />
       </button>
@@ -80,8 +82,19 @@ export default function WorkspaceSwitcher({ currentWorkspaceId, className }) {
 
           <div className="max-h-60 overflow-y-auto py-1">
             {workspaces.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-slate-500 text-center">
-                No workspaces available
+              <div className="px-3 py-3 text-center">
+                <p className="text-xs text-slate-400 mb-2">No workspaces found</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsCreateOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition-colors cursor-pointer"
+                >
+                  <Plus size={13} />
+                  <span>Create Workspace</span>
+                </button>
               </div>
             ) : (
               workspaces.map((ws) => {
@@ -94,7 +107,7 @@ export default function WorkspaceSwitcher({ currentWorkspaceId, className }) {
                     type="button"
                     onClick={() => handleSelect(ws)}
                     className={cn(
-                      'w-full text-left px-3 py-2 flex items-center justify-between text-xs transition-colors hover:bg-[#232732]',
+                      'w-full text-left px-3 py-2 flex items-center justify-between text-xs transition-colors hover:bg-[#232732] cursor-pointer',
                       isActive ? 'bg-[#1e2330] text-sky-400' : 'text-slate-200'
                     )}
                   >
@@ -121,8 +134,34 @@ export default function WorkspaceSwitcher({ currentWorkspaceId, className }) {
               })
             )}
           </div>
+
+          {/* Create Workspace Action */}
+          <div className="p-1 border-t border-[#2b313e]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setIsCreateOpen(true);
+              }}
+              className="w-full text-left px-3 py-1.5 rounded text-xs text-slate-300 hover:text-white hover:bg-[#232732] flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Plus size={13} className="text-sky-400" />
+              <span>Create New Workspace</span>
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Modal Dialog */}
+      <CreateWorkspaceDialog
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onSuccess={(created) => {
+          if (created?.id) {
+            navigate(`/workspace/${created.id}`);
+          }
+        }}
+      />
     </div>
   );
 }

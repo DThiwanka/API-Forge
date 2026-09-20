@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Terminal, Lock, Mail, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import apiClient from '../lib/apiClient';
+import { useAuthStore } from '../features/auth/store/authStore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -9,14 +10,25 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/workspace', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await apiClient.post('/auth/login', { email, password });
-      navigate('/workspace');
+      const response = await apiClient.post('/auth/login', { email, password });
+      const user = response.data?.data?.user;
+      if (user) {
+        useAuthStore.getState().setAuth(user);
+      }
+      navigate('/workspace', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

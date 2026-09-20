@@ -21,6 +21,7 @@ import CreateRequestDialog from '../../features/collections/components/CreateReq
 import CreateCollectionDialog from '../../features/collections/components/CreateCollectionDialog';
 import ImportDialog from '../../features/import-export/components/ImportDialog';
 import WorkspaceMembersModal from '../../features/collaboration/components/WorkspaceMembersModal';
+import FirstWorkspaceOnboarding from '../../features/workspace/components/FirstWorkspaceOnboarding';
 
 export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequest }) {
   const queryClient = useQueryClient();
@@ -67,6 +68,10 @@ export default function WorkspaceHome({ workspaceId, onNewRequest: propOnNewRequ
       setIsNewRequestOpen(true);
     }
   };
+
+  if (!workspaceId) {
+    return <FirstWorkspaceOnboarding />;
+  }
 
   if (loadingWorkspace && !workspace) {
     return (

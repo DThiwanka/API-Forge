@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../features/auth/store/authStore';
 import {
   Terminal,
   ArrowRight,
@@ -13,6 +15,14 @@ import {
 } from 'lucide-react';
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/workspace', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
   const capabilities = [
     {
       icon: Network,
@@ -66,18 +76,34 @@ export default function Home() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            to="/login"
-            className="px-3 py-1.5 text-xs text-slate-300 hover:text-white rounded hover:bg-[#181b22] transition-colors"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/workspace"
-            className="px-3.5 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 text-white rounded font-medium transition-colors flex items-center gap-1.5 shadow-sm"
-          >
-            Open Workspace <ArrowRight size={13} />
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <span className="text-xs text-slate-400 font-mono hidden sm:inline truncate max-w-[200px]">
+                {user?.email}
+              </span>
+              <Link
+                to="/workspace"
+                className="px-3.5 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 text-white rounded font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                Open Workspace <ArrowRight size={13} />
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="px-3 py-1.5 text-xs text-slate-300 hover:text-white rounded hover:bg-[#181b22] transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/workspace"
+                className="px-3.5 py-1.5 text-xs bg-sky-600 hover:bg-sky-500 text-white rounded font-medium transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                Open Workspace <ArrowRight size={13} />
+              </Link>
+            </>
+          )}
         </div>
       </header>
 
@@ -103,14 +129,16 @@ export default function Home() {
             className="px-6 py-3 bg-sky-600 hover:bg-sky-500 active:bg-sky-700 text-white rounded-md font-medium text-sm transition-all flex items-center gap-2 shadow-lg shadow-sky-950/80 cursor-pointer"
           >
             <LayoutDashboard size={17} />
-            Launch Workspace
+            {isAuthenticated ? 'Open Workspace' : 'Launch Workspace'}
           </Link>
-          <Link
-            to="/login"
-            className="px-6 py-3 bg-[#181b22] hover:bg-[#222630] active:bg-[#14161d] text-slate-200 border border-[#2b313e] rounded-md font-medium text-sm transition-colors cursor-pointer"
-          >
-            Sign In to Account
-          </Link>
+          {!isAuthenticated && (
+            <Link
+              to="/login"
+              className="px-6 py-3 bg-[#181b22] hover:bg-[#222630] active:bg-[#14161d] text-slate-200 border border-[#2b313e] rounded-md font-medium text-sm transition-colors cursor-pointer"
+            >
+              Sign In to Account
+            </Link>
+          )}
         </div>
 
         {/* Feature Grid */}

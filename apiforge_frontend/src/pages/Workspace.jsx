@@ -19,6 +19,7 @@ import useCanvasStore from '../features/canvas/store/canvasStore';
 import { toast } from '../stores/toastStore';
 import { Loader2, Terminal, ArrowRight } from 'lucide-react';
 import WorkspaceHome from './workspace/WorkspaceHome';
+import FirstWorkspaceOnboarding from '../features/workspace/components/FirstWorkspaceOnboarding';
 
 const EMPTY_TABS = [];
 
@@ -38,7 +39,9 @@ export default function Workspace() {
   const setActiveWorkspaceId = useWorkspaceStore((s) => s.setActiveWorkspaceId);
   const sidebarCollapsed = useWorkspaceStore((s) => s.sidebarCollapsed);
 
-  const currentWorkspaceId = routeWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
+  // Match workspace if routeWorkspaceId exists, otherwise fall back to first workspace or null if zero workspaces
+  const matchedWorkspace = workspaces.find((w) => w.id === routeWorkspaceId);
+  const currentWorkspaceId = matchedWorkspace?.id || (workspaces.length > 0 ? workspaces[0].id : null);
 
   // Tab Store
   const tabs = useRequestTabStore((s) => s.tabsByWorkspace[currentWorkspaceId] || EMPTY_TABS);
@@ -55,12 +58,20 @@ export default function Workspace() {
     }
   }, [currentWorkspaceId, setActiveWorkspaceId]);
 
-  // If on /workspace with no workspaceId in route, redirect to first workspace
+  // Route synchronization: redirect invalid routes to first valid workspace or clean /workspace for onboarding
   useEffect(() => {
-    if (!routeWorkspaceId && workspaces.length > 0) {
-      navigate(`/workspace/${workspaces[0].id}`, { replace: true });
+    if (loadingWorkspaces) return;
+
+    if (workspaces.length > 0) {
+      const isValidRoute = routeWorkspaceId && workspaces.some((w) => w.id === routeWorkspaceId);
+      if (!isValidRoute) {
+        navigate(`/workspace/${workspaces[0].id}`, { replace: true });
+      }
+    } else if (routeWorkspaceId) {
+      // User has zero workspaces: ensure route stays at clean /workspace for onboarding
+      navigate('/workspace', { replace: true });
     }
-  }, [routeWorkspaceId, workspaces, navigate]);
+  }, [routeWorkspaceId, workspaces, loadingWorkspaces, navigate]);
 
   // Automatically register and activate tab when navigating to a request route
   useEffect(() => {
@@ -262,6 +273,10 @@ export default function Workspace() {
   // Custom event listener to open New Request dialog
   useEffect(() => {
     const handleNewReqEvent = () => {
+      if (!currentWorkspaceId) {
+        toast.info('Please create or select a workspace first');
+        return;
+      }
       const currentWs = workspaces.find((w) => w.id === currentWorkspaceId);
       if (currentWs?.role?.toUpperCase() === 'VIEWER') {
         toast.error('Viewers cannot create new requests');
@@ -290,6 +305,10 @@ export default function Workspace() {
       // Alt + N or Ctrl/Cmd + Alt + N: New Request
       if (e.altKey && e.key.toLowerCase() === 'n' && !e.shiftKey) {
         e.preventDefault();
+        if (!currentWorkspaceId) {
+          toast.info('Please create or select a workspace first');
+          return;
+        }
         const currentWs = workspaces.find((w) => w.id === currentWorkspaceId);
         if (currentWs?.role?.toUpperCase() === 'VIEWER') {
           toast.error('Viewers cannot create new requests');
@@ -399,6 +418,8 @@ export default function Workspace() {
               <Loader2 size={24} className="animate-spin text-sky-500 mb-2" />
               <span className="text-xs font-mono">Loading workspace...</span>
             </div>
+          ) : workspaces.length === 0 ? (
+            <FirstWorkspaceOnboarding />
           ) : requestId ? (
             <RequestWorkspace
               workspaceId={currentWorkspaceId}
