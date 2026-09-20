@@ -9,6 +9,8 @@ import { useResourceNavigation } from '../../../hooks/useResourceNavigation';
 import { cn } from '../../../utils/cn';
 import { redactUrl } from '../../../utils/redaction.js';
 
+const EMPTY_TABS = [];
+
 function RequestNodeComponent({ id, data, selected }) {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
@@ -19,7 +21,7 @@ function RequestNodeComponent({ id, data, selected }) {
   const edges = useCanvasStore((s) => s.edges);
   const selectedRelationship = useCanvasStore((s) => s.selectedRelationship);
 
-  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
+  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || EMPTY_TABS);
   const activeTabId = useRequestTabStore((s) => s.activeTabByWorkspace[workspaceId]);
 
   const {

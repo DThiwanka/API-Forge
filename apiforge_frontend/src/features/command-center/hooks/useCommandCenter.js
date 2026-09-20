@@ -47,6 +47,8 @@ import { redactUrl } from '../../../utils/redaction.js';
 import { isMac } from '../../shortcuts/utils/shortcutUtils';
 import useShortcutStore from '../../shortcuts/store/shortcutStore';
 
+const EMPTY_LIST = [];
+
 export function useCommandCenter(workspaceId) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -61,7 +63,7 @@ export function useCommandCenter(workspaceId) {
   const openCreateRequest = useCommandCenterStore((s) => s.openCreateRequest);
   const openCreateCollection = useCommandCenterStore((s) => s.openCreateCollection);
   const recentCommandIds = useCommandCenterStore(
-    (s) => s.recentCommandIdsByWorkspace[workspaceId] || []
+    (s) => s.recentCommandIdsByWorkspace[workspaceId] || EMPTY_LIST
   );
   const recordCommandExecution = useCommandCenterStore((s) => s.recordCommandExecution);
 
@@ -81,8 +83,8 @@ export function useCommandCenter(workspaceId) {
   const { data: historyData } = useHistoryQuery(workspaceId, { limit: 20 });
 
   // Open tabs & active tab for this workspace
-  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
-  const mruHistory = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || []);
+  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || EMPTY_LIST);
+  const mruHistory = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || EMPTY_LIST);
   const closeTab = useRequestTabStore((s) => s.closeTab);
 
   // Canvas store

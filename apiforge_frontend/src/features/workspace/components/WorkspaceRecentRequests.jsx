@@ -4,11 +4,13 @@ import useRequestTabStore from '../../requests/store/requestTabStore';
 import { METHOD_STYLES } from '../../history/utils/historyHelpers';
 import { cn } from '../../../utils/cn';
 
+const EMPTY_LIST = [];
+
 export default function WorkspaceRecentRequests({ workspaceId }) {
   const navigate = useNavigate();
 
-  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || []);
-  const historyIds = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || []);
+  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[workspaceId] || EMPTY_LIST);
+  const historyIds = useRequestTabStore((s) => s.historyByWorkspace[workspaceId] || EMPTY_LIST);
 
   // Build MRU list of recent requests
   // Start from historyIds in reverse, map to tab metadata

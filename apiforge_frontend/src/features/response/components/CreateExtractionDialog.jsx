@@ -8,6 +8,7 @@ import useRequestStore from '../../requests/store/requestStore';
 import { useToastStore } from '../../../stores/toastStore';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 
+const EMPTY_SETTINGS = {};
 const VARIABLE_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 export default function CreateExtractionDialog({
@@ -41,7 +42,7 @@ function CreateExtractionForm({
   const [variable, setVariable] = useState(() => suggestVariableName(initialPath));
   const [error, setError] = useState(null);
 
-  const settings = useRequestStore((s) => s.settings) || {};
+  const settings = useRequestStore((s) => s.settings || EMPTY_SETTINGS);
   const updateSetting = useRequestStore((s) => s.updateSetting);
 
   const existingRules = settings.extract || [];

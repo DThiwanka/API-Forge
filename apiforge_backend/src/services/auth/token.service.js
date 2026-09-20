@@ -91,14 +91,23 @@ export function verifyRefreshToken(token) {
  * @returns {import('express').CookieOptions}
  */
 export function getAccessTokenCookieOptions() {
-  const isProduction = env.NODE_ENV === 'production';
-  return {
+  const isSecure = env.COOKIE_SECURE ?? (env.NODE_ENV === 'production');
+  const sameSite = env.COOKIE_SAME_SITE || 'lax';
+
+  /** @type {import('express').CookieOptions} */
+  const options = {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure: sameSite === 'none' ? true : isSecure,
+    sameSite: sameSite,
     path: '/',
     maxAge: 15 * 60 * 1000, // 15 minutes in ms
   };
+
+  if (env.COOKIE_DOMAIN) {
+    options.domain = env.COOKIE_DOMAIN;
+  }
+
+  return options;
 }
 
 /**
@@ -106,14 +115,23 @@ export function getAccessTokenCookieOptions() {
  * @returns {import('express').CookieOptions}
  */
 export function getRefreshTokenCookieOptions() {
-  const isProduction = env.NODE_ENV === 'production';
-  return {
+  const isSecure = env.COOKIE_SECURE ?? (env.NODE_ENV === 'production');
+  const sameSite = env.COOKIE_SAME_SITE || 'lax';
+
+  /** @type {import('express').CookieOptions} */
+  const options = {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
+    secure: sameSite === 'none' ? true : isSecure,
+    sameSite: sameSite,
     path: '/api/auth',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   };
+
+  if (env.COOKIE_DOMAIN) {
+    options.domain = env.COOKIE_DOMAIN;
+  }
+
+  return options;
 }
 
 export default {

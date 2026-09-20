@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 
-const DEFAULT_STATE = {
+export const DEFAULT_RESPONSE_STATE = Object.freeze({
   status: 'idle', // 'idle' | 'loading' | 'success' | 'error'
   response: null,
   error: null,
   activeTab: 'body', // 'body' | 'headers' | 'cookies' | 'raw'
   bodyMode: 'pretty', // 'pretty' | 'tree' | 'raw'
   searchQuery: '',
-};
+});
+
+const DEFAULT_STATE = DEFAULT_RESPONSE_STATE;
 
 export const useResponseStore = create((set, get) => ({
   ...DEFAULT_STATE,
@@ -36,14 +38,7 @@ export const useResponseStore = create((set, get) => ({
     if (requestId && state.responsesByRequest[requestId]) {
       return state.responsesByRequest[requestId];
     }
-    return {
-      status: state.status,
-      response: state.response,
-      error: state.error,
-      activeTab: state.activeTab,
-      bodyMode: state.bodyMode,
-      searchQuery: state.searchQuery,
-    };
+    return DEFAULT_RESPONSE_STATE;
   },
 
   setLoading: (requestId) => {

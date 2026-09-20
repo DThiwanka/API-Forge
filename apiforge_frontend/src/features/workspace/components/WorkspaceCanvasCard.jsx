@@ -2,11 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import { Network, ArrowUpRight } from 'lucide-react';
 import useCanvasStore from '../../canvas/store/canvasStore';
 
+const EMPTY_LIST = [];
+
 export default function WorkspaceCanvasCard({ workspaceId }) {
   const navigate = useNavigate();
 
-  const nodes = useCanvasStore((s) => s.nodes) || [];
-  const edges = useCanvasStore((s) => s.edges) || [];
+  const nodes = useCanvasStore((s) => s.nodes || EMPTY_LIST);
+  const edges = useCanvasStore((s) => s.edges || EMPTY_LIST);
 
   const totalNodes = nodes.length;
   const requestNodesCount = nodes.filter((n) => n.type === 'requestNode').length;

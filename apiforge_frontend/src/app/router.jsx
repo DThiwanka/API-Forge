@@ -20,29 +20,6 @@ const SettingsLayout = lazy(() => import('../pages/settings/SettingsLayout'));
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/invite/:token" element={<InvitationAcceptancePage />} />
-        <Route path="/workspace" element={<Workspace />} />
-        <Route path="/workspace/:workspaceId" element={<Workspace />} />
-        <Route path="/workspace/:workspaceId/canvas" element={<ApiCanvasPage />} />
-        <Route path="/workspace/:workspaceId/browser" element={<BrowserPage />} />
-        <Route path="/workspace/:workspaceId/environments" element={<EnvironmentSettingsPage />} />
-        <Route path="/workspace/:workspaceId/members" element={<WorkspaceMembersPage />} />
-        <Route path="/workspace/:workspaceId/settings" element={<SettingsLayout />} />
-        <Route path="/workspace/:workspaceId/settings/:section" element={<SettingsLayout />} />
-        <Route path="/settings" element={<SettingsLayout />} />
-        <Route path="/settings/:section" element={<SettingsLayout />} />
-        <Route path="/workspace/:workspaceId/history" element={<HistoryPage />} />
-        <Route path="/workspace/:workspaceId/runner" element={<CollectionRunnerPage />} />
-        <Route
-          path="/workspace/:workspaceId/collections/:collectionId/requests/:requestId"
-          element={<Workspace />}
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
       <Suspense fallback={<LoadingScreen message="Loading page..." />}>
         <Routes>
           <Route path="/" element={<Home />} />

@@ -20,6 +20,8 @@ import { toast } from '../stores/toastStore';
 import { Loader2, Terminal, ArrowRight } from 'lucide-react';
 import WorkspaceHome from './workspace/WorkspaceHome';
 
+const EMPTY_TABS = [];
+
 export default function Workspace() {
   const { workspaceId: routeWorkspaceId, collectionId, requestId } = useParams();
   const navigate = useNavigate();
@@ -39,7 +41,7 @@ export default function Workspace() {
   const currentWorkspaceId = routeWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
   // Tab Store
-  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[currentWorkspaceId] || []);
+  const tabs = useRequestTabStore((s) => s.tabsByWorkspace[currentWorkspaceId] || EMPTY_TABS);
   const activeTabId = useRequestTabStore((s) => s.activeTabByWorkspace[currentWorkspaceId] || null);
   const openTab = useRequestTabStore((s) => s.openTab);
   const closeTab = useRequestTabStore((s) => s.closeTab);
