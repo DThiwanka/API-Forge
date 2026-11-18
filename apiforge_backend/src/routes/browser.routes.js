@@ -31,4 +31,3 @@ router.get('/sessions/:sessionId/network/stream', requireWorkspaceRole(WORKSPACE
 router.post('/sessions/:sessionId/network/:eventId/import-preview', requireWorkspaceRole(WORKSPACE_ROLES.VIEWER), browserController.getImportPreview);
 
 export default router;
-

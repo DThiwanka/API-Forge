@@ -4,6 +4,8 @@ node_modules/
 .pnp.js
 
 # Environment Variables & Secrets (CRITICAL: Never commit .env files)
+.env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -32,11 +34,10 @@ test-results/
 .DS_Store
 Thumbs.db
 .idea/
+.vscode/*
 !.vscode/extensions.json
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-config.bat
